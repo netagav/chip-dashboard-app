@@ -4,6 +4,7 @@ import statistics
 import math
 import pandas as pd
 import altair as alt
+from datetime import datetime
 
 st.set_page_config(page_title="דשבורד שבבים", page_icon="💹", layout="wide")
 
@@ -43,7 +44,7 @@ BROAD_THRESHOLD = 0.6
 GAP_THRESHOLD = 15
 
 
-# ---------- פונקציות ----------
+# ---------- פונקציות נתונים ----------
 @st.cache_data
 def get_history(symbol, period):
     try:
@@ -73,6 +74,39 @@ def get_changes(stocks, period):
         if change is not None:
             pairs.append((symbol, change))
     return pairs
+
+
+# מושך חדשות אחרונות למניה אחת
+@st.cache_data(ttl=1800)   # זוכר ל-30 דקות
+def get_news(symbol, limit=3):
+    items = []
+    try:
+        raw = yf.Ticker(symbol).news
+        for entry in raw:
+            content = entry.get("content", {})
+            title = content.get("title")
+            if not title:
+                continue
+            provider = content.get("provider", {}).get("displayName", "")
+            link = ""
+            canon = content.get("canonicalUrl")
+            if canon:
+                link = canon.get("url", "")
+            # תאריך הפרסום (אם קיים)
+            date_str = ""
+            pub = content.get("pubDate") or content.get("displayTime")
+            if pub:
+                try:
+                    dt = datetime.fromisoformat(pub.replace("Z", "+00:00"))
+                    date_str = dt.strftime("%d/%m/%Y")
+                except Exception:
+                    date_str = ""
+            items.append({"title": title, "provider": provider, "link": link, "date": date_str})
+            if len(items) >= limit:
+                break
+    except Exception:
+        pass
+    return items
 
 
 def label_info(median, breadth):
@@ -123,7 +157,7 @@ period = st.sidebar.selectbox("תקופת זמן:", ["5d", "1mo", "6mo", "1y", "
 st.sidebar.caption("בחרי תקופה — כל הדשבורד יתעדכן")
 
 # ======================================================
-# אזור SOXX — מבט-על של הסקטור
+# אזור SOXX
 # ======================================================
 soxx_close = get_history(BENCHMARK, period)
 
@@ -135,7 +169,6 @@ else:
     soxx_color = "#22c55e" if soxx_change >= 0 else "#ef4444"
     sign = "+" if soxx_change >= 0 else ""
 
-    # כותרת עם התשואה בסוגריים, צבועה
     st.markdown(
         "<h3>🏆 SOXX — מדד סקטור השבבים "
         "(<span style='color:" + soxx_color + ";'>" + sign + str(round(soxx_change, 1)) + "%</span>)</h3>",
@@ -143,7 +176,6 @@ else:
     )
     st.caption("תקופה: " + period)
 
-   # גרף רחב וברור — מחיר אמיתי של המדד
     soxx_price = soxx_close.reset_index()
     soxx_price.columns = ["תאריך", "מחיר"]
     mini = alt.Chart(soxx_price).mark_area(
@@ -154,7 +186,6 @@ else:
     ).properties(height=240)
     st.altair_chart(mini, use_container_width=True)
 
-    # מובילים וגוררים — 5 כל אחד, כותרת מעל הטבלה ומיושרת לימין
     holdings_pairs = get_changes(SOXX_HOLDINGS, period)
     holdings_pairs.sort(key=lambda x: x[1], reverse=True)
 
@@ -221,6 +252,27 @@ for median, average, up, total, breadth, sector, pairs in results:
             + str(rank) + ". " + label + " — " + clean_name(sector) + "</summary>"
             + summary_line + driver + returns_table_html(pairs) + "</details>")
     st.markdown(card, unsafe_allow_html=True)
+
+    # חדשות אחרונות לכל מניה בתחום
+    with st.expander("📰 חדשות אחרונות בתחום"):
+        any_news = False
+        for symbol, change in pairs:
+            news = get_news(symbol, limit=2)
+            if len(news) == 0:
+                continue
+            any_news = True
+            st.markdown("**" + symbol + "**")
+            for item in news:
+                date_part = ""
+                if item["date"]:
+                    date_part = " (" + item["date"] + ")"
+                if item["link"]:
+                    st.markdown("• [" + item["title"] + "](" + item["link"] + ")" + date_part)
+                else:
+                    st.markdown("• " + item["title"] + date_part)
+        if not any_news:
+            st.caption("אין חדשות זמינות כרגע לתחום הזה")
+
     rank = rank + 1
 
 # ---------- צלילה לתחום ----------
@@ -243,27 +295,21 @@ else:
     date_col = long_df.columns[0]
     long_df = long_df.melt(id_vars=[date_col], var_name="סדרה", value_name="ערך")
 
-    # קו חציון התחום
     median_series = chart_data.median(axis=1)
     median_df = median_series.reset_index()
     median_df.columns = [date_col, "ערך"]
-    median_df["סדרה"] = "חציון התחום"
 
-    # קו SOXX
     soxx_close2 = get_history(BENCHMARK, period)
 
-    # שכבת המניות (דקות)
     stocks_layer = alt.Chart(long_df).mark_line(opacity=0.5, strokeWidth=1.5).encode(
         x=alt.X(date_col + ":T", title=None),
         y=alt.Y("ערך:Q", scale=alt.Scale(zero=False), title="מנורמל ל-100"),
         color=alt.Color("סדרה:N", title="מניה"),
     )
-    # קו החציון (לבן עבה)
     median_layer = alt.Chart(median_df).mark_line(strokeWidth=4, color="#ffffff").encode(
         x=date_col + ":T", y="ערך:Q",
     )
     layers = [stocks_layer, median_layer]
-    # קו SOXX (כתום מקווקו עבה)
     if soxx_close2 is not None:
         soxx_norm2 = (soxx_close2 / soxx_close2.iloc[0] * 100).reset_index()
         soxx_norm2.columns = [date_col, "ערך"]
