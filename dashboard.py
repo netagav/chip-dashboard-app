@@ -4,7 +4,7 @@ import statistics
 import math
 import pandas as pd
 import altair as alt
-from datetime import datetime
+from datetime import datetime, timezone
 
 st.set_page_config(page_title="דשבורד שבבים", page_icon="💹", layout="wide")
 
@@ -43,12 +43,30 @@ HOT_THRESHOLD = 10
 BROAD_THRESHOLD = 0.6
 GAP_THRESHOLD = 15
 
+# אפשרויות התקופה. כל ערך הוא קוד פנימי שנפענח בפונקציית המשיכה.
+PERIOD_OPTIONS = {
+    "Online": "online",        # היום הנוכחי בזמן אמת (עם עיכוב קטן)
+    "Last close": "lastclose", # יום המסחר השלם האחרון שנסגר
+    "5D": "5d",
+    "1M": "1mo",
+    "6M": "6mo",
+    "1Y": "1y",
+    "5Y": "5y",
+}
+
 
 # ---------- פונקציות נתונים ----------
-@st.cache_data
+@st.cache_data(ttl=300)   # זיכרון קצר (5 דק') כי יש מצב אונליין
 def get_history(symbol, period):
     try:
-        data = yf.Ticker(symbol).history(period=period)
+        if period == "online":
+            # היום הנוכחי, נתונים תוך-יומיים בקפיצות 5 דקות
+            data = yf.Ticker(symbol).history(period="1d", interval="5m")
+        elif period == "lastclose":
+            # שבוע אחרון, כדי לתפוס בוודאות את הסגירות השלמות האחרונות
+            data = yf.Ticker(symbol).history(period="7d")
+        else:
+            data = yf.Ticker(symbol).history(period=period)
         close = data["Close"].dropna()
         if len(close) < 2:
             return None
@@ -61,7 +79,18 @@ def get_change(symbol, period):
     close = get_history(symbol, period)
     if close is None:
         return None
-    change = close.iloc[-1] / close.iloc[0] * 100 - 100
+    if period == "lastclose":
+        # מדלגים על היום הנוכחי אם הוא עדיין רץ, ולוקחים את שתי הסגירות השלמות האחרונות
+        today = datetime.now(timezone.utc).date()
+        full_closes = close[[d.date() != today for d in close.index]]
+        if len(full_closes) >= 2:
+            change = full_closes.iloc[-1] / full_closes.iloc[-2] * 100 - 100
+        elif len(close) >= 2:
+            change = close.iloc[-1] / close.iloc[-2] * 100 - 100
+        else:
+            return None
+    else:
+        change = close.iloc[-1] / close.iloc[0] * 100 - 100
     if math.isnan(change):
         return None
     return change
@@ -76,8 +105,7 @@ def get_changes(stocks, period):
     return pairs
 
 
-# מושך חדשות אחרונות למניה אחת
-@st.cache_data(ttl=1800)   # זוכר ל-30 דקות
+@st.cache_data(ttl=1800)
 def get_news(symbol, limit=3):
     items = []
     try:
@@ -92,7 +120,6 @@ def get_news(symbol, limit=3):
             canon = content.get("canonicalUrl")
             if canon:
                 link = canon.get("url", "")
-            # תאריך הפרסום (אם קיים)
             date_str = ""
             pub = content.get("pubDate") or content.get("displayTime")
             if pub:
@@ -133,11 +160,11 @@ def clean_name(sector):
     return sector
 
 
-def returns_table_html(pairs):
+def returns_table_html(pairs, descending=True):
     sortable = []
     for symbol, change in pairs:
         sortable.append((change, symbol))
-    sortable.sort(reverse=True)
+    sortable.sort(reverse=descending)
     rows = ""
     for change, symbol in sortable:
         c = "#22c55e" if change >= 0 else "#ef4444"
@@ -146,14 +173,15 @@ def returns_table_html(pairs):
                  "; font-weight:600;'>" + str(round(change, 1)) + "%</td></tr>")
     return ("<table dir='rtl' style='width:100%; border-collapse:collapse; margin-top:8px;'>"
             "<tr><th style='text-align:right; padding:4px 10px; border-bottom:1px solid #666;'>מניה</th>"
-            "<th style='text-align:left; padding:4px 10px; border-bottom:1px solid #666;'>תשואה</th></tr>"
+            "<th style='text-align:right; padding:4px 10px; border-bottom:1px solid #666;'>תשואה</th></tr>"
             + rows + "</table>")
 
 
 # ---------- ממשק ----------
 st.title("💹 דשבורד שרשרת הערך של השבבים")
 
-period = st.sidebar.selectbox("תקופת זמן:", ["5d", "1mo", "6mo", "1y", "5y"], index=1)
+period_label = st.sidebar.selectbox("Period:", list(PERIOD_OPTIONS.keys()), index=3)
+period = PERIOD_OPTIONS[period_label]
 st.sidebar.caption("בחרי תקופה — כל הדשבורד יתעדכן")
 
 # ======================================================
@@ -165,7 +193,9 @@ if soxx_close is None:
     st.markdown("### 🏆 SOXX — מדד סקטור השבבים")
     st.warning("לא הצלחנו למשוך נתוני SOXX כרגע")
 else:
-    soxx_change = soxx_close.iloc[-1] / soxx_close.iloc[0] * 100 - 100
+    soxx_change = get_change(BENCHMARK, period)
+    if soxx_change is None:
+        soxx_change = 0.0
     soxx_color = "#22c55e" if soxx_change >= 0 else "#ef4444"
     sign = "+" if soxx_change >= 0 else ""
 
@@ -174,10 +204,12 @@ else:
         "(<span style='color:" + soxx_color + ";'>" + sign + str(round(soxx_change, 1)) + "%</span>)</h3>",
         unsafe_allow_html=True,
     )
-    st.caption("תקופה: " + period)
+    st.caption("תקופה: " + period_label)
 
     soxx_price = soxx_close.reset_index()
     soxx_price.columns = ["תאריך", "מחיר"]
+    if period == "lastclose":
+        soxx_price = soxx_price.tail(3)   # מציג את הימים האחרונים בלבד
     mini = alt.Chart(soxx_price).mark_area(
         line={"color": "#f59e0b", "strokeWidth": 2.5}, color="rgba(245,158,11,0.15)"
     ).encode(
@@ -196,10 +228,12 @@ else:
         c1, c2 = st.columns(2)
         with c1:
             st.markdown("<div style='text-align:right; font-weight:700; font-size:16px;'>📈 העליות הגדולות</div>", unsafe_allow_html=True)
-            st.markdown(returns_table_html(top5), unsafe_allow_html=True)
+            # מהטוב ביותר כלפי מטה
+            st.markdown(returns_table_html(top5, descending=True), unsafe_allow_html=True)
         with c2:
             st.markdown("<div style='text-align:right; font-weight:700; font-size:16px;'>📉 הירידות הגדולות</div>", unsafe_allow_html=True)
-            st.markdown(returns_table_html(bottom5), unsafe_allow_html=True)
+            # הגרועה ביותר למעלה
+            st.markdown(returns_table_html(bottom5, descending=False), unsafe_allow_html=True)
 
 st.divider()
 
@@ -216,19 +250,22 @@ with st.spinner("סורק את כל התחומים..."):
         median = statistics.median(numbers)
         average = sum(numbers) / len(numbers)
         up = 0
+        down = 0
         for c in numbers:
             if c > 0:
                 up = up + 1
+            elif c < 0:
+                down = down + 1
         breadth = up / len(numbers)
-        results.append((median, average, up, len(numbers), breadth, sector, pairs))
+        results.append((median, average, up, down, len(numbers), breadth, sector, pairs))
     results.sort(reverse=True)
 
 # ---------- מפת חום ----------
 st.header("🗺️ מפת חום — דירוג התחומים")
-st.caption("לחצי על תחום כדי לפתוח את המניות שלו")
+st.caption("לחצי על תחום כדי לפתוח את המניות והחדשות שלו")
 
 rank = 1
-for median, average, up, total, breadth, sector, pairs in results:
+for median, average, up, down, total, breadth, sector, pairs in results:
     label, color, bg = label_info(median, breadth)
 
     driver = ""
@@ -244,32 +281,33 @@ for median, average, up, total, breadth, sector, pairs in results:
 
     summary_line = ("<div style='color:" + color + "; font-weight:600; margin-top:6px;'>חציון "
                     + str(round(median, 1)) + "% · ממוצע " + str(round(average, 1))
-                    + "% · עלו " + str(up) + "/" + str(total) + "</div>")
+                    + "% · עלו " + str(up) + " · ירדו " + str(down) + " · מתוך " + str(total) + "</div>")
 
-    card = ("<details dir='rtl' style='background:" + bg + "; border-right:6px solid " + color +
-            "; border-radius:10px; padding:10px 14px; margin-bottom:10px; text-align:right;'>"
-            "<summary style='cursor:pointer; font-weight:700; font-size:17px; text-align:right;'>"
-            + str(rank) + ". " + label + " — " + clean_name(sector) + "</summary>"
-            + summary_line + driver + returns_table_html(pairs) + "</details>")
+    card = ("<div dir='rtl' style='background:" + bg + "; border-right:6px solid " + color +
+            "; border-radius:10px; padding:10px 14px; margin-bottom:6px; text-align:right;'>"
+            "<div style='font-weight:700; font-size:17px;'>"
+            + str(rank) + ". " + label + " — " + clean_name(sector) + "</div>"
+            + summary_line + driver + "</div>")
     st.markdown(card, unsafe_allow_html=True)
 
-    # חדשות אחרונות לכל מניה בתחום
-    with st.expander("📰 חדשות אחרונות בתחום"):
+    with st.expander("פרטים, מניות וחדשות"):
+        st.markdown(returns_table_html(pairs), unsafe_allow_html=True)
+        st.markdown("<div style='text-align:right; font-weight:700; margin-top:10px;'>📰 חדשות אחרונות בתחום</div>", unsafe_allow_html=True)
         any_news = False
         for symbol, change in pairs:
             news = get_news(symbol, limit=2)
             if len(news) == 0:
                 continue
             any_news = True
-            st.markdown("**" + symbol + "**")
+            st.markdown("<div style='text-align:right; font-weight:700; margin-top:6px;'>" + symbol + "</div>", unsafe_allow_html=True)
             for item in news:
                 date_part = ""
                 if item["date"]:
                     date_part = " (" + item["date"] + ")"
                 if item["link"]:
-                    st.markdown("• [" + item["title"] + "](" + item["link"] + ")" + date_part)
+                    st.markdown("<div style='text-align:right;'>• <a href='" + item["link"] + "' target='_blank'>" + item["title"] + "</a>" + date_part + "</div>", unsafe_allow_html=True)
                 else:
-                    st.markdown("• " + item["title"] + date_part)
+                    st.markdown("<div style='text-align:right;'>• " + item["title"] + date_part + "</div>", unsafe_allow_html=True)
         if not any_news:
             st.caption("אין חדשות זמינות כרגע לתחום הזה")
 
@@ -281,7 +319,7 @@ st.header("🔍 צלילה לתחום")
 
 sector_names = []
 for r in results:
-    sector_names.append(r[5])
+    sector_names.append(r[6])
 
 chosen = st.selectbox("בחרי תחום:", sector_names, format_func=clean_name)
 
@@ -328,4 +366,13 @@ else:
     st.caption("⚪ קו לבן עבה = חציון התחום · 🟠 קו כתום מקווקו = מדד SOXX · קווים דקים = מניות בודדות")
 
     st.subheader("טבלת תשואות")
-    st.markdown(returns_table_html(get_changes(value_chain[chosen], period)), unsafe_allow_html=True)
+    chosen_pairs = get_changes(value_chain[chosen], period)
+    st.markdown(returns_table_html(chosen_pairs), unsafe_allow_html=True)
+
+    soxx_change2 = get_change(BENCHMARK, period)
+    if soxx_change2 is not None and len(chosen_pairs) > 0:
+        sector_median = statistics.median([c for s, c in chosen_pairs])
+        diff = sector_median - soxx_change2
+        better = "📈 התחום מכה את המדד" if diff >= 0 else "📉 התחום מפגר אחרי המדד"
+        st.info("חציון התחום: " + str(round(sector_median, 1)) + "%  |  SOXX: " +
+                str(round(soxx_change2, 1)) + "%  →  " + better + " (" + str(round(diff, 1)) + " נק')")
