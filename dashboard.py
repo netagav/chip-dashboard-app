@@ -19,6 +19,19 @@ st.markdown("""
 [data-testid="stSidebar"] { direction: rtl; text-align: right; }
 h1, h2, h3, h4, h5, h6 { text-align: right; }
 [data-testid="stVegaLiteChart"], [data-testid="stArrowVegaLiteChart"] { direction: ltr; }
+/* כפתור ניתוח החדשות — בולט וקשור לאזור החדשות */
+div[data-testid="stButton"] button {
+    background: rgba(59,130,246,0.18);
+    border: 1px solid #3b82f6;
+    color: #93c5fd;
+    font-weight: 700;
+    border-radius: 8px;
+}
+div[data-testid="stButton"] button:hover {
+    background: rgba(59,130,246,0.30);
+    border-color: #60a5fa;
+    color: #ffffff;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -249,11 +262,8 @@ def gemini_trend_summary(period_label, period_code, soxx_change, sector_lines):
     return _cached_gemini(cache_key, prompt, ttl)
 
 
-# ניתוח חדשות — נשמר ב-cache לפי חתימת הכותרות (משותף לכל המשתמשים)
 @st.cache_data(ttl=43200)
 def gemini_analyze_news(sector_name, titles_sig, titles_block):
-    # titles_sig הוא חתימת הכותרות; הוא חלק ממפתח השמירה כך שכל עוד הכותרות
-    # זהות לא נשלחת בקשה חדשה, וברגע שכותרת משתנה — נוצרת חתימה חדשה ומנותח מחדש.
     key = get_gemini_key()
     if not key:
         return None
@@ -282,7 +292,6 @@ def gemini_analyze_news(sector_name, titles_sig, titles_block):
 
 
 def titles_signature(titles):
-    # חתימה קצרה וייחודית מרשימת הכותרות
     joined = "||".join(titles)
     return hashlib.md5(joined.encode("utf-8")).hexdigest()
 
@@ -496,30 +505,40 @@ for median, average, up, down, total, breadth, sector, pairs in results:
                     + "% · עלו " + str(up) + " · ירדו " + str(down) + " · מתוך " + str(total) + "</div>")
 
     card = ("<div dir='rtl' style='background:" + bg + "; border-right:6px solid " + color +
-            "; border-radius:10px; padding:10px 14px; margin-bottom:6px; text-align:right;'>"
+            "; border-radius:10px; padding:10px 14px; margin-bottom:2px; text-align:right;'>"
             "<div style='font-weight:700; font-size:17px;'>"
             + str(rank) + ". " + label + " — " + clean_name(sector) + "</div>"
             + summary_line + driver + "</div>")
     st.markdown(card, unsafe_allow_html=True)
 
     with st.expander("פרטים, מניות וחדשות"):
+        # --- אזור טבלת המניות ---
+        st.markdown("<div style='text-align:right; font-weight:800; font-size:18px; margin-bottom:6px;'>📊 מניות בתחום</div>", unsafe_allow_html=True)
         st.markdown(returns_table_html(pairs), unsafe_allow_html=True)
-        st.markdown("<div style='text-align:right; font-weight:700; margin-top:10px;'>📰 חדשות אחרונות בתחום</div>", unsafe_allow_html=True)
 
+        # --- קו מפריד בין הטבלה לחדשות ---
+        st.markdown("<hr style='border:none; border-top:1px solid #444; margin:18px 0 10px 0;'>", unsafe_allow_html=True)
+
+        # --- אזור החדשות ---
         sector_news = []
         for symbol, change in pairs:
             for item in get_news(symbol, limit=2):
                 sector_news.append((symbol, item))
 
         if len(sector_news) == 0:
+            st.markdown("<div style='text-align:right; font-weight:800; font-size:18px; margin-bottom:6px;'>📰 חדשות אחרונות בתחום</div>", unsafe_allow_html=True)
             st.caption("אין חדשות זמינות כרגע לתחום הזה")
         else:
-            # חתימת הכותרות — בסיס לזיכרון משותף ולעדכון רק כשהכותרות משתנות
-            titles_list = [item["title"] for sym, item in sector_news]
-            sig = titles_signature(titles_list)
-            news_key = "news_analysis_" + str(rank) + "_" + sig
+            head_col, btn_col = st.columns([2, 1])
+            with head_col:
+                st.markdown("<div style='text-align:right; font-weight:800; font-size:18px; margin-top:2px;'>📰 חדשות אחרונות בתחום</div>", unsafe_allow_html=True)
+            with btn_col:
+                titles_list = [item["title"] for sym, item in sector_news]
+                sig = titles_signature(titles_list)
+                news_key = "news_analysis_" + str(rank) + "_" + sig
+                do_analyze = st.button("🧠 נתח חדשות", key="newsbtn_" + str(rank))
 
-            if st.button("🧠 נתח חדשות", key="newsbtn_" + str(rank)):
+            if do_analyze:
                 titles_block = ""
                 for t in titles_list:
                     titles_block += "- " + t + "\n"
@@ -534,7 +553,7 @@ for median, average, up, down, total, breadth, sector, pairs in results:
                 ov_label = {"positive": "🟢 חיובי", "negative": "🔴 שלילי"}.get(ov, "⚪ ניטרלי")
                 st.markdown(
                     "<div dir='rtl' style='text-align:right; color:" + ov_color +
-                    "; font-weight:700; margin:6px 0;'>סנטימנט חדשות בתחום: " + ov_label +
+                    "; font-weight:700; margin:8px 0;'>סנטימנט חדשות בתחום: " + ov_label +
                     " — " + analysis.get("overall_note", "") + "</div>",
                     unsafe_allow_html=True,
                 )
@@ -553,22 +572,28 @@ for median, average, up, down, total, breadth, sector, pairs in results:
                 date_part = ""
                 if item["date"]:
                     date_part = " (" + item["date"] + ")"
-                line = "<div dir='rtl' style='text-align:right; margin-top:6px;'>"
-                line += "<b>" + sym + "</b> · "
                 info = item_map.get(item["title"])
+                badge = ""
                 if info:
                     s = info.get("sentiment", "neutral")
                     emoji = {"positive": "🟢", "negative": "🔴"}.get(s, "⚪")
                     risk = " ⚠️ סיכון" if s == "negative" else ""
-                    line += emoji + risk + " "
+                    badge = emoji + risk + " "
                 if item["link"]:
-                    line += "<a href='" + item["link"] + "' target='_blank'>" + item["title"] + "</a>" + date_part
+                    title_html = "<a href='" + item["link"] + "' target='_blank'>" + item["title"] + "</a>"
                 else:
-                    line += item["title"] + date_part
+                    title_html = item["title"]
+                summary_html = ""
                 if info and info.get("summary"):
-                    line += "<div style='color:#aaa; font-size:13px;'>" + info["summary"] + "</div>"
-                line += "</div>"
-                st.markdown(line, unsafe_allow_html=True)
+                    summary_html = "<div style='color:#aaa; font-size:13px; margin-top:3px;'>" + info["summary"] + "</div>"
+                st.markdown(
+                    "<div dir='rtl' style='text-align:right; background:rgba(255,255,255,0.03); "
+                    "border:1px solid #333; border-radius:8px; padding:8px 10px; margin-top:6px;'>"
+                    "<b>" + sym + "</b> · " + badge + title_html + date_part + summary_html + "</div>",
+                    unsafe_allow_html=True,
+                )
+
+    st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
 
     rank = rank + 1
 
