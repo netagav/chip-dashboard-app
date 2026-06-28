@@ -4,6 +4,7 @@ import statistics
 import math
 import os
 import json
+import hashlib
 import pandas as pd
 import altair as alt
 from datetime import datetime, timezone
@@ -78,17 +79,14 @@ def get_gemini_key():
     return os.environ.get("GEMINI_API_KEY")
 
 
-# ---------- מפתח תקופה לזיכרון (משתנה כשנכנס פרק זמן חדש) ----------
 def period_stamp(period_code):
-    # קובע מתי נחשב "תקופה חדשה" לכל בחירה, כדי לדעת מתי לרענן ניתוחים שמורים
     now = datetime.now(timezone.utc)
     if period_code in ("online",):
-        return now.strftime("%Y-%m-%d-%H")        # כל שעה
+        return now.strftime("%Y-%m-%d-%H")
     if period_code in ("lastclose", "5d"):
-        return now.strftime("%Y-%m-%d")           # כל יום
+        return now.strftime("%Y-%m-%d")
     if period_code in ("1mo",):
-        return now.strftime("%Y-%W")              # כל שבוע
-    # 6mo, 1y, 5y — כל חודש
+        return now.strftime("%Y-%W")
     return now.strftime("%Y-%m")
 
 
@@ -251,8 +249,11 @@ def gemini_trend_summary(period_label, period_code, soxx_change, sector_lines):
     return _cached_gemini(cache_key, prompt, ttl)
 
 
+# ניתוח חדשות — נשמר ב-cache לפי חתימת הכותרות (משותף לכל המשתמשים)
 @st.cache_data(ttl=43200)
-def gemini_analyze_news(sector_name, titles_block):
+def gemini_analyze_news(sector_name, titles_sig, titles_block):
+    # titles_sig הוא חתימת הכותרות; הוא חלק ממפתח השמירה כך שכל עוד הכותרות
+    # זהות לא נשלחת בקשה חדשה, וברגע שכותרת משתנה — נוצרת חתימה חדשה ומנותח מחדש.
     key = get_gemini_key()
     if not key:
         return None
@@ -278,6 +279,12 @@ def gemini_analyze_news(sector_name, titles_block):
         return json.loads(response.text)
     except Exception:
         return None
+
+
+def titles_signature(titles):
+    # חתימה קצרה וייחודית מרשימת הכותרות
+    joined = "||".join(titles)
+    return hashlib.md5(joined.encode("utf-8")).hexdigest()
 
 
 def label_info(median, breadth):
@@ -354,7 +361,6 @@ def render_ai_alert(soxx_change, holdings_pairs, period, period_label):
             else:
                 st.caption("הסבר AI לא זמין כרגע (חסר מפתח Gemini).")
     else:
-        # סיכום מגמה עם זיכרון session state
         stamp = period_stamp(period)
         trend_key = "trend_" + period + "_" + stamp
         if st.button("🧠 סכם לי את המגמה בתקופה הזו"):
@@ -371,7 +377,6 @@ def render_ai_alert(soxx_change, holdings_pairs, period, period_label):
                 text, sources = gemini_trend_summary(period_label, period, soxx_change, sector_lines)
             st.session_state[trend_key] = {"text": text, "sources": sources}
 
-        # מציג סיכום שמור אם קיים לתקופה הנוכחית
         saved = st.session_state.get(trend_key)
         if saved and saved.get("text"):
             st.markdown("<div dir='rtl' style='text-align:right; font-weight:700; margin-top:8px;'>🧠 סיכום המגמה:</div>", unsafe_allow_html=True)
@@ -509,16 +514,17 @@ for median, average, up, down, total, breadth, sector, pairs in results:
         if len(sector_news) == 0:
             st.caption("אין חדשות זמינות כרגע לתחום הזה")
         else:
-            # מפתח זיכרון לניתוח החדשות של התחום, מתויג ביום
-            news_stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-            news_key = "news_analysis_" + str(rank) + "_" + news_stamp
+            # חתימת הכותרות — בסיס לזיכרון משותף ולעדכון רק כשהכותרות משתנות
+            titles_list = [item["title"] for sym, item in sector_news]
+            sig = titles_signature(titles_list)
+            news_key = "news_analysis_" + str(rank) + "_" + sig
 
             if st.button("🧠 נתח חדשות", key="newsbtn_" + str(rank)):
                 titles_block = ""
-                for sym, item in sector_news:
-                    titles_block += "- " + item["title"] + "\n"
+                for t in titles_list:
+                    titles_block += "- " + t + "\n"
                 with st.spinner("מנתח חדשות עם Gemini..."):
-                    st.session_state[news_key] = gemini_analyze_news(clean_name(sector), titles_block)
+                    st.session_state[news_key] = gemini_analyze_news(clean_name(sector), sig, titles_block)
 
             analysis = st.session_state.get(news_key)
 
