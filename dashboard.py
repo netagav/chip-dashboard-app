@@ -41,7 +41,7 @@ value_chain = {
     "1. EDA & IP (תוכנות תכנון וקניין רוחני)": ["SNPS", "CDNS", "ARM"],
     "2. Fabless - Compute & AI (מעבדים ומאיצי בינה מלאכותית)": ["NVDA", "AMD", "AAPL", "QCOM", "MRVL"],
     "3. Fabless - Networking (תקשורת, סיבים וקישוריות)": ["AVGO", "ANET", "COHR", "LITE"],
-    "4. IDM - Logic, Analog & Power (יצרנים משולבים)": ["INTC", "TXN", "ADI", "NXPI", "STM", "ON", "IFNNY", "RNECY"],
+    "4. IDM - Logic, Analog & Power (יצרנים משולבים)": ["INTC", "TXN", "ADI", "NXPI", "STM", "ON", "IFNNY", "RNECY", "MCHP"],
     "5. Memory & Storage (זיכרון ואחסון)": ["MU", "WDC", "STX", "005930.KS", "000660.KS"],
     "6. WFE - Front-End Equipment (ציוד ייצור מרכזי)": ["ASML", "AMAT", "LRCX", "TOELY", "ASMIY"],
     "7. Process Control & Metrology (בקרת תהליכים ומדידות)": ["KLAC", "ONTO", "NVMI", "CAMT"],
@@ -54,6 +54,100 @@ BENCHMARK = "SOXX"
 
 SOXX_HOLDINGS = ["NVDA", "AVGO", "AMD", "TXN", "QCOM", "INTC", "MU", "ADI",
                  "MRVL", "NXPI", "MCHP", "ON", "TSM", "ASML", "AMAT", "LRCX", "KLAC"]
+
+# ---------- מטריצת חשיפה נושאית ----------
+# כל נושא = מילון של מניה לציון חשיפה:
+# 3 = ליבה (מוכרת את הרכיב, העסק הוא הנושא)
+# 2 = מנוע צמיחה (חשיפה משמעותית, מניע צמיחה אמיתי)
+# 1 = עקיפה (נהנית רוחבית או בעקיפין)
+# מניה שלא מופיעה בנושא = 0, ללא חשיפה
+# הנושאים מקובצים בשלוש קבוצות-על, כמו בתעודת הזהות.
+THEME_GROUPS = {
+    "End-Markets (שווקי קצה)": {
+        "AI Compute (מאיצי AI)": {
+            "NVDA": 3, "AMD": 3, "AVGO": 3, "MRVL": 3,
+            "TSM": 2, "SMCI": 2, "VRT": 2, "MU": 2, "000660.KS": 2, "ANET": 2,
+            "DELL": 1, "HPE": 1, "ETN": 1,
+        },
+        "Edge AI (AI בקצה)": {
+            "QCOM": 3, "AAPL": 3, "ARM": 3,
+            "NXPI": 2, "STM": 2,
+            "AMD": 1, "NVDA": 1,
+        },
+        "Legacy DC (שרתי CPU)": {
+            "INTC": 3,
+            "DELL": 2, "HPE": 2, "MU": 2,
+            "TXN": 1, "ADI": 1, "WDC": 1, "STX": 1,
+        },
+        "Automotive (רכב)": {
+            "NXPI": 3, "STM": 3, "IFNNY": 3, "ON": 3, "RNECY": 3,
+            "TXN": 2, "MCHP": 2,
+            "ADI": 1, "QCOM": 1,
+        },
+        "Industrial (תעשייה)": {
+            "ADI": 3, "TXN": 3, "IFNNY": 3,
+            "STM": 2, "ON": 2, "RNECY": 2, "MCHP": 2, "ETN": 2,
+            "AEIS": 1,
+        },
+        "Consumer PC/Mobile (צרכני)": {
+            "AAPL": 3, "QCOM": 3,
+            "AMD": 2, "INTC": 2, "MU": 2, "005930.KS": 2, "ARM": 2,
+            "WDC": 1, "STX": 1,
+        },
+    },
+    "Product / Arch (מוצר וארכיטקטורה)": {
+        "HBM (זיכרון רוחב פס גבוה)": {
+            "MU": 3, "000660.KS": 3, "005930.KS": 3,
+            "ONTO": 2, "CAMT": 2, "BESIY": 2, "NVMI": 2,
+            "AMAT": 1, "KLAC": 1, "TER": 1, "AMKR": 1, "NVDA": 1,
+        },
+        "Commodity Memory (זיכרון סטנדרטי)": {
+            "MU": 3, "000660.KS": 3, "005930.KS": 3,
+            "LRCX": 2, "WDC": 1, "STX": 1, "AMAT": 1,
+        },
+        "Custom Silicon / ASIC ( ייצור עצמי)": {
+            "AVGO": 3, "MRVL": 3,
+            "TSM": 2, "SNPS": 2, "CDNS": 2, "ARM": 2,
+            "GFS": 1,
+        },
+        "Power Semi SiC/GaN (מוליכי הספק)": {
+            "ON": 3, "STM": 3, "IFNNY": 3,
+            "RNECY": 2, "TXN": 2,
+            "ADI": 1, "NXPI": 1, "AEIS": 1, "TSEM": 1,
+        },
+        "Silicon Photonics (פוטוניקת סיליקון)": {
+            "COHR": 3, "LITE": 3, "TSEM": 3,
+            "AVGO": 2, "MRVL": 2,
+            "ANET": 1, "NVDA": 1,
+        },
+    },
+    "Mfg Inflections (נקודות מפנה בייצור)": {
+        "GAA & Backside Power (טרנזיסטורים והספק)": {
+            "ASML": 3, "AMAT": 3, "LRCX": 3,
+            "KLAC": 2, "TOELY": 2, "ASMIY": 2, "INTC": 2, "TSM": 2,
+            "005930.KS": 1,
+        },
+        "Advanced Packaging (אריזה מתקדמת)": {
+            "AMKR": 3, "BESIY": 3,
+            "TSM": 2, "ASMIY": 2, "CAMT": 2, "ONTO": 2,
+            "AMAT": 1, "TER": 1, "ATEYY": 1, "NVDA": 1,
+        },
+        "High-NA EUV (ליתוגרפיה מתקדמת)": {
+            "ASML": 3,
+            "TSM": 2, "INTC": 2,
+            "KLAC": 1, "005930.KS": 1,
+        },
+    },
+}
+
+# מיפוי שטוח של נושא -> ציונים, נבנה אוטומטית מהקבוצות (לשימוש הפונקציות)
+EXPOSURE_MATRIX = {}
+for _group_themes in THEME_GROUPS.values():
+    for _theme_name, _scores in _group_themes.items():
+        EXPOSURE_MATRIX[_theme_name] = _scores
+
+# שמות רמות החשיפה לתצוגה
+EXPOSURE_LEVELS = {3: "🎯 ליבה", 2: "🚀 מנוע צמיחה", 1: "↪️ עקיפה"}
 
 HOT_THRESHOLD = 10
 BROAD_THRESHOLD = 0.6
@@ -170,6 +264,51 @@ def get_changes(stocks, period):
     return pairs
 
 
+def compute_theme_index(theme_name, period):
+    weights = EXPOSURE_MATRIX.get(theme_name, {})
+    weighted_sum = 0.0
+    weight_total = 0
+    by_level = {3: [], 2: [], 1: []}
+
+    for symbol, score in weights.items():
+        if score <= 0:
+            continue
+        change = get_change(symbol, period)
+        if change is None:
+            continue
+        weighted_sum += change * score
+        weight_total += score
+        by_level[score].append((symbol, change))
+
+    if weight_total == 0:
+        weighted_return = None
+    else:
+        weighted_return = weighted_sum / weight_total
+
+    # ממוצע ותרומה לכל רמה. תרומה = סכום(תשואה × משקל) של הרמה חלקי סך המשקלים
+    # שלוש התרומות יחד = התשואה המשוקללת
+    level_summary = {}
+    for level in (3, 2, 1):
+        rows = by_level[level]
+        if len(rows) > 0:
+            avg = sum(c for s, c in rows) / len(rows)
+            contribution = sum(c * level for s, c in rows) / weight_total
+        else:
+            avg = None
+            contribution = 0.0
+        level_summary[level] = {
+            "avg": avg,
+            "contribution": contribution,
+            "stocks": sorted(rows, key=lambda x: x[1], reverse=True),
+        }
+
+    return {
+        "weighted_return": weighted_return,
+        "weight_total": weight_total,
+        "by_level": level_summary,
+    }
+
+
 @st.cache_data(ttl=1800)
 def get_news(symbol, limit=3):
     items = []
@@ -199,7 +338,6 @@ def get_news(symbol, limit=3):
     except Exception:
         pass
     return items
-
 
 # ---------- פונקציות Gemini ----------
 def _gemini_call(prompt):
@@ -660,3 +798,102 @@ else:
         better = "📈 התחום מכה את המדד" if diff >= 0 else "📉 התחום מפגר אחרי המדד"
         st.info("חציון התחום: " + str(round(sector_median, 1)) + "%  |  SOXX: " +
                 str(round(soxx_change2, 1)) + "%  →  " + better + " (" + str(round(diff, 1)) + " נק')")
+
+
+# ======================================================
+# דירוג נושאי לפי חשיפה — שלוש קבוצות העל
+# ======================================================
+st.divider()
+st.header("🧪 דירוג לפי חשיפה לטכנולוגיה")
+st.caption("ניסיוני · כל נושא מדורג לפי תשואה משוקללת בחשיפת המניות אליו (ציון 0–3)")
+
+
+def exposure_level_block(level, data):
+    """כרטיס לרמת חשיפה אחת: כותרת צבעונית, תרומה, וטבלת מניות."""
+    titles = {
+        3: ("🎯 ליבה — מוכרות את הרכיב", "#22c55e"),
+        2: ("🚀 מנוע צמיחה", "#3b82f6"),
+        1: ("↪️ חשיפה עקיפה", "#a78bfa"),
+    }
+    title, head_color = titles[level]
+    avg = data["avg"]
+    contrib = data["contribution"]
+    avg_str = "—" if avg is None else str(round(avg, 1)) + "%"
+    contrib_sign = "+" if contrib >= 0 else ""
+    contrib_str = contrib_sign + str(round(contrib, 1)) + " נק'"
+
+    st.markdown(
+        "<div dir='rtl' style='text-align:right; border-top:3px solid " + head_color +
+        "; background:rgba(120,120,120,0.06); border-radius:6px; padding:8px 10px; margin-bottom:4px;'>"
+        "<div style='font-weight:800; font-size:15px; color:" + head_color + ";'>" + title + "</div>"
+        "<div style='font-size:13px; color:#bbb; margin-top:3px;'>ממוצע " + avg_str
+        + " · תרומה לנושא <b>" + contrib_str + "</b></div>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    if data["stocks"]:
+        st.markdown(returns_table_html(data["stocks"]), unsafe_allow_html=True)
+    else:
+        st.caption("אין מניות עם נתונים ברמה זו")
+
+
+def render_theme_card(theme_name, idx):
+    """כרטיס נושא מלא: כותרת עם תשואה משוקללת + expander עם פירוק שתי-עמודות."""
+    wret = idx["weighted_return"]
+    color = "#22c55e" if wret >= 0 else "#ef4444"
+    sign = "+" if wret >= 0 else ""
+    n_stocks = sum(len(idx["by_level"][lv]["stocks"]) for lv in (3, 2, 1))
+
+    st.markdown(
+        "<div dir='rtl' style='background:rgba(120,120,120,0.10); border-right:6px solid " + color +
+        "; border-radius:10px; padding:12px 16px; margin-bottom:2px; text-align:right; "
+        "display:flex; justify-content:space-between; align-items:center;'>"
+        "<span style='font-weight:700; font-size:18px;'>" + theme_name + "</span>"
+        "<span style='color:" + color + "; font-weight:800; font-size:20px;'>" + sign + str(round(wret, 1)) + "%</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    with st.expander("פירוק: שחקניות ישירות מול שרשרת אספקה  ·  " + str(n_stocks) + " מניות"):
+        st.markdown(
+            "<div dir='rtl' style='text-align:right; color:#999; font-size:13px; margin-bottom:10px;'>"
+            "💡 <b>ליבה</b> = מוכרות את הרכיב עצמו · <b>מנוע צמיחה</b> ו<b>עקיפה</b> = שרשרת האספקה שנהנית. "
+            "ה<b>תרומה</b> מראה כמה נקודות אחוז מתוך " + sign + str(round(wret, 1))
+            + "% הגיעו מכל רמה — שלושתן יחד = התשואה הכוללת.</div>",
+            unsafe_allow_html=True,
+        )
+        right_col, left_col = st.columns(2)
+        with right_col:
+            st.markdown("<div dir='rtl' style='text-align:center; font-weight:800; color:#22c55e; margin-bottom:6px;'>שחקניות ישירות</div>", unsafe_allow_html=True)
+            exposure_level_block(3, idx["by_level"][3])
+        with left_col:
+            st.markdown("<div dir='rtl' style='text-align:center; font-weight:800; color:#3b82f6; margin-bottom:6px;'>שרשרת אספקה מאפשרת</div>", unsafe_allow_html=True)
+            exposure_level_block(2, idx["by_level"][2])
+            exposure_level_block(1, idx["by_level"][1])
+
+    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+
+
+# לולאה על שלוש קבוצות העל. כל קבוצה מקבלת כותרת, ובתוכה הנושאים ממוינים מהחם לקר.
+for group_name, group_themes in THEME_GROUPS.items():
+    st.markdown(
+        "<div dir='rtl' style='text-align:right; font-weight:800; font-size:22px; "
+        "margin:18px 0 8px 0; padding-bottom:4px; border-bottom:2px solid #555;'>"
+        + group_name + "</div>",
+        unsafe_allow_html=True,
+    )
+
+    group_results = []
+    for theme_name in group_themes:
+        idx = compute_theme_index(theme_name, period)
+        if idx["weighted_return"] is not None:
+            group_results.append((idx["weighted_return"], theme_name, idx))
+
+    group_results.sort(reverse=True)
+
+    if len(group_results) == 0:
+        st.caption("אין נתונים זמינים לקבוצה זו כרגע")
+        continue
+
+    for wret, theme_name, idx in group_results:
+        render_theme_card(theme_name, idx)
