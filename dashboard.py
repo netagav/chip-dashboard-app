@@ -7,6 +7,7 @@ import json
 import hashlib
 import pandas as pd
 import altair as alt
+import plotly.graph_objects as go
 from datetime import datetime, timezone
 
 st.set_page_config(page_title="דשבורד שבבים", page_icon="💹", layout="wide")
@@ -64,7 +65,7 @@ SOXX_HOLDINGS = ["NVDA", "AVGO", "AMD", "TXN", "QCOM", "INTC", "MU", "ADI",
 # הנושאים מקובצים בשלוש קבוצות-על, כמו בתעודת הזהות.
 THEME_GROUPS = {
     "End-Markets (שווקי קצה)": {
-        "AI Compute (מאיצי AI)": {
+        "AI Compute (מחשוב AI)": {
             "NVDA": 3, "AMD": 3, "AVGO": 3, "MRVL": 3,
             "TSM": 2, "SMCI": 2, "VRT": 2, "MU": 2, "000660.KS": 2, "ANET": 2,
             "DELL": 1, "HPE": 1, "ETN": 1,
@@ -74,7 +75,7 @@ THEME_GROUPS = {
             "NXPI": 2, "STM": 2,
             "AMD": 1, "NVDA": 1,
         },
-        "Legacy DC (שרתי CPU)": {
+        "Legacy DC (דאטה-סנטר מסורתי)": {
             "INTC": 3,
             "DELL": 2, "HPE": 2, "MU": 2,
             "TXN": 1, "ADI": 1, "WDC": 1, "STX": 1,
@@ -105,7 +106,7 @@ THEME_GROUPS = {
             "MU": 3, "000660.KS": 3, "005930.KS": 3,
             "LRCX": 2, "WDC": 1, "STX": 1, "AMAT": 1,
         },
-        "Custom Silicon / ASIC ( ייצור עצמי)": {
+        "Custom Silicon / ASIC (סיליקון בהזמנה)": {
             "AVGO": 3, "MRVL": 3,
             "TSM": 2, "SNPS": 2, "CDNS": 2, "ARM": 2,
             "GFS": 1,
@@ -154,12 +155,26 @@ BROAD_THRESHOLD = 0.6
 GAP_THRESHOLD = 15
 MOVE_ALERT = 2.0
 
+# סף מרחק מהמדד לכל תקופה — כמה החציון צריך להכות/לפגר אחרי SOXX
+# כדי שהתחום ייחשב "חם" או "חלש". מטפס עם אורך התקופה.
+RELATIVE_THRESHOLD = {
+    "online": 2.0,
+    "lastclose": 2.0,
+    "5d": 5.0,
+    "1mo": 10.0,
+    "6mo": 15.0,
+    "ytd": 15.0,
+    "1y": 20.0,
+    "5y": 50.0,
+}
+
 AI_CACHE_TTL = {
     "online": 3600,
     "lastclose": 43200,
     "5d": 86400,
     "1mo": 259200,
     "6mo": 604800,
+    "ytd": 604800,
     "1y": 1209600,
     "5y": 1209600,
 }
@@ -170,6 +185,7 @@ PERIOD_OPTIONS = {
     "5D": "5d",
     "1M": "1mo",
     "6M": "6mo",
+    "YTD": "ytd",
     "1Y": "1y",
     "5Y": "5y",
 }
@@ -266,16 +282,16 @@ def get_changes(stocks, period):
 
 def compute_theme_index(theme_name, period):
     weights = EXPOSURE_MATRIX.get(theme_name, {})
-    weighted_sum = 0.0
-    weight_total = 0
-    by_level = {3: [], 2: [], 1: []}
+    weighted_sum = 0.0          # סכום (תשואה × משקל)
+    weight_total = 0            # סכום המשקלים שנספרו בפועל
+    by_level = {3: [], 2: [], 1: []}   # פירוק לפי רמת חשיפה
 
     for symbol, score in weights.items():
         if score <= 0:
             continue
         change = get_change(symbol, period)
         if change is None:
-            continue
+            continue            # מדלגים על מניה בלי נתונים, ולא סופרים את משקלה
         weighted_sum += change * score
         weight_total += score
         by_level[score].append((symbol, change))
@@ -285,8 +301,9 @@ def compute_theme_index(theme_name, period):
     else:
         weighted_return = weighted_sum / weight_total
 
-    # ממוצע ותרומה לכל רמה. תרומה = סכום(תשואה × משקל) של הרמה חלקי סך המשקלים
-    # שלוש התרומות יחד = התשואה המשוקללת
+    # ממוצע פשוט לכל רמת חשיפה, ותרומת הרמה לתשואה המשוקללת
+    # תרומת רמה = סכום(תשואה × משקל) של אותה רמה, חלקי סך כל המשקלים
+    # שלוש התרומות יחד מסתכמות בדיוק לתשואה המשוקללת
     level_summary = {}
     for level in (3, 2, 1):
         rows = by_level[level]
@@ -338,6 +355,7 @@ def get_news(symbol, limit=3):
     except Exception:
         pass
     return items
+
 
 # ---------- פונקציות Gemini ----------
 def _gemini_call(prompt):
@@ -434,12 +452,46 @@ def titles_signature(titles):
     return hashlib.md5(joined.encode("utf-8")).hexdigest()
 
 
-def label_info(median, breadth):
-    if median <= 0 or breadth < 0.4:
-        return "⚠️ חלש", "#ef4444", "rgba(239,68,68,0.12)"
-    if median >= HOT_THRESHOLD and breadth >= BROAD_THRESHOLD:
+def label_info(median, breadth, soxx_change, period):
+    # דירוג יחסי: כמה החציון מכה או מפגר אחרי SOXX, מול הסף לתקופה
+    threshold = RELATIVE_THRESHOLD.get(period, 10.0)
+    if soxx_change is None:
+        rel = median  # נפילה אחורה: בלי מדד, משווים מול אפס
+    else:
+        rel = median - soxx_change
+    if rel >= threshold and breadth >= BROAD_THRESHOLD:
         return "🔥 חם", "#22c55e", "rgba(34,197,94,0.12)"
+    if rel <= -threshold:
+        return "⚠️ חלש", "#ef4444", "rgba(239,68,68,0.12)"
     return "🟡 ניטרלי", "#eab308", "rgba(234,179,8,0.12)"
+
+
+def zone_bg(rel, threshold, max_abs):
+    # צבע רקע לפי המרחק מ-SOXX: ירוק (מכה מעל הסף), צהוב (קרוב למדד), אדום (מפגר מעבר לסף)
+    # rel = חציון פחות SOXX · threshold = סף התקופה · max_abs = המרחק הקיצוני בדירוג
+    if threshold <= 0:
+        threshold = 1.0
+    if rel >= threshold:
+        # ירוק: בהיר בסף -> כהה בקיצון
+        span = max(max_abs - threshold, 1.0)
+        f = min((rel - threshold) / span, 1.0)
+        r = int(134 + (21 - 134) * f)
+        g = int(239 + (128 - 239) * f)
+        b = int(134 + (61 - 134) * f)
+    elif rel <= -threshold:
+        # אדום: בהיר בסף -> כהה בקיצון
+        span = max(max_abs - threshold, 1.0)
+        f = min((-rel - threshold) / span, 1.0)
+        r = int(248 + (153 - 248) * f)
+        g = int(113 + (27 - 113) * f)
+        b = int(113 + (27 - 113) * f)
+    else:
+        # צהוב: בהיר ליד המדד -> חזק ליד הסף
+        f = min(abs(rel) / threshold, 1.0)
+        r = int(250 + (234 - 250) * f)
+        g = int(240 + (179 - 240) * f)
+        b = int(150 + (8 - 150) * f)
+    return "rgba(" + str(r) + "," + str(g) + "," + str(b) + ",0.22)"
 
 
 def build_chart(stocks, period):
@@ -452,10 +504,59 @@ def build_chart(stocks, period):
     return chart_data.ffill()
 
 
+def build_spread_chart(stocks, period):
+    # גרף פער מצטבר: חציון התחום (מנורמל ל-100) פחות SOXX (מנורמל ל-100), לאורך התקופה
+    # אזור צבוע: ירוק כשהתחום מכה את המדד, אדום כשמפגר
+    chart_data = build_chart(stocks, period)
+    if chart_data.empty:
+        return None
+    soxx_close = get_history(BENCHMARK, period)
+    if soxx_close is None:
+        return None
+
+    median_series = chart_data.median(axis=1)
+    soxx_norm = soxx_close / soxx_close.iloc[0] * 100
+    # מיישרים את שני האינדקסים לאותם תאריכים
+    df = pd.DataFrame({"median": median_series, "soxx": soxx_norm}).dropna()
+    if len(df) < 2:
+        return None
+    df["spread"] = df["median"] - df["soxx"]
+    df = df.reset_index()
+    date_col = df.columns[0]
+    df = df.rename(columns={date_col: "תאריך"})
+
+    base = alt.Chart(df).encode(
+        x=alt.X("תאריך:T", title=None, axis=alt.Axis(labelFontSize=12, labelPadding=8, tickCount=6))
+    )
+    # אזור ירוק לפער חיובי, אדום לשלילי
+    area_pos = base.transform_filter("datum.spread >= 0").mark_area(
+        color="rgba(34,197,94,0.35)"
+    ).encode(y=alt.Y("spread:Q", title="פער מ-SOXX (נק')",
+                     axis=alt.Axis(labelFontSize=12, titleFontSize=13, titlePadding=10)))
+    area_neg = base.transform_filter("datum.spread < 0").mark_area(
+        color="rgba(239,68,68,0.35)"
+    ).encode(y="spread:Q")
+    line = base.mark_line(strokeWidth=2.5, color="#e5e7eb").encode(y="spread:Q")
+    zero = alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(
+        strokeDash=[3, 3], color="#888", strokeWidth=1.5
+    ).encode(y="y:Q")
+    return (area_pos + area_neg + line + zero).properties(
+        height=260, padding={"top": 10, "bottom": 10, "left": 10, "right": 20}
+    )
+
+
 def clean_name(sector):
     if ". " in sector:
         return sector.split(". ", 1)[1]
     return sector
+
+
+def section_header(title, accent):
+    # כותרת אזור מובלטת עם פס צבעוני ורקע עדין, להפרדה ברורה בתוך הכרטיס
+    return ("<div dir='rtl' style='text-align:right; font-weight:800; font-size:18px; "
+            "background:rgba(120,120,120,0.10); border-right:5px solid " + accent +
+            "; border-radius:6px; padding:8px 12px; margin:20px 0 10px 0;'>"
+            + title + "</div>")
 
 
 def returns_table_html(pairs, descending=True):
@@ -574,13 +675,32 @@ else:
     soxx_price.columns = ["תאריך", "מחיר"]
     if period == "lastclose":
         soxx_price = soxx_price.tail(3)
-    mini = alt.Chart(soxx_price).mark_area(
-        line={"color": "#f59e0b", "strokeWidth": 2.5}, color="rgba(245,158,11,0.15)"
-    ).encode(
-        x=alt.X("תאריך:T", title=None),
-        y=alt.Y("מחיר:Q", scale=alt.Scale(zero=False), title="מחיר ($)"),
-    ).properties(height=240)
-    st.altair_chart(mini, use_container_width=True)
+    base_price = soxx_price["מחיר"].iloc[0]
+    soxx_price["תשואה"] = soxx_price["מחיר"] / base_price * 100 - 100
+    # תשואה צבועה לבועה: ירוק לחיובי, אדום לשלילי, שתי ספרות
+    ret_cells = []
+    for v in soxx_price["תשואה"]:
+        col = "#22c55e" if v >= 0 else "#ef4444"
+        sg = "+" if v >= 0 else ""
+        ret_cells.append("<span style='color:" + col + "'>" + sg + format(v, ".2f") + "%</span>")
+
+    mini = go.Figure()
+    mini.add_trace(go.Scatter(
+        x=soxx_price["תאריך"], y=soxx_price["מחיר"], mode="lines",
+        line=dict(color="#f59e0b", width=2.5), fill="tozeroy",
+        fillcolor="rgba(245,158,11,0.15)",
+        customdata=ret_cells,
+        hovertemplate="%{x|%d/%m/%Y}<br>מחיר: $%{y:.2f}<br>תשואה: %{customdata}<extra></extra>",
+    ))
+    mini.update_layout(
+        height=240, template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=10, b=30, l=50, r=20),
+        yaxis=dict(title="מחיר ($)", gridcolor="rgba(255,255,255,0.08)"),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.08)"),
+        showlegend=False,
+    )
+    st.plotly_chart(mini, use_container_width=True)
 
     if len(holdings_pairs) >= 2:
         top5 = holdings_pairs[:5]
@@ -617,15 +737,26 @@ with st.spinner("סורק את כל התחומים..."):
                 down = down + 1
         breadth = up / len(numbers)
         results.append((median, average, up, down, len(numbers), breadth, sector, pairs))
-    results.sort(reverse=True)
+    # דירוג לפי המרחק מהמדד: חציון פחות תשואת SOXX, מהגבוה לנמוך
+    soxx_ref = soxx_change if soxx_change is not None else 0.0
+    results.sort(key=lambda r: r[0] - soxx_ref, reverse=True)
+    # המרחק הקיצוני ביותר מהמדד בדירוג — לנרמול עוצמת הצבע
+    if len(results) > 0:
+        max_abs_dist = max(abs(r[0] - soxx_ref) for r in results)
+    else:
+        max_abs_dist = 1.0
 
 # ---------- מפת חום ----------
 st.header("🗺️ מפת חום — דירוג התחומים")
-st.caption("לחצי על תחום כדי לפתוח את המניות והחדשות שלו")
+st.caption("מדורג לפי המרחק מ-SOXX — מי מכה את המדד הכי הרבה. לחצי על תחום לפרטים.")
 
 rank = 1
 for median, average, up, down, total, breadth, sector, pairs in results:
-    label, color, bg = label_info(median, breadth)
+    label, color, bg = label_info(median, breadth, soxx_change, period)
+    # רקע לפי המרחק האמיתי מ-SOXX: ירוק (מכה), צהוב (קרוב), אדום (מפגר)
+    threshold = RELATIVE_THRESHOLD.get(period, 10.0)
+    rel_dist = median - soxx_ref
+    grad_bg = zone_bg(rel_dist, threshold, max_abs_dist)
 
     driver = ""
     if average - median >= GAP_THRESHOLD and breadth < BROAD_THRESHOLD:
@@ -642,20 +773,39 @@ for median, average, up, down, total, breadth, sector, pairs in results:
                     + str(round(median, 1)) + "% · ממוצע " + str(round(average, 1))
                     + "% · עלו " + str(up) + " · ירדו " + str(down) + " · מתוך " + str(total) + "</div>")
 
-    card = ("<div dir='rtl' style='background:" + bg + "; border-right:6px solid " + color +
+    # שורת השוואה למדד: כמה התחום מכה או מפגר אחרי SOXX
+    soxx_line = ""
+    if soxx_change is not None:
+        rel = median - soxx_change
+        if rel >= 0:
+            rel_color = "#22c55e"
+            rel_text = "📊 מכה את SOXX ב-+" + str(round(rel, 1)) + " נק'"
+        else:
+            rel_color = "#ef4444"
+            rel_text = "📊 מפגר אחרי SOXX ב-" + str(round(rel, 1)) + " נק'"
+        soxx_line = ("<div style='color:" + rel_color + "; font-weight:600; font-size:14px; margin-top:4px;'>"
+                     + rel_text + " (SOXX " + str(round(soxx_change, 1)) + "%)</div>")
+
+    card = ("<div dir='rtl' style='background:" + grad_bg + "; border-right:6px solid " + color +
             "; border-radius:10px; padding:10px 14px; margin-bottom:2px; text-align:right;'>"
             "<div style='font-weight:700; font-size:17px;'>"
             + str(rank) + ". " + label + " — " + clean_name(sector) + "</div>"
-            + summary_line + driver + "</div>")
+            + summary_line + soxx_line + driver + "</div>")
     st.markdown(card, unsafe_allow_html=True)
 
     with st.expander("פרטים, מניות וחדשות"):
         # --- אזור טבלת המניות ---
-        st.markdown("<div style='text-align:right; font-weight:800; font-size:18px; margin-bottom:6px;'>📊 מניות בתחום</div>", unsafe_allow_html=True)
+        st.markdown(section_header("📊 מניות בתחום", "#3b82f6"), unsafe_allow_html=True)
         st.markdown(returns_table_html(pairs), unsafe_allow_html=True)
 
-        # --- קו מפריד בין הטבלה לחדשות ---
-        st.markdown("<hr style='border:none; border-top:1px solid #444; margin:18px 0 10px 0;'>", unsafe_allow_html=True)
+        # --- גרף מגמת הפער מ-SOXX לאורך התקופה ---
+        st.markdown(section_header("📈 מגמת הפער מ-SOXX לאורך התקופה", "#22c55e"), unsafe_allow_html=True)
+        spread_chart = build_spread_chart(value_chain[sector], period)
+        if spread_chart is not None:
+            st.altair_chart(spread_chart, use_container_width=True)
+            st.caption("🟢 מעל הקו = התחום מכה את SOXX · 🔴 מתחת = מפגר · הנקודה האחרונה = הפער הנוכחי")
+        else:
+            st.caption("אין מספיק נתונים לגרף המגמה")
 
         # --- אזור החדשות ---
         sector_news = []
@@ -664,12 +814,13 @@ for median, average, up, down, total, breadth, sector, pairs in results:
                 sector_news.append((symbol, item))
 
         if len(sector_news) == 0:
-            st.markdown("<div style='text-align:right; font-weight:800; font-size:18px; margin-bottom:6px;'>📰 חדשות אחרונות בתחום</div>", unsafe_allow_html=True)
+            st.markdown(section_header("📰 חדשות אחרונות בתחום", "#a78bfa"), unsafe_allow_html=True)
             st.caption("אין חדשות זמינות כרגע לתחום הזה")
         else:
-            head_col, btn_col = st.columns([2, 1])
+            st.markdown(section_header("📰 חדשות אחרונות בתחום", "#a78bfa"), unsafe_allow_html=True)
+            head_col, btn_col = st.columns([3, 1])
             with head_col:
-                st.markdown("<div style='text-align:right; font-weight:800; font-size:18px; margin-top:2px;'>📰 חדשות אחרונות בתחום</div>", unsafe_allow_html=True)
+                st.caption("לחצי לניתוח סנטימנט החדשות עם AI")
             with btn_col:
                 titles_list = [item["title"] for sym, item in sector_news]
                 sig = titles_signature(titles_list)
@@ -749,43 +900,76 @@ chart_data = build_chart(value_chain[chosen], period)
 if chart_data.empty:
     st.warning("אין מספיק נתונים לתחום הזה")
 else:
-    st.caption("ביצועי המניות מול חציון התחום ומול מדד SOXX — הכל מנורמל ל-100 בתחילת התקופה.")
+    st.caption("ביצועי המניות מול חציון התחום ומול מדד SOXX — הכל מנורמל ל-100 בתחילת התקופה. לחצי על מניה במקרא כדי להסתיר/להציג אותה.")
 
-    long_df = chart_data.reset_index()
-    date_col = long_df.columns[0]
-    long_df = long_df.melt(id_vars=[date_col], var_name="סדרה", value_name="ערך")
-
+    date_index = chart_data.index
     median_series = chart_data.median(axis=1)
-    median_df = median_series.reset_index()
-    median_df.columns = [date_col, "ערך"]
-
     soxx_close2 = get_history(BENCHMARK, period)
 
-    stocks_layer = alt.Chart(long_df).mark_line(opacity=0.5, strokeWidth=1.5).encode(
-        x=alt.X(date_col + ":T", title=None),
-        y=alt.Y("ערך:Q", scale=alt.Scale(zero=False), title="מנורמל ל-100"),
-        color=alt.Color("סדרה:N", title="מניה"),
-    )
-    median_layer = alt.Chart(median_df).mark_line(strokeWidth=4, color="#ffffff").encode(
-        x=date_col + ":T", y="ערך:Q",
-    )
-    layers = [stocks_layer, median_layer]
+    # פלטת צבעים ברורה ועקבית בין המקרא לקווים
+    palette = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa",
+               "#fb7185", "#22d3ee", "#a3e635", "#fb923c", "#e879f9",
+               "#4ade80", "#38bdf8", "#facc15", "#f87171", "#c084fc"]
+
+    def ret_html(ret_series):
+        # תשואה צבועה: ירוק לחיובי, אדום לשלילי, שתי ספרות אחרי הנקודה
+        out = []
+        for v in ret_series:
+            color = "#22c55e" if v >= 0 else "#ef4444"
+            sign = "+" if v >= 0 else ""
+            out.append("<span style='color:" + color + "'>" + sign + format(v, ".2f") + "%</span>")
+        return out
+
+    fig = go.Figure()
+    fig.add_hline(y=100, line_dash="dot", line_color="#888", line_width=1)
+
+    for i, symbol in enumerate(chart_data.columns):
+        col_color = palette[i % len(palette)]
+        series = chart_data[symbol]
+        ret = series - 100
+        fig.add_trace(go.Scatter(
+            x=date_index, y=series, name=symbol, mode="lines",
+            line=dict(color=col_color, width=1.6), opacity=0.85,
+            customdata=ret_html(ret),
+            hovertemplate="<b>" + symbol + "</b><br>%{x|%d/%m/%Y}<br>"
+                          "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
+        ))
+
+    median_ret = median_series - 100
+    fig.add_trace(go.Scatter(
+        x=date_index, y=median_series, name="חציון התחום", mode="lines",
+        line=dict(color="#ffffff", width=4),
+        customdata=ret_html(median_ret),
+        hovertemplate="<b>חציון התחום</b><br>%{x|%d/%m/%Y}<br>"
+                      "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
+    ))
+
     if soxx_close2 is not None:
-        soxx_norm2 = (soxx_close2 / soxx_close2.iloc[0] * 100).reset_index()
-        soxx_norm2.columns = [date_col, "ערך"]
-        soxx_layer = alt.Chart(soxx_norm2).mark_line(strokeWidth=4, strokeDash=[6, 3], color="#f59e0b").encode(
-            x=date_col + ":T", y="ערך:Q",
-        )
-        layers.append(soxx_layer)
+        soxx_norm2 = soxx_close2 / soxx_close2.iloc[0] * 100
+        soxx_ret = soxx_norm2 - 100
+        fig.add_trace(go.Scatter(
+            x=soxx_norm2.index, y=soxx_norm2, name="SOXX", mode="lines",
+            line=dict(color="#f59e0b", width=4, dash="dash"),
+            customdata=ret_html(soxx_ret),
+            hovertemplate="<b>SOXX</b><br>%{x|%d/%m/%Y}<br>"
+                          "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
+        ))
 
-    baseline = alt.Chart(pd.DataFrame({"y": [100]})).mark_rule(strokeDash=[2, 2], color="#888").encode(y="y:Q")
-    layers.append(baseline)
-
-    chart = layers[0]
-    for lyr in layers[1:]:
-        chart = chart + lyr
-    st.altair_chart(chart, use_container_width=True)
-    st.caption("⚪ קו לבן עבה = חציון התחום · 🟠 קו כתום מקווקו = מדד SOXX · קווים דקים = מניות בודדות")
+    fig.update_layout(
+        height=460,
+        hovermode="closest",
+        template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=20, b=40, l=50, r=40),
+        legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.08,
+                    title="מניה", font=dict(size=12),
+                    bgcolor="rgba(255,255,255,0.04)",
+                    bordercolor="rgba(255,255,255,0.20)", borderwidth=1),
+        yaxis=dict(title="מנורמל ל-100", gridcolor="rgba(255,255,255,0.08)"),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.08)"),
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("טבלת תשואות")
     chosen_pairs = get_changes(value_chain[chosen], period)
@@ -804,7 +988,7 @@ else:
 # דירוג נושאי לפי חשיפה — שלוש קבוצות העל
 # ======================================================
 st.divider()
-st.header("🧪 דירוג לפי חשיפה לטכנולוגיה")
+st.header("🧪 דירוג נושאי לפי חשיפה")
 st.caption("ניסיוני · כל נושא מדורג לפי תשואה משוקללת בחשיפת המניות אליו (ציון 0–3)")
 
 
