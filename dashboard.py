@@ -495,13 +495,28 @@ def zone_bg(rel, threshold, max_abs):
 
 
 def build_chart(stocks, period):
-    chart_data = pd.DataFrame()
+    series_list = []
     for symbol in stocks:
         close = get_history(symbol, period)
         if close is None:
             continue
-        chart_data[symbol] = close / close.iloc[0] * 100
-    return chart_data.ffill()
+        clean = close.dropna()
+        if len(clean) < 2:
+            continue  # אין מספיק נתונים — לא נכניס עמודה ריקה למקרא
+        # נרמול לפי הערך התקין הראשון של אותה מניה
+        normalized = clean / clean.iloc[0] * 100
+        normalized.name = symbol
+        series_list.append(normalized)
+
+    if len(series_list) == 0:
+        return pd.DataFrame()
+
+    # איחוד לפי תאריכים (outer join), מילוי קדימה ואחורה ליישור בורסות שונות
+    chart_data = pd.concat(series_list, axis=1).sort_index()
+    chart_data = chart_data.ffill().bfill()
+    # השמטת עמודות שעדיין ריקות לגמרי, שלא יופיעו במקרא בלי קו
+    chart_data = chart_data.dropna(axis=1, how="all")
+    return chart_data
 
 
 def build_spread_chart(stocks, period):
