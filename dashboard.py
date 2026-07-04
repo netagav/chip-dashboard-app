@@ -33,6 +33,24 @@ div[data-testid="stButton"] button:hover {
     border-color: #60a5fa;
     color: #ffffff;
 }
+/* מתג "פרטים, מניות וחדשות" — עיצוב בולט וברור, כמו כפתור-פס */
+div[data-testid="stToggle"] {
+    background: rgba(124,58,237,0.10);
+    border: 1px solid rgba(124,58,237,0.55);
+    border-radius: 10px;
+    padding: 8px 14px;
+    margin: 4px 0 6px 0;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+div[data-testid="stToggle"]:hover {
+    background: rgba(124,58,237,0.20);
+    border-color: #a78bfa;
+}
+div[data-testid="stToggle"] label p {
+    font-weight: 700 !important;
+    font-size: 15px !important;
+    color: #c4b5fd !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -56,99 +74,113 @@ BENCHMARK = "SOXX"
 SOXX_HOLDINGS = ["NVDA", "AVGO", "AMD", "TXN", "QCOM", "INTC", "MU", "ADI",
                  "MRVL", "NXPI", "MCHP", "ON", "TSM", "ASML", "AMAT", "LRCX", "KLAC"]
 
-# ---------- מטריצת חשיפה נושאית ----------
-# כל נושא = מילון של מניה לציון חשיפה:
-# 3 = ליבה (מוכרת את הרכיב, העסק הוא הנושא)
-# 2 = מנוע צמיחה (חשיפה משמעותית, מניע צמיחה אמיתי)
-# 1 = עקיפה (נהנית רוחבית או בעקיפין)
-# מניה שלא מופיעה בנושא = 0, ללא חשיפה
-# הנושאים מקובצים בשלוש קבוצות-על, כמו בתעודת הזהות.
-THEME_GROUPS = {
-    "End-Markets (שווקי קצה)": {
-        "AI Compute (מחשוב AI)": {
-            "NVDA": 3, "AMD": 3, "AVGO": 3, "MRVL": 3,
-            "TSM": 2, "SMCI": 2, "VRT": 2, "MU": 2, "000660.KS": 2, "ANET": 2,
-            "DELL": 1, "HPE": 1, "ETN": 1,
+# ======================================================
+# פילוח טכנולוגי — ליבה ומעטפת
+# ======================================================
+# כל תחום = מילון עם שני חלקים:
+#   "core" (ליבה)   — חברות שהתחום הוא עיקר העסק שלהן. מכפיל שכבה 1.0.
+#   "env"  (מעטפת)  — מעגל שני שנהנה עקיפות מהמגמה. מכפיל שכבה 0.4.
+# הערך ליד כל מניה = ציון חשיפה 0.0–1.0: אומדן לחלק מהעסק שקשור לתחום,
+# על בסיס דוחות הסגמנטים (למשל NVDA ב-GPU/AI: דאטה סנטר ~90% מההכנסות).
+# משקל אפקטיבי = חשיפה × מכפיל שכבה, מנורמל בתוך התחום.
+# בהתאם להחלטה המתודולוגית: שווי שוק לא נכנס לחישוב.
+# התחומים מחולקים לשני צירים חופפים בכוונה (חברה יכולה להופיע בשניהם):
+# ציר טכנולוגיה (מה מוכרים) וציר שוקי קצה (למי מוכרים). אין לסכום בין צירים.
+
+TIER_CORE = 1.0
+TIER_ENV = 0.4
+
+TECH_GROUPS = {
+    "ציר טכנולוגיה": {
+        "GPU / מאיצי AI": {
+            "core": {"NVDA": 0.95, "AMD": 0.30, "AVGO": 0.20},
+            "env": {"TSM": 0.40, "000660.KS": 0.50, "MU": 0.40, "MRVL": 0.30,
+                    "MPWR": 0.30, "IFNNY": 0.20, "BESIY": 0.30, "CAMT": 0.30,
+                    "ALAB": 0.40, "CRDO": 0.40, "COHR": 0.30, "LITE": 0.30, "FN": 0.25},
         },
-        "Edge AI (AI בקצה)": {
-            "QCOM": 3, "AAPL": 3, "ARM": 3,
-            "NXPI": 2, "STM": 2,
-            "AMD": 1, "NVDA": 1,
+        "CPU / מחשוב": {
+            "core": {"INTC": 0.75, "AMD": 0.60},
+            "env": {"QCOM": 0.40, "ARM": 0.50, "2454.TW": 0.20},
         },
-        "Legacy DC (דאטה-סנטר מסורתי)": {
-            "INTC": 3,
-            "DELL": 2, "HPE": 2, "MU": 2,
-            "TXN": 1, "ADI": 1, "WDC": 1, "STX": 1,
+        "DRAM": {
+            "core": {"MU": 0.55, "000660.KS": 0.45, "005930.KS": 0.13},
+            "env": {"RMBS": 0.10},
         },
-        "Automotive (רכב)": {
-            "NXPI": 3, "STM": 3, "IFNNY": 3, "ON": 3, "RNECY": 3,
-            "TXN": 2, "MCHP": 2,
-            "ADI": 1, "QCOM": 1,
+        "HBM": {
+            "core": {"000660.KS": 0.40, "MU": 0.25, "005930.KS": 0.04},
+            "env": {"BESIY": 0.30, "CAMT": 0.30, "RMBS": 0.20},
         },
-        "Industrial (תעשייה)": {
-            "ADI": 3, "TXN": 3, "IFNNY": 3,
-            "STM": 2, "ON": 2, "RNECY": 2, "MCHP": 2, "ETN": 2,
-            "AEIS": 1,
+        "NAND": {
+            "core": {"SNDK": 0.90, "285A.T": 0.90, "MU": 0.15, "000660.KS": 0.15, "005930.KS": 0.08},
+            "env": {},
         },
-        "Consumer PC/Mobile (צרכני)": {
-            "AAPL": 3, "QCOM": 3,
-            "AMD": 2, "INTC": 2, "MU": 2, "005930.KS": 2, "ARM": 2,
-            "WDC": 1, "STX": 1,
+        "ייצור (Foundry)": {
+            "core": {"TSM": 0.95, "GFS": 0.90, "UMC": 0.90, "TSEM": 0.90},
+            "env": {"INTC": 0.15, "005930.KS": 0.05},
+        },
+        "ציוד ייצור (Semicap)": {
+            "core": {"ASML": 0.95, "AMAT": 0.90, "LRCX": 0.90, "KLAC": 0.90,
+                     "TOELY": 0.90, "TER": 0.70, "BESIY": 0.80, "NVMI": 0.85,
+                     "CAMT": 0.85, "ONTO": 0.70},
+            "env": {},
+        },
+        "אריזה מתקדמת": {
+            "core": {"BESIY": 0.90, "AMKR": 0.85, "ASX": 0.80, "CAMT": 0.50,
+                     "ONTO": 0.40, "TSM": 0.15},
+            "env": {"AMAT": 0.15, "KLAC": 0.10, "NVMI": 0.20},
+        },
+        "פוטוניקה ואופטיקה": {
+            "core": {"FN": 0.80, "LITE": 0.70, "COHR": 0.60, "MRVL": 0.25, "TSEM": 0.20},
+            "env": {"AVGO": 0.10},
+        },
+        "אנלוגי וכוח": {
+            "core": {"TXN": 0.90, "ADI": 0.90, "NXPI": 0.85, "IFNNY": 0.85,
+                     "STM": 0.85, "ON": 0.85, "MCHP": 0.85, "MPWR": 0.70, "RNECY": 0.70},
+            "env": {"SWKS": 0.20, "QRVO": 0.20},
+        },
+        "תקשורת ורשתות": {
+            "core": {"ALAB": 0.80, "CRDO": 0.80, "MRVL": 0.60, "QCOM": 0.40, "AVGO": 0.35},
+            "env": {},
+        },
+        "EDA ו-IP": {
+            "core": {"SNPS": 0.85, "CDNS": 0.85, "RMBS": 0.60, "ARM": 0.50},
+            "env": {},
         },
     },
-    "Product / Arch (מוצר וארכיטקטורה)": {
-        "HBM (זיכרון רוחב פס גבוה)": {
-            "MU": 3, "000660.KS": 3, "005930.KS": 3,
-            "ONTO": 2, "CAMT": 2, "BESIY": 2, "NVMI": 2,
-            "AMAT": 1, "KLAC": 1, "TER": 1, "AMKR": 1, "NVDA": 1,
+    "ציר שוקי קצה": {
+        "Data Center (דאטה סנטר)": {
+            # ליבה: מוכרות רכיבים שהדאטה סנטר הוא שוק הקצה העיקרי שלהן
+            "core": {"NVDA": 0.90, "MRVL": 0.70, "000660.KS": 0.55, "MU": 0.50,
+                     "AMD": 0.45, "AVGO": 0.40, "ALAB": 0.80, "CRDO": 0.80, "INTC": 0.25},
+            # מעטפת: ייצור, כוח, אופטיקה ואחסון שנהנים מביקושי הדאטה סנטר
+            "env": {"TSM": 0.45, "COHR": 0.40, "LITE": 0.40, "FN": 0.35,
+                    "MPWR": 0.30, "SNDK": 0.25, "285A.T": 0.30, "005930.KS": 0.15},
         },
-        "Commodity Memory (זיכרון סטנדרטי)": {
-            "MU": 3, "000660.KS": 3, "005930.KS": 3,
-            "LRCX": 2, "WDC": 1, "STX": 1, "AMAT": 1,
+        "Edge AI (בינה מלאכותית בקצה)": {
+            # ליבה: מריצות AI על המכשיר עצמו — טלפון, רכב, מכשור קצה
+            "core": {"QCOM": 0.50, "2454.TW": 0.40, "ARM": 0.40, "MBLY": 0.40,
+                     "NXPI": 0.25, "STM": 0.20},
+            # מעטפת: AI PC ובקרי קצה — חשיפה חלקית ועקיפה למגמה
+            "env": {"AMD": 0.15, "INTC": 0.15, "RNECY": 0.15, "MCHP": 0.15},
         },
-        "Custom Silicon / ASIC (סיליקון בהזמנה)": {
-            "AVGO": 3, "MRVL": 3,
-            "TSM": 2, "SNPS": 2, "CDNS": 2, "ARM": 2,
-            "GFS": 1,
+        "צרכני מסורתי (PC ומובייל)": {
+            # איחוד PC + מובייל: החברות המסורתיות של מחשוב וסלולר צרכני
+            "core": {"2454.TW": 0.75, "SWKS": 0.70, "QRVO": 0.70, "QCOM": 0.55,
+                     "INTC": 0.50, "005930.KS": 0.35, "AMD": 0.30, "NVDA": 0.07},
+            "env": {"ARM": 0.50, "TSM": 0.30, "MU": 0.30, "SNDK": 0.30, "285A.T": 0.30},
         },
-        "Power Semi SiC/GaN (מוליכי הספק)": {
-            "ON": 3, "STM": 3, "IFNNY": 3,
-            "RNECY": 2, "TXN": 2,
-            "ADI": 1, "NXPI": 1, "AEIS": 1, "TSEM": 1,
+        "רכב": {
+            "core": {"MBLY": 0.90, "NXPI": 0.55, "ON": 0.50, "RNECY": 0.50,
+                     "IFNNY": 0.45, "STM": 0.40, "TXN": 0.35, "ADI": 0.30, "MCHP": 0.20},
+            "env": {"QCOM": 0.10},
         },
-        "Silicon Photonics (פוטוניקת סיליקון)": {
-            "COHR": 3, "LITE": 3, "TSEM": 3,
-            "AVGO": 2, "MRVL": 2,
-            "ANET": 1, "NVDA": 1,
-        },
-    },
-    "Mfg Inflections (נקודות מפנה בייצור)": {
-        "GAA & Backside Power (טרנזיסטורים והספק)": {
-            "ASML": 3, "AMAT": 3, "LRCX": 3,
-            "KLAC": 2, "TOELY": 2, "ASMIY": 2, "INTC": 2, "TSM": 2,
-            "005930.KS": 1,
-        },
-        "Advanced Packaging (אריזה מתקדמת)": {
-            "AMKR": 3, "BESIY": 3,
-            "TSM": 2, "ASMIY": 2, "CAMT": 2, "ONTO": 2,
-            "AMAT": 1, "TER": 1, "ATEYY": 1, "NVDA": 1,
-        },
-        "High-NA EUV (ליתוגרפיה מתקדמת)": {
-            "ASML": 3,
-            "TSM": 2, "INTC": 2,
-            "KLAC": 1, "005930.KS": 1,
+        "תעשייה": {
+            "core": {"ADI": 0.50, "TXN": 0.40, "MCHP": 0.40, "RNECY": 0.35,
+                     "IFNNY": 0.25, "STM": 0.25, "ON": 0.25, "TER": 0.25, "NXPI": 0.20},
+            "env": {"AMD": 0.10},
         },
     },
 }
-
-# מיפוי שטוח של נושא -> ציונים, נבנה אוטומטית מהקבוצות (לשימוש הפונקציות)
-EXPOSURE_MATRIX = {}
-for _group_themes in THEME_GROUPS.values():
-    for _theme_name, _scores in _group_themes.items():
-        EXPOSURE_MATRIX[_theme_name] = _scores
-
-# שמות רמות החשיפה לתצוגה
-EXPOSURE_LEVELS = {3: "🎯 ליבה", 2: "🚀 מנוע צמיחה", 1: "↪️ עקיפה"}
 
 HOT_THRESHOLD = 10
 BROAD_THRESHOLD = 0.6
@@ -162,6 +194,7 @@ RELATIVE_THRESHOLD = {
     "lastclose": 2.0,
     "5d": 5.0,
     "1mo": 10.0,
+    "3mo": 13.0,
     "6mo": 15.0,
     "ytd": 15.0,
     "1y": 20.0,
@@ -173,6 +206,7 @@ AI_CACHE_TTL = {
     "lastclose": 43200,
     "5d": 86400,
     "1mo": 259200,
+    "3mo": 432000,
     "6mo": 604800,
     "ytd": 604800,
     "1y": 1209600,
@@ -184,6 +218,7 @@ PERIOD_OPTIONS = {
     "Last close": "lastclose",
     "5D": "5d",
     "1M": "1mo",
+    "3M": "3mo",
     "6M": "6mo",
     "YTD": "ytd",
     "1Y": "1y",
@@ -280,49 +315,62 @@ def get_changes(stocks, period):
     return pairs
 
 
-def compute_theme_index(theme_name, period):
-    weights = EXPOSURE_MATRIX.get(theme_name, {})
-    weighted_sum = 0.0          # סכום (תשואה × משקל)
-    weight_total = 0            # סכום המשקלים שנספרו בפועל
-    by_level = {3: [], 2: [], 1: []}   # פירוק לפי רמת חשיפה
+def compute_tech_group_index(group_def, period):
+    """מדד תחום טכנולוגי: תשואה משוקללת של ליבה (1.0) ומעטפת (0.4).
 
-    for symbol, score in weights.items():
-        if score <= 0:
-            continue
+    משקל מניה = ציון חשיפה × מכפיל שכבה. מניה בלי נתונים לא נספרת.
+    מחזיר גם את המשקל האפקטיבי (המנורמל) של כל מניה בתוך התחום,
+    ואת תרומת כל שכבה לתשואה (שתיהן יחד = התשואה הכוללת).
+    """
+    weighted_sum = 0.0
+    weight_total = 0.0
+    core_rows = []
+    env_rows = []
+
+    for symbol, exposure in group_def.get("core", {}).items():
         change = get_change(symbol, period)
         if change is None:
-            continue            # מדלגים על מניה בלי נתונים, ולא סופרים את משקלה
-        weighted_sum += change * score
-        weight_total += score
-        by_level[score].append((symbol, change))
+            continue
+        w = exposure * TIER_CORE
+        weighted_sum += change * w
+        weight_total += w
+        core_rows.append([symbol, change, w])
+
+    for symbol, exposure in group_def.get("env", {}).items():
+        change = get_change(symbol, period)
+        if change is None:
+            continue
+        w = exposure * TIER_ENV
+        weighted_sum += change * w
+        weight_total += w
+        env_rows.append([symbol, change, w])
 
     if weight_total == 0:
-        weighted_return = None
-    else:
-        weighted_return = weighted_sum / weight_total
+        return None
 
-    # ממוצע פשוט לכל רמת חשיפה, ותרומת הרמה לתשואה המשוקללת
-    # תרומת רמה = סכום(תשואה × משקל) של אותה רמה, חלקי סך כל המשקלים
-    # שלוש התרומות יחד מסתכמות בדיוק לתשואה המשוקללת
-    level_summary = {}
-    for level in (3, 2, 1):
-        rows = by_level[level]
-        if len(rows) > 0:
-            avg = sum(c for s, c in rows) / len(rows)
-            contribution = sum(c * level for s, c in rows) / weight_total
-        else:
-            avg = None
-            contribution = 0.0
-        level_summary[level] = {
-            "avg": avg,
-            "contribution": contribution,
-            "stocks": sorted(rows, key=lambda x: x[1], reverse=True),
-        }
+    # נרמול המשקלים לתצוגה: חלקה של כל מניה מתוך 100% של התחום
+    for row in core_rows:
+        row[2] = row[2] / weight_total
+    for row in env_rows:
+        row[2] = row[2] / weight_total
+
+    core_contrib = sum(c * w for s, c, w in core_rows)
+    env_contrib = sum(c * w for s, c, w in env_rows)
+
+    all_changes = [c for s, c, w in core_rows] + [c for s, c, w in env_rows]
+    up = len([c for c in all_changes if c > 0])
+    down = len([c for c in all_changes if c < 0])
 
     return {
-        "weighted_return": weighted_return,
-        "weight_total": weight_total,
-        "by_level": level_summary,
+        "weighted_return": weighted_sum / weight_total,
+        "core": sorted(core_rows, key=lambda x: x[1], reverse=True),
+        "env": sorted(env_rows, key=lambda x: x[1], reverse=True),
+        "core_contrib": core_contrib,
+        "env_contrib": env_contrib,
+        "core_weight": sum(w for s, c, w in core_rows),
+        "env_weight": sum(w for s, c, w in env_rows),
+        "up": up,
+        "down": down,
     }
 
 
@@ -540,17 +588,37 @@ def build_spread_chart(stocks, period):
     date_col = df.columns[0]
     df = df.rename(columns={date_col: "תאריך"})
 
+    # --- החדרת נקודות חצייה של האפס ---
+    # בכל מקום שבו הפער עובר מחיובי לשלילי (או להפך) בין שתי נקודות,
+    # מחשבים את התאריך המדויק שבו הוא שווה 0 ומכניסים שם נקודת ביניים.
+    # כך המילוי הירוק/אדום נחתך בדיוק על קו האפס, בלי משולשים בצבע הלא נכון.
+    rows = []
+    for i in range(len(df)):
+        rows.append({"תאריך": df["תאריך"].iloc[i], "spread": df["spread"].iloc[i]})
+        if i < len(df) - 1:
+            y1 = df["spread"].iloc[i]
+            y2 = df["spread"].iloc[i + 1]
+            if (y1 > 0 and y2 < 0) or (y1 < 0 and y2 > 0):
+                t1 = df["תאריך"].iloc[i]
+                t2 = df["תאריך"].iloc[i + 1]
+                # אינטרפולציה ליניארית של רגע החצייה
+                frac = abs(y1) / (abs(y1) + abs(y2))
+                t_cross = t1 + (t2 - t1) * frac
+                rows.append({"תאריך": t_cross, "spread": 0.0})
+    df = pd.DataFrame(rows)
+
+    # שתי עמודות נפרדות: אחת רק לערכים החיוביים, אחת רק לשליליים.
+    # מחוץ לתחום כל אחת מקבלת 0, כך שהמילוי לא "גולש" מעבר לקו האפס.
+    df["pos"] = df["spread"].clip(lower=0)
+    df["neg"] = df["spread"].clip(upper=0)
+
     base = alt.Chart(df).encode(
         x=alt.X("תאריך:T", title=None, axis=alt.Axis(labelFontSize=12, labelPadding=8, tickCount=6))
     )
-    # אזור ירוק לפער חיובי, אדום לשלילי
-    area_pos = base.transform_filter("datum.spread >= 0").mark_area(
-        color="rgba(34,197,94,0.35)"
-    ).encode(y=alt.Y("spread:Q", title="פער מ-SOXX (נק')",
-                     axis=alt.Axis(labelFontSize=12, titleFontSize=13, titlePadding=10)))
-    area_neg = base.transform_filter("datum.spread < 0").mark_area(
-        color="rgba(239,68,68,0.35)"
-    ).encode(y="spread:Q")
+    area_pos = base.mark_area(color="rgba(34,197,94,0.35)").encode(
+        y=alt.Y("pos:Q", title="פער מ-SOXX (נק')",
+                axis=alt.Axis(labelFontSize=12, titleFontSize=13, titlePadding=10)))
+    area_neg = base.mark_area(color="rgba(239,68,68,0.35)").encode(y="neg:Q")
     line = base.mark_line(strokeWidth=2.5, color="#e5e7eb").encode(y="spread:Q")
     zero = alt.Chart(pd.DataFrame({"y": [0]})).mark_rule(
         strokeDash=[3, 3], color="#888", strokeWidth=1.5
@@ -564,6 +632,13 @@ def clean_name(sector):
     if ". " in sector:
         return sector.split(". ", 1)[1]
     return sector
+
+
+def sector_key(sector_name):
+    # מזהה יציב וקצר לכל תחום, לפי שמו (לא לפי מיקומו בדירוג).
+    # משמש למפתחות widgets ו-session_state כדי שהמצב יישאר צמוד לתחום
+    # גם כשהדירוג משתנה בעקבות החלפת תקופה.
+    return hashlib.md5(sector_name.encode("utf-8")).hexdigest()[:8]
 
 
 def section_header(title, accent):
@@ -589,6 +664,24 @@ def returns_table_html(pairs, descending=True):
             "<tr><th style='text-align:right; padding:4px 10px; border-bottom:1px solid #666;'>מניה</th>"
             "<th style='text-align:right; padding:4px 10px; border-bottom:1px solid #666;'>תשואה</th></tr>"
             + rows + "</table>")
+
+
+def tech_table_html(rows):
+    # טבלת מניות לתחום טכנולוגי: מניה, תשואה, ומשקל אפקטיבי בתוך התחום
+    # rows = רשימה של [סימבול, תשואה, משקל מנורמל], כבר ממוינת מהגבוה לנמוך
+    body = ""
+    for symbol, change, weight in rows:
+        c = "#22c55e" if change >= 0 else "#ef4444"
+        body += ("<tr><td style='text-align:right; padding:4px 10px;'>" + symbol +
+                 "</td><td style='text-align:right; padding:4px 10px; color:" + c +
+                 "; font-weight:600;'>" + str(round(change, 1)) + "%</td>"
+                 "<td style='text-align:right; padding:4px 10px; color:#9ca3af;'>" +
+                 str(round(weight * 100, 1)) + "%</td></tr>")
+    return ("<table dir='rtl' style='width:100%; border-collapse:collapse; margin-top:8px;'>"
+            "<tr><th style='text-align:right; padding:4px 10px; border-bottom:1px solid #666;'>מניה</th>"
+            "<th style='text-align:right; padding:4px 10px; border-bottom:1px solid #666;'>תשואה</th>"
+            "<th style='text-align:right; padding:4px 10px; border-bottom:1px solid #666;'>משקל בתחום</th></tr>"
+            + body + "</table>")
 
 
 def render_ai_alert(soxx_change, holdings_pairs, period, period_label):
@@ -707,11 +800,21 @@ else:
         customdata=ret_cells,
         hovertemplate="%{x|%d/%m/%Y}<br>מחיר: $%{y:.2f}<br>תשואה: %{customdata}<extra></extra>",
     ))
+    # ציר Y דינמי: לא מתחילים מאפס, אלא מרווח קטן סביב טווח המחירים בפועל,
+    # כדי שתנועת המחיר תיראה נכון (בעיקר בתקופות קצרות). מילוי עדין עד תחתית הציר.
+    price_min = float(soxx_price["מחיר"].min())
+    price_max = float(soxx_price["מחיר"].max())
+    price_pad = (price_max - price_min) * 0.15
+    if price_pad == 0:
+        price_pad = price_max * 0.01 if price_max else 1.0
+    y_low = price_min - price_pad
+    y_high = price_max + price_pad
     mini.update_layout(
         height=240, template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         margin=dict(t=10, b=30, l=50, r=20),
-        yaxis=dict(title="מחיר ($)", gridcolor="rgba(255,255,255,0.08)"),
+        yaxis=dict(title="מחיר ($)", gridcolor="rgba(255,255,255,0.08)",
+                   range=[y_low, y_high]),
         xaxis=dict(gridcolor="rgba(255,255,255,0.08)"),
         showlegend=False,
     )
@@ -808,7 +911,11 @@ for median, average, up, down, total, breadth, sector, pairs in results:
             + summary_line + soxx_line + driver + "</div>")
     st.markdown(card, unsafe_allow_html=True)
 
-    with st.expander("פרטים, מניות וחדשות"):
+    # מצב פתוח/סגור נשמר לפי זהות התחום (sector_key), לא לפי מיקומו בדירוג.
+    # כך אם פותחים תחום ומחליפים תקופה, אותו תחום נשאר פתוח גם אם ירד/עלה בדירוג.
+    open_key = "open_heat_" + sector_key(sector)
+    is_open = st.toggle("📂 פרטים, מניות וחדשות", key=open_key)
+    if is_open:
         # --- אזור טבלת המניות ---
         st.markdown(section_header("📊 מניות בתחום", "#3b82f6"), unsafe_allow_html=True)
         st.markdown(returns_table_html(pairs), unsafe_allow_html=True)
@@ -833,14 +940,11 @@ for median, average, up, down, total, breadth, sector, pairs in results:
             st.caption("אין חדשות זמינות כרגע לתחום הזה")
         else:
             st.markdown(section_header("📰 חדשות אחרונות בתחום", "#a78bfa"), unsafe_allow_html=True)
-            head_col, btn_col = st.columns([3, 1])
-            with head_col:
-                st.caption("לחצי לניתוח סנטימנט החדשות עם AI")
-            with btn_col:
-                titles_list = [item["title"] for sym, item in sector_news]
-                sig = titles_signature(titles_list)
-                news_key = "news_analysis_" + str(rank) + "_" + sig
-                do_analyze = st.button("🧠 נתח חדשות", key="newsbtn_" + str(rank))
+            st.caption("לחצי לניתוח סנטימנט החדשות עם AI")
+            titles_list = [item["title"] for sym, item in sector_news]
+            sig = titles_signature(titles_list)
+            news_key = "news_analysis_" + sector_key(sector) + "_" + sig
+            do_analyze = st.button("🧠 נתח חדשות", key="newsbtn_" + sector_key(sector))
 
             if do_analyze:
                 titles_block = ""
@@ -998,101 +1102,105 @@ else:
         st.info("חציון התחום: " + str(round(sector_median, 1)) + "%  |  SOXX: " +
                 str(round(soxx_change2, 1)) + "%  →  " + better + " (" + str(round(diff, 1)) + " נק')")
 
-
 # ======================================================
-# דירוג נושאי לפי חשיפה — שלוש קבוצות העל
+# חדש: פילוח טכנולוגי — ליבה ומעטפת
 # ======================================================
 st.divider()
-st.header("🧪 דירוג נושאי לפי חשיפה")
-st.caption("ניסיוני · כל נושא מדורג לפי תשואה משוקללת בחשיפת המניות אליו (ציון 0–3)")
+st.header("🧬 פילוח טכנולוגי — ליבה ומעטפת")
+st.caption("כל תחום מדורג לפי תשואה משוקללת: ליבה (חשיפה × 1.0) ומעטפת (חשיפה × 0.4). "
+           "שני צירים חופפים בכוונה — טכנולוגיה (מה מוכרים) ושוקי קצה (למי מוכרים) — אין להשוות ביניהם כסכום.")
 
 
-def exposure_level_block(level, data):
-    """כרטיס לרמת חשיפה אחת: כותרת צבעונית, תרומה, וטבלת מניות."""
-    titles = {
-        3: ("🎯 ליבה — מוכרות את הרכיב", "#22c55e"),
-        2: ("🚀 מנוע צמיחה", "#3b82f6"),
-        1: ("↪️ חשיפה עקיפה", "#a78bfa"),
-    }
-    title, head_color = titles[level]
-    avg = data["avg"]
-    contrib = data["contribution"]
-    avg_str = "—" if avg is None else str(round(avg, 1)) + "%"
-    contrib_sign = "+" if contrib >= 0 else ""
-    contrib_str = contrib_sign + str(round(contrib, 1)) + " נק'"
-
-    st.markdown(
-        "<div dir='rtl' style='text-align:right; border-top:3px solid " + head_color +
-        "; background:rgba(120,120,120,0.06); border-radius:6px; padding:8px 10px; margin-bottom:4px;'>"
-        "<div style='font-weight:800; font-size:15px; color:" + head_color + ";'>" + title + "</div>"
-        "<div style='font-size:13px; color:#bbb; margin-top:3px;'>ממוצע " + avg_str
-        + " · תרומה לנושא <b>" + contrib_str + "</b></div>"
-        "</div>",
-        unsafe_allow_html=True,
-    )
-    if data["stocks"]:
-        st.markdown(returns_table_html(data["stocks"]), unsafe_allow_html=True)
-    else:
-        st.caption("אין מניות עם נתונים ברמה זו")
-
-
-def render_theme_card(theme_name, idx):
-    """כרטיס נושא מלא: כותרת עם תשואה משוקללת + expander עם פירוק שתי-עמודות."""
+def render_tech_group_card(group_name, idx, card_rank):
+    """כרטיס תחום טכנולוגי: כותרת עם תשואה משוקללת, ופירוק ליבה/מעטפת."""
     wret = idx["weighted_return"]
     color = "#22c55e" if wret >= 0 else "#ef4444"
     sign = "+" if wret >= 0 else ""
-    n_stocks = sum(len(idx["by_level"][lv]["stocks"]) for lv in (3, 2, 1))
+    n_core = len(idx["core"])
+    n_env = len(idx["env"])
+
+    # שורת סיכום: כמה מניות עלו/ירדו, וכמה מהמשקל יושב בליבה
+    core_weight_pct = str(round(idx["core_weight"] * 100)) + "%"
+    summary = ("ליבה " + str(n_core) + " · מעטפת " + str(n_env) +
+               " · עלו " + str(idx["up"]) + " · ירדו " + str(idx["down"]) +
+               " · משקל הליבה " + core_weight_pct)
 
     st.markdown(
         "<div dir='rtl' style='background:rgba(120,120,120,0.10); border-right:6px solid " + color +
-        "; border-radius:10px; padding:12px 16px; margin-bottom:2px; text-align:right; "
-        "display:flex; justify-content:space-between; align-items:center;'>"
-        "<span style='font-weight:700; font-size:18px;'>" + theme_name + "</span>"
+        "; border-radius:10px; padding:12px 16px; margin-bottom:2px; text-align:right;'>"
+        "<div style='display:flex; justify-content:space-between; align-items:center;'>"
+        "<span style='font-weight:700; font-size:18px;'>" + str(card_rank) + ". " + group_name + "</span>"
         "<span style='color:" + color + "; font-weight:800; font-size:20px;'>" + sign + str(round(wret, 1)) + "%</span>"
+        "</div>"
+        "<div style='color:#9ca3af; font-size:13px; margin-top:5px;'>" + summary + "</div>"
         "</div>",
         unsafe_allow_html=True,
     )
 
-    with st.expander("פירוק: שחקניות ישירות מול שרשרת אספקה  ·  " + str(n_stocks) + " מניות"):
+    # מצב פתוח/סגור נשמר לפי שם התחום, לא לפי מיקומו בדירוג.
+    open_key = "open_tech_" + sector_key(group_name)
+    if st.toggle("📂 פירוק: ליבה מול מעטפת  ·  " + str(n_core + n_env) + " מניות", key=open_key):
+        core_sign = "+" if idx["core_contrib"] >= 0 else ""
+        env_sign = "+" if idx["env_contrib"] >= 0 else ""
         st.markdown(
             "<div dir='rtl' style='text-align:right; color:#999; font-size:13px; margin-bottom:10px;'>"
-            "💡 <b>ליבה</b> = מוכרות את הרכיב עצמו · <b>מנוע צמיחה</b> ו<b>עקיפה</b> = שרשרת האספקה שנהנית. "
-            "ה<b>תרומה</b> מראה כמה נקודות אחוז מתוך " + sign + str(round(wret, 1))
-            + "% הגיעו מכל רמה — שלושתן יחד = התשואה הכוללת.</div>",
+            "💡 <b>ליבה</b> = התחום הוא עיקר העסק (מכפיל 1.0) · <b>מעטפת</b> = מעגל שני שנהנה עקיפות (מכפיל 0.4). "
+            "המשקל בטבלה = החלק האפקטיבי של המניה בתשואת התחום. "
+            "תרומת הליבה: <b>" + core_sign + str(round(idx["core_contrib"], 1)) + " נק'</b> · "
+            "תרומת המעטפת: <b>" + env_sign + str(round(idx["env_contrib"], 1)) + " נק'</b> — יחד = התשואה הכוללת.</div>",
             unsafe_allow_html=True,
         )
         right_col, left_col = st.columns(2)
         with right_col:
-            st.markdown("<div dir='rtl' style='text-align:center; font-weight:800; color:#22c55e; margin-bottom:6px;'>שחקניות ישירות</div>", unsafe_allow_html=True)
-            exposure_level_block(3, idx["by_level"][3])
+            st.markdown(
+                "<div dir='rtl' style='text-align:center; font-weight:800; color:#22c55e; "
+                "border-top:3px solid #22c55e; background:rgba(34,197,94,0.06); "
+                "border-radius:6px; padding:6px; margin-bottom:4px;'>🎯 ליבת התחום</div>",
+                unsafe_allow_html=True,
+            )
+            if idx["core"]:
+                st.markdown(tech_table_html(idx["core"]), unsafe_allow_html=True)
+            else:
+                st.caption("אין מניות ליבה עם נתונים")
         with left_col:
-            st.markdown("<div dir='rtl' style='text-align:center; font-weight:800; color:#3b82f6; margin-bottom:6px;'>שרשרת אספקה מאפשרת</div>", unsafe_allow_html=True)
-            exposure_level_block(2, idx["by_level"][2])
-            exposure_level_block(1, idx["by_level"][1])
+            st.markdown(
+                "<div dir='rtl' style='text-align:center; font-weight:800; color:#f59e0b; "
+                "border-top:3px solid #f59e0b; background:rgba(245,158,11,0.06); "
+                "border-radius:6px; padding:6px; margin-bottom:4px;'>↪️ מעטפת — נהנות עקיפות</div>",
+                unsafe_allow_html=True,
+            )
+            if idx["env"]:
+                st.markdown(tech_table_html(idx["env"]), unsafe_allow_html=True)
+            else:
+                st.caption("אין מניות מעטפת בתחום זה")
 
     st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
 
-# לולאה על שלוש קבוצות העל. כל קבוצה מקבלת כותרת, ובתוכה הנושאים ממוינים מהחם לקר.
-for group_name, group_themes in THEME_GROUPS.items():
-    st.markdown(
-        "<div dir='rtl' style='text-align:right; font-weight:800; font-size:22px; "
-        "margin:18px 0 8px 0; padding-bottom:4px; border-bottom:2px solid #555;'>"
-        + group_name + "</div>",
-        unsafe_allow_html=True,
-    )
+with st.spinner("מחשב את הפילוח הטכנולוגי..."):
+    for axis_name, axis_groups in TECH_GROUPS.items():
+        axis_color = "#3b82f6" if axis_name == "ציר טכנולוגיה" else "#a78bfa"
+        st.markdown(
+            "<div dir='rtl' style='text-align:right; font-weight:800; font-size:22px; "
+            "margin:18px 0 8px 0; padding-bottom:4px; border-bottom:2px solid " + axis_color + ";'>"
+            + axis_name + "</div>",
+            unsafe_allow_html=True,
+        )
 
-    group_results = []
-    for theme_name in group_themes:
-        idx = compute_theme_index(theme_name, period)
-        if idx["weighted_return"] is not None:
-            group_results.append((idx["weighted_return"], theme_name, idx))
+        axis_results = []
+        for group_name, group_def in axis_groups.items():
+            idx = compute_tech_group_index(group_def, period)
+            if idx is not None:
+                axis_results.append((idx["weighted_return"], group_name, idx))
 
-    group_results.sort(reverse=True)
+        # דירוג מהתשואה המשוקללת הגבוהה לנמוכה
+        axis_results.sort(key=lambda x: x[0], reverse=True)
 
-    if len(group_results) == 0:
-        st.caption("אין נתונים זמינים לקבוצה זו כרגע")
-        continue
+        if len(axis_results) == 0:
+            st.caption("אין נתונים זמינים לציר זה כרגע")
+            continue
 
-    for wret, theme_name, idx in group_results:
-        render_theme_card(theme_name, idx)
+        card_rank = 1
+        for wret, group_name, idx in axis_results:
+            render_tech_group_card(group_name, idx, card_rank)
+            card_rank = card_rank + 1
