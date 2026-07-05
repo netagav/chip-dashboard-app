@@ -209,6 +209,63 @@ TECH_GROUPS = {
     },
 }
 
+# ======================================================
+# CapEx — ענקיות הענן
+# ======================================================
+# ההשקעות ההוניות של ענקיות הענן הן מנוע הביקוש של סקטור השבבים.
+CAPEX_COMPANIES = {
+    "MSFT": "מיקרוסופט",
+    "GOOGL": "אלפאבית (גוגל)",
+    "AMZN": "אמזון",
+    "META": "מטא",
+}
+
+CAPEX_COLORS = {
+    "MSFT": "#60a5fa",
+    "GOOGL": "#34d399",
+    "AMZN": "#fbbf24",
+    "META": "#a78bfa",
+}
+
+# תחזית CapEx שנתית לשנה הפיסקלית הנוכחית — מוזן ידנית!
+# אין מקור API לתחזיות; הן נאמרות בשיחות הוועידה. מעדכנים פעם ברבעון.
+# כל עדכון = (תווית: מתי ניתנה התחזית, ערך במיליארדי דולרים).
+# ערך None = טרם הוזן, ולא יוצג. השתמש בכפתור "חפש תחזיות עדכניות"
+# בתחתית האזור כדי ש-Gemini ימצא לך את המספרים העדכניים.
+# שים לב: מיקרוסופט = שנה פיסקלית עד סוף יוני,
+# גוגל/אמזון/מטא = שנה קלנדרית רגילה.
+CAPEX_GUIDANCE = {
+    "MSFT": {
+        "year_label": "FY2026 (יולי 2025 – יוני 2026)",
+        "updates": [
+            ("תחזית אחרי Q1 FY26", None),
+            ("תחזית אחרי Q2 FY26", 154),
+            ("תחזית אחרי Q3 FY26", 190),
+        ],
+    },
+    "GOOGL": {
+        "year_label": "2026",
+        "updates": [
+            ("תחזית אחרי Q4 2025", 180),
+            ("תחזית אחרי Q1 2026", 185),
+        ],
+    },
+    "AMZN": {
+        "year_label": "2026",
+        "updates": [
+            ("תחזית אחרי Q4 2025", 200),
+            ("תחזית אחרי Q1 2026", 200),
+        ],
+    },
+    "META": {
+        "year_label": "2026",
+        "updates": [
+            ("תחזית אחרי Q4 2025", 125),
+            ("תחזית אחרי Q1 2026", 135),
+        ],
+    },
+}
+
 HOT_THRESHOLD = 10
 BROAD_THRESHOLD = 0.6
 GAP_THRESHOLD = 15
@@ -520,6 +577,80 @@ def gemini_analyze_news(sector_name, titles_sig, titles_block):
         return json.loads(response.text)
     except Exception:
         return None
+
+
+# ---------- פונקציות CapEx ----------
+@st.cache_data(ttl=86400)
+def get_capex_quarterly(symbol):
+    """CapEx רבעוני במיליארדי דולרים, מהישן לחדש. None אם אין נתונים."""
+    try:
+        cf = yf.Ticker(symbol).quarterly_cashflow
+        row = None
+        for name in ("Capital Expenditure", "Capital Expenditures"):
+            if name in cf.index:
+                row = cf.loc[name]
+                break
+        if row is None:
+            return None
+        row = row.dropna().abs() / 1e9
+        row = row.sort_index()
+        if len(row) == 0:
+            return None
+        return row
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=86400)
+def get_capex_annual(symbol):
+    """CapEx שנתי (לפי השנה הפיסקלית של החברה) במיליארדי דולרים, מהישן לחדש."""
+    try:
+        cf = yf.Ticker(symbol).cashflow
+        row = None
+        for name in ("Capital Expenditure", "Capital Expenditures"):
+            if name in cf.index:
+                row = cf.loc[name]
+                break
+        if row is None:
+            return None
+        row = row.dropna().abs() / 1e9
+        row = row.sort_index()
+        if len(row) == 0:
+            return None
+        return row
+    except Exception:
+        return None
+
+
+def gemini_capex_trend(capex_lines):
+    """סיכום מגמת ה-CapEx הרבעוני עם חיפוש ברשת."""
+    prompt = (
+        "אלה נתוני ה-CapEx הרבעוניים האחרונים של ענקיות הענן, במיליארדי דולרים: "
+        + capex_lines + ". "
+        "חפש ברשת וכתוב בעברית סיכום קצר: האם הכיוון הוא האצה או האטה בהשקעות, "
+        "מה החברות אמרו בשיחות הוועידה האחרונות, "
+        "ומה המשמעות לספקיות השבבים והציוד (NVDA, AVGO, TSM, ציוד ייצור). "
+        "ענה ב-4 עד 6 משפטים."
+    )
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    cache_key = "capex_trend|" + day
+    return _cached_gemini(cache_key, prompt, 604800)
+
+
+def gemini_capex_guidance():
+    """חיפוש התחזיות השנתיות העדכניות — עוזר למלא את CAPEX_GUIDANCE ידנית."""
+    prompt = (
+        "חפש ברשת את תחזית ה-CapEx השנתית (Capital Expenditure Guidance) "
+        "העדכנית ביותר שכל אחת מהחברות הבאות נתנה בשיחת הוועידה האחרונה שלה: "
+        "Microsoft (שנה פיסקלית עד יוני), Alphabet/Google, Amazon, Meta, "
+        "Oracle (שנה פיסקלית עד מאי). "
+        "כתוב בעברית, לכל חברה שורה אחת: שם החברה, לאיזו שנה פיסקלית התחזית, "
+        "מה הסכום במיליארדי דולרים, ומתי התחזית ניתנה (איזה דוח רבעוני). "
+        "אם חברה עדכנה את התחזית במהלך השנה, ציין גם את המספר הקודם."
+    )
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    cache_key = "capex_guidance|" + day
+    return _cached_gemini(cache_key, prompt, 259200)
 
 
 def titles_signature(titles):
@@ -840,6 +971,45 @@ def tech_table_html(rows):
             + body + "</table>")
 
 
+def capex_guidance_table_html(rows):
+    # טבלה מסכמת של התחזיות: חברה, תחזית אחרונה, תחזית קודמת, שינוי ביניהן,
+    # ושינוי התחזית מול ה-CapEx בפועל של השנה הקודמת.
+    # rows = רשימת מילונים עם המפתחות: name, last, prev, chg_prev, chg_actual
+    def pct_cell(v):
+        if v is None:
+            return "<td style='text-align:center; padding:6px 10px; color:#6b7280;'>—</td>"
+        c = "#22c55e" if v >= 0 else "#ef4444"
+        sg = "+" if v >= 0 else ""
+        return ("<td style='text-align:center; padding:6px 10px; color:" + c +
+                "; font-weight:700;'>" + sg + str(round(v, 1)) + "%</td>")
+
+    def usd_cell(v):
+        if v is None:
+            return "<td style='text-align:center; padding:6px 10px; color:#6b7280;'>—</td>"
+        return ("<td style='text-align:center; padding:6px 10px;'>$" +
+                str(round(v, 1)) + "B</td>")
+
+    body = ""
+    for r in rows:
+        body += ("<tr>"
+                 "<td style='text-align:right; padding:6px 10px; font-weight:600;'>" + r["name"] + "</td>"
+                 + usd_cell(r["last"])
+                 + usd_cell(r["prev"])
+                 + pct_cell(r["chg_prev"])
+                 + usd_cell(r["actual_prev"])
+                 + pct_cell(r["chg_actual"])
+                 + "</tr>")
+    return ("<table dir='rtl' style='width:100%; border-collapse:collapse; margin-top:8px; font-size:14px;'>"
+            "<tr style='border-bottom:1px solid #666;'>"
+            "<th style='text-align:right; padding:6px 10px;'>חברה</th>"
+            "<th style='text-align:center; padding:6px 10px;'>תחזית אחרונה</th>"
+            "<th style='text-align:center; padding:6px 10px;'>תחזית קודמת</th>"
+            "<th style='text-align:center; padding:6px 10px;'>שינוי בתחזית</th>"
+            "<th style='text-align:center; padding:6px 10px;'>שנה קודמת בפועל</th>"
+            "<th style='text-align:center; padding:6px 10px;'>תחזית מול בפועל</th>"
+            "</tr>" + body + "</table>")
+
+
 def render_ai_alert(soxx_change, holdings_pairs, period, period_label):
     if soxx_change is None:
         return
@@ -909,7 +1079,7 @@ st.sidebar.caption("בחרי תקופה — כל הדשבורד יתעדכן")
 # ======================================================
 # אזור SOXX
 # ======================================================
-section_banner(1, 4, "🏆", "מדד סקטור השבבים — SOXX", "#f59e0b",
+section_banner(1, 5, "🏆", "מדד סקטור השבבים — SOXX", "#f59e0b",
                 "התנהגות המדד הכללי, עם התראות AI על תנועות חריגות")
 soxx_close = get_history(BENCHMARK, period)
 
@@ -1020,6 +1190,7 @@ with st.spinner("סורק את כל התחומים..."):
     else:
         max_abs_dist = 1.0
 
+
 # ---------- מפת חום ----------
 def render_domain_detail(sector, pairs, period):
     """מרנדר את תוכן הפרטים של תחום: מניות, גרף מגמת הפער, וחדשות + ניתוח AI.
@@ -1110,7 +1281,7 @@ def render_domain_detail(sector, pairs, period):
         )
 
 
-section_banner(2, 4, "🗺️", "מפת חום — דירוג שרשרת הערך", "#3b82f6",
+section_banner(2, 5, "🗺️", "מפת חום — דירוג שרשרת הערך", "#3b82f6",
                 "11 חוליות שרשרת הערך, מדורגות לפי המרחק מ-SOXX")
 st.caption("מדורג לפי המרחק מ-SOXX — מי מכה את המדד הכי הרבה. הגרף מציג את התמונה; לחצי על שורה בטבלה למטה כדי לפתוח פרטים.")
 
@@ -1198,7 +1369,7 @@ with st.container(border=True):
         rank = rank + 1
 
 # ---------- צלילה לתחום ----------
-section_banner(3, 4, "🔍", "צלילה לתחום — השוואת מניות", "#22c55e",
+section_banner(3, 5, "🔍", "צלילה לתחום — השוואת מניות", "#22c55e",
                 "בחרי תחום כדי להשוות בין המניות שבו, מול חציון התחום ומול SOXX")
 
 sector_names = []
@@ -1298,7 +1469,7 @@ else:
 # ======================================================
 # פילוח טכנולוגי — ליבה ומעטפת
 # ======================================================
-section_banner(4, 4, "🧬", "פילוח טכנולוגי — ליבה ומעטפת", "#a78bfa")
+section_banner(4, 5, "🧬", "פילוח טכנולוגי — ליבה ומעטפת", "#a78bfa")
 st.caption("כל תחום מדורג לפי תשואה משוקללת: ליבה (חשיפה × 1.0) ומעטפת (חשיפה × 0.4). "
            "שני צירים חופפים בכוונה — טכנולוגיה (מה מוכרים) ושוקי קצה (למי מוכרים) — אין להשוות ביניהם כסכום.")
 
@@ -1426,3 +1597,414 @@ with st.spinner("מחשב את הפילוח הטכנולוגי..."):
                     with st.container(border=True):
                         render_tech_detail(idx)
                 rankn = rankn + 1
+
+# ======================================================
+# CapEx — השקעות ענקיות הענן
+# ======================================================
+section_banner(5, 5, "🏗️", "CapEx — השקעות ענקיות הענן", "#22d3ee",
+                "ההשקעות ההוניות של מיקרוסופט, גוגל, אמזון ומטא — מנוע הביקוש של הסקטור")
+st.caption("נתוני CapEx בפועל מדוחות תזרים המזומנים (yfinance). "
+           "תחזיות שנתיות מוזנות ידנית מהשיחות ועידה. "
+           "האזור אינו תלוי בתקופה שנבחרה בסרגל הצד.")
+
+with st.spinner("מושך נתוני CapEx..."):
+    capex_q = {}
+    for sym in CAPEX_COMPANIES:
+        s = get_capex_quarterly(sym)
+        if s is not None:
+            capex_q[sym] = s
+
+if len(capex_q) == 0:
+    st.warning("לא הצלחנו למשוך נתוני CapEx כרגע")
+else:
+    # --- שורת מדדים: הרבעון האחרון + שינוי מהרבעון הקודם ---
+    metric_cols = st.columns(len(capex_q))
+    for col, (sym, s) in zip(metric_cols, capex_q.items()):
+        latest = float(s.iloc[-1])
+        delta_txt = None
+        if len(s) >= 2 and float(s.iloc[-2]) != 0:
+            d = latest / float(s.iloc[-2]) * 100 - 100
+            delta_txt = str(round(d, 1)) + "% מרבעון קודם"
+        with col:
+            st.metric(CAPEX_COMPANIES[sym] + " (" + sym + ")",
+                      "$" + str(round(latest, 1)) + "B", delta_txt)
+
+    # --- גרף רבעוני מקובץ: עמודה לכל חברה בכל רבעון ---
+    st.markdown(section_header("📊 CapEx רבעוני — חברה מול חברה", "#22d3ee"),
+                unsafe_allow_html=True)
+
+    # אוסף את כל הרבעונים מכל החברות, ממיין כרונולוגית: הישן ביותר (Q1 2025) משמאל,
+    # מתקדם ימינה עד הרבעון האחרון.
+    all_quarters = set()
+    for s in capex_q.values():
+        for d in s.index:
+            all_quarters.add((d.year, d.quarter))
+    ordered_q = sorted(all_quarters)  # כרונולוגי: ישן -> חדש
+    q_axis = ["Q" + str(q) + " " + str(y) for (y, q) in ordered_q]
+
+    fig_capex = go.Figure()
+    for sym, s in capex_q.items():
+        # ממפה כל רבעון לערך שלו, כדי ליישר את כל החברות לאותו ציר
+        val_by_q = {}
+        for d, v in zip(s.index, s.values):
+            val_by_q["Q" + str(d.quarter) + " " + str(d.year)] = float(v)
+        y_vals = [val_by_q.get(q, None) for q in q_axis]
+        fig_capex.add_trace(go.Bar(
+            x=q_axis, y=y_vals,
+            name=CAPEX_COMPANIES[sym] + " (" + sym + ")",
+            marker_color=CAPEX_COLORS.get(sym, "#9ca3af"),
+            hovertemplate="<b>" + sym + "</b><br>%{x}<br>CapEx: $%{y:.1f}B<extra></extra>",
+        ))
+    fig_capex.update_layout(
+        barmode="group", height=380, template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=20, b=40, l=50, r=20),
+        yaxis=dict(title="CapEx (מיליארדי $)", gridcolor="rgba(255,255,255,0.08)"),
+        xaxis=dict(gridcolor="rgba(255,255,255,0.08)",
+                   categoryorder="array", categoryarray=q_axis),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+    )
+    with st.container(border=True):
+        st.plotly_chart(fig_capex, use_container_width=True)
+
+    # --- סה"כ מצרפי ---
+    combined = pd.concat(capex_q.values(), axis=1).dropna()
+    if len(combined) >= 2:
+        total = combined.sum(axis=1)
+        growth = float(total.iloc[-1]) / float(total.iloc[0]) * 100 - 100
+        g_color = "#22c55e" if growth >= 0 else "#ef4444"
+        st.markdown(
+            "<div dir='rtl' style='text-align:right; font-weight:700; margin:4px 0 12px 0;'>"
+            "סה\"כ CapEx מצרפי ברבעון האחרון (רבעונים חופפים בלבד): "
+            "<span style='color:#22d3ee;'>$" + str(round(float(total.iloc[-1]), 1)) + "B</span>"
+            " · צמיחה מתחילת החלון: <span style='color:" + g_color + ";'>"
+            + ("+" if growth >= 0 else "") + str(round(growth, 1)) + "%</span></div>",
+            unsafe_allow_html=True,
+        )
+
+    # --- כפתור ניתוח מגמה רבעונית ---
+    capex_trend_key = "capex_trend_" + datetime.now(timezone.utc).strftime("%Y-%W")
+    if st.button("🧠 נתח את מגמת ה-CapEx", key="capex_trend_btn"):
+        lines = []
+        for sym, s in capex_q.items():
+            vals = ", ".join(str(round(float(v), 1)) for v in s.values[-4:])
+            lines.append(sym + ": " + vals)
+        with st.spinner("מבקש ניתוח מ-Gemini..."):
+            text, sources = gemini_capex_trend(" | ".join(lines))
+        st.session_state[capex_trend_key] = {"text": text, "sources": sources}
+
+    saved_trend = st.session_state.get(capex_trend_key)
+    if saved_trend and saved_trend.get("text"):
+        st.markdown("<div dir='rtl' style='text-align:right;'>" + saved_trend["text"] + "</div>",
+                    unsafe_allow_html=True)
+        if saved_trend.get("sources"):
+            with st.expander("מקורות"):
+                for title, uri in saved_trend["sources"]:
+                    st.markdown("• [" + (title or uri) + "](" + uri + ")")
+
+    # ==================================================
+    # תחזית שנתית מול שנים קודמות — טאב לכל חברה + טאב מצטבר
+    # ==================================================
+    st.markdown(section_header("📅 CapEx שנתי — בפועל מול התפתחות התחזית", "#f59e0b"),
+                unsafe_allow_html=True)
+    st.caption("עמודות כחולות-ירקרקות = CapEx בפועל בשנים שהסתיימו (לפי השנה הפיסקלית של כל חברה). "
+               "עמודות כתומות = עדכוני התחזית לשנה הנוכחית, משמאל לימין לפי סדר העדכונים — "
+               "כך רואים אם התחזית מטפסת או נחתכת במהלך השנה. "
+               "הטאב האחרון (מצטבר) מציג את סך כל החברות יחד. "
+               "התחזיות מוזנות ידנית (CAPEX_GUIDANCE בקוד); השתמש בכפתור למטה כדי למצוא את המספרים העדכניים.")
+
+    # שורת טאבים אחת: טאב לכל חברה + טאב "מצטבר" בסוף
+    tab_labels = [CAPEX_COMPANIES[sym] + " (" + sym + ")" for sym in CAPEX_COMPANIES]
+    tab_labels.append("📊 מצטבר — כולן יחד")
+    all_tabs = st.tabs(tab_labels)
+    company_tabs = all_tabs[:-1]   # טאב לכל חברה
+    stacked_tab = all_tabs[-1]     # הטאב המצטבר האחרון
+
+    for tab, sym in zip(company_tabs, CAPEX_COMPANIES):
+        with tab:
+            annual = get_capex_annual(sym)
+            guid = CAPEX_GUIDANCE.get(sym, {})
+            guid_updates = [(lbl, v) for lbl, v in guid.get("updates", []) if v is not None]
+            year_label = guid.get("year_label", "השנה הנוכחית")
+
+            if annual is None and len(guid_updates) == 0:
+                st.caption("אין נתונים זמינים לחברה זו כרגע")
+                continue
+
+            fig_a = go.Figure()
+
+            # עמודות בפועל: שנים פיסקליות שהסתיימו
+            if annual is not None:
+                a_labels = ["FY" + str(d.year) for d in annual.index]
+                a_values = [float(v) for v in annual.values]
+                fig_a.add_trace(go.Bar(
+                    x=a_labels, y=a_values, name="בפועל",
+                    marker_color="#22d3ee",
+                    text=["$" + str(round(v, 1)) + "B" for v in a_values],
+                    textposition="outside", textfont=dict(size=12, color="#e5e7eb"),
+                    hovertemplate="<b>%{x}</b><br>בפועל: $%{y:.1f}B<extra></extra>",
+                ))
+
+            # עמודות תחזית: התפתחות העדכונים לשנה הנוכחית
+            if len(guid_updates) > 0:
+                g_labels = [lbl for lbl, v in guid_updates]
+                g_values = [float(v) for lbl, v in guid_updates]
+                fig_a.add_trace(go.Bar(
+                    x=g_labels, y=g_values, name="תחזית " + year_label,
+                    marker=dict(color="rgba(245,158,11,0.85)",
+                                line=dict(color="#f59e0b", width=1.5)),
+                    text=["$" + str(round(v, 1)) + "B" for v in g_values],
+                    textposition="outside", textfont=dict(size=12, color="#fcd34d"),
+                    hovertemplate="<b>%{x}</b><br>תחזית: $%{y:.1f}B<extra></extra>",
+                ))
+                # חץ מגמה בין העדכון הראשון לאחרון
+                if len(g_values) >= 2:
+                    diff = g_values[-1] - g_values[0]
+                    d_color = "#22c55e" if diff >= 0 else "#ef4444"
+                    d_txt = ("התחזית עלתה ב-" if diff >= 0 else "התחזית ירדה ב-") + \
+                            "$" + str(round(abs(diff), 1)) + "B מאז העדכון הראשון"
+                    st.markdown(
+                        "<div dir='rtl' style='text-align:right; color:" + d_color +
+                        "; font-weight:700;'>" + ("📈 " if diff >= 0 else "📉 ") + d_txt + "</div>",
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.markdown(
+                    "<div dir='rtl' style='text-align:right; color:#9ca3af; font-size:13px;'>"
+                    "⚠️ טרם הוזנו עדכוני תחזית ל-" + year_label +
+                    " — עדכן את CAPEX_GUIDANCE בקוד.</div>",
+                    unsafe_allow_html=True,
+                )
+
+            fig_a.update_layout(
+                barmode="group", height=340, template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                margin=dict(t=30, b=40, l=50, r=20),
+                yaxis=dict(title="CapEx (מיליארדי $)",
+                           gridcolor="rgba(255,255,255,0.08)"),
+                xaxis=dict(gridcolor="rgba(255,255,255,0.08)"),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02,
+                            xanchor="right", x=1),
+                showlegend=True,
+            )
+            st.plotly_chart(fig_a, use_container_width=True)
+            if guid.get("year_label"):
+                st.caption("שנה פיסקלית נוכחית: " + year_label)
+
+    # ---------- הטאב המצטבר: סך CapEx שנתי של כל החברות יחד ----------
+    with stacked_tab:
+        st.caption("עמודות מוערמות לכל שנה: כל צבע = חברה. "
+                   "שים לב — השנה הפיסקלית של מיקרוסופט מסתיימת ביוני, של השאר בדצמבר, "
+                   "אז זה קירוב לפי שנת הדיווח. "
+                   "העמודה האחרונה (במסגרת כתומה) = סכום התחזית העדכנית של כל חברה לשנה הבאה. "
+                   "מעל כל עמודה: הסכום ואחוז הצמיחה מהעמודה הקודמת.")
+
+        annual_by_company = {}
+        for sym in CAPEX_COMPANIES:
+            a = get_capex_annual(sym)
+            if a is not None:
+                annual_by_company[sym] = {d.year: float(v) for d, v in zip(a.index, a.values)}
+
+        if len(annual_by_company) == 0:
+            st.caption("אין נתונים שנתיים זמינים כרגע")
+        else:
+            all_years = set()
+            for ymap in annual_by_company.values():
+                all_years.update(ymap.keys())
+            years_sorted = sorted(all_years)
+            year_labels = [str(y) for y in years_sorted]
+
+            # --- התחזית המצטברת: העדכון האחרון של כל חברה שהוזן ---
+            # לכל חברה לוקחים את הערך האחרון (לא None) מרשימת העדכונים.
+            latest_guidance = {}   # sym -> ערך התחזית העדכני
+            for sym in CAPEX_COMPANIES:
+                guid = CAPEX_GUIDANCE.get(sym, {})
+                vals = [v for lbl, v in guid.get("updates", []) if v is not None]
+                if vals:
+                    latest_guidance[sym] = float(vals[-1])
+            has_forecast = len(latest_guidance) > 0
+            forecast_total = sum(latest_guidance.values()) if has_forecast else 0.0
+            # תווית עמודת התחזית (אם חלק מהחברות חסרות — מציינים)
+            n_have = len(latest_guidance)
+            n_total = len(CAPEX_COMPANIES)
+            forecast_label = "תחזית לשנה הבאה"
+            if 0 < n_have < n_total:
+                forecast_label = "תחזית (" + str(n_have) + "/" + str(n_total) + " חברות)"
+
+            # ציר ה-X: השנים בפועל + עמודת תחזית מצרפית בסוף (אם קיימת)
+            x_axis = list(year_labels)
+            if has_forecast:
+                x_axis = x_axis + [forecast_label]
+
+            fig_stack = go.Figure()
+            for sym in CAPEX_COMPANIES:
+                if sym not in annual_by_company:
+                    continue
+                ymap = annual_by_company[sym]
+                y_vals = [ymap.get(y, 0.0) for y in years_sorted]
+                # ערך התחזית של החברה בעמודה האחרונה (0 אם לא הוזנה)
+                if has_forecast:
+                    y_vals = y_vals + [latest_guidance.get(sym, 0.0)]
+                fig_stack.add_trace(go.Bar(
+                    x=x_axis, y=y_vals,
+                    name=CAPEX_COMPANIES[sym] + " (" + sym + ")",
+                    marker_color=CAPEX_COLORS.get(sym, "#9ca3af"),
+                    hovertemplate="<b>" + sym + "</b><br>%{x}<br>$%{y:.1f}B<extra></extra>",
+                ))
+
+            # סכומים לכל עמודה — כולל עמודת התחזית בסוף
+            totals = []
+            for y in years_sorted:
+                t = sum(annual_by_company[sym].get(y, 0.0) for sym in annual_by_company)
+                totals.append(t)
+            if has_forecast:
+                totals.append(forecast_total)
+
+            # תוויות מעל כל עמודה: סכום + אחוז שינוי מהעמודה הקודמת
+            growth_texts = []
+            for i, t in enumerate(totals):
+                if i == 0 or totals[i - 1] == 0:
+                    growth_texts.append("$" + str(round(t, 1)) + "B")
+                else:
+                    g = t / totals[i - 1] * 100 - 100
+                    sign = "+" if g >= 0 else ""
+                    growth_texts.append("$" + str(round(t, 1)) + "B<br>(" + sign + str(round(g, 1)) + "%)")
+
+            # מרווח מעל העמודה הגבוהה ביותר, כדי שהתווית הדו-שורתית (סכום + %)
+            # לא תיחתך מלמעלה — במיוחד עמודת התחזית, שבדרך כלל הגבוהה ביותר.
+            max_total = max(totals) if totals else 1.0
+            y_top = max_total * 1.28
+
+            fig_stack.add_trace(go.Scatter(
+                x=x_axis, y=[t * 1.05 for t in totals],
+                mode="text", text=growth_texts,
+                textposition="top center", textfont=dict(size=13, color="#e5e7eb"),
+                showlegend=False, hoverinfo="skip",
+            ))
+
+            # מסגרת כתומה סביב עמודת התחזית — כדי שתובחן מהשנים בפועל
+            if has_forecast:
+                fig_stack.add_shape(
+                    type="rect", xref="x", yref="paper",
+                    x0=len(year_labels) - 0.5, x1=len(year_labels) + 0.5,
+                    y0=0, y1=1,
+                    line=dict(color="#f59e0b", width=2, dash="dot"),
+                    fillcolor="rgba(245,158,11,0.05)", layer="below",
+                )
+
+            fig_stack.update_layout(
+                barmode="stack", height=480, template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                margin=dict(t=30, b=40, l=50, r=20),
+                yaxis=dict(title="CapEx מצרפי (מיליארדי $)",
+                           gridcolor="rgba(255,255,255,0.08)",
+                           range=[0, y_top]),
+                xaxis=dict(gridcolor="rgba(255,255,255,0.08)"),
+                legend=dict(orientation="h", yanchor="bottom", y=1.08,
+                            xanchor="right", x=1),
+            )
+            st.plotly_chart(fig_stack, use_container_width=True)
+
+            # שורת סיכום: צמיחת ה-CapEx בפועל על פני התקופה
+            actual_totals = totals[:-1] if has_forecast else totals
+            if len(actual_totals) >= 2 and actual_totals[0] != 0:
+                total_growth = actual_totals[-1] / actual_totals[0] * 100 - 100
+                tg_color = "#22c55e" if total_growth >= 0 else "#ef4444"
+                st.markdown(
+                    "<div dir='rtl' style='text-align:right; font-weight:700; margin-top:6px;'>"
+                    "סך ה-CapEx המצרפי בפועל גדל מ-<span style='color:#22d3ee;'>$"
+                    + str(round(actual_totals[0], 1)) + "B</span> ל-<span style='color:#22d3ee;'>$"
+                    + str(round(actual_totals[-1], 1)) + "B</span> — צמיחה של <span style='color:"
+                    + tg_color + ";'>" + ("+" if total_growth >= 0 else "")
+                    + str(round(total_growth, 1)) + "%</span> על פני התקופה</div>",
+                    unsafe_allow_html=True,
+                )
+
+            # שורת סיכום נוספת: התחזית המצרפית מול השנה האחרונה בפועל
+            if has_forecast and len(actual_totals) >= 1 and actual_totals[-1] != 0:
+                fc_growth = forecast_total / actual_totals[-1] * 100 - 100
+                fc_color = "#22c55e" if fc_growth >= 0 else "#ef4444"
+                miss_note = ""
+                if n_have < n_total:
+                    miss_note = " (חלקי — טרם הוזנו תחזיות לכל החברות)"
+                st.markdown(
+                    "<div dir='rtl' style='text-align:right; font-weight:700; margin-top:4px;'>"
+                    "התחזית המצרפית לשנה הבאה: <span style='color:#f59e0b;'>$"
+                    + str(round(forecast_total, 1)) + "B</span> — "
+                    "צמיחה צפויה של <span style='color:" + fc_color + ";'>"
+                    + ("+" if fc_growth >= 0 else "") + str(round(fc_growth, 1))
+                    + "%</span> מעל השנה האחרונה בפועל" + miss_note + "</div>",
+                    unsafe_allow_html=True,
+                )
+            elif not has_forecast:
+                st.caption("💡 עמודת תחזית מצרפית תופיע כאן אחרי שתזין ערכי תחזית ב-CAPEX_GUIDANCE.")
+
+    # ==================================================
+    # טבלה מסכמת: התפתחות התחזיות מול השנה הקודמת בפועל
+    # ==================================================
+    st.markdown(section_header("📋 טבלת סיכום — התחזית האחרונה מול הקודמת ומול בפועל", "#f59e0b"),
+                unsafe_allow_html=True)
+
+    # בונים שורה לכל חברה שיש לה לפחות תחזית אחת שהוזנה
+    guid_rows = []
+    for sym in CAPEX_COMPANIES:
+        guid = CAPEX_GUIDANCE.get(sym, {})
+        vals = [v for lbl, v in guid.get("updates", []) if v is not None]
+        if not vals:
+            continue  # אין תחזית שהוזנה לחברה זו — לא נציג שורה
+
+        last = float(vals[-1])
+        prev = float(vals[-2]) if len(vals) >= 2 else None
+
+        # שינוי התחזית האחרונה מול הקודמת
+        chg_prev = None
+        if prev is not None and prev != 0:
+            chg_prev = last / prev * 100 - 100
+
+        # ה-CapEx בפועל של השנה הפיסקלית האחרונה שהסתיימה
+        annual = get_capex_annual(sym)
+        actual_prev = None
+        if annual is not None and len(annual) > 0:
+            actual_prev = float(annual.values[-1])
+
+        # שינוי התחזית מול השנה הקודמת בפועל
+        chg_actual = None
+        if actual_prev is not None and actual_prev != 0:
+            chg_actual = last / actual_prev * 100 - 100
+
+        guid_rows.append({
+            "name": CAPEX_COMPANIES[sym] + " (" + sym + ")",
+            "last": last,
+            "prev": prev,
+            "chg_prev": chg_prev,
+            "actual_prev": actual_prev,
+            "chg_actual": chg_actual,
+        })
+
+    if len(guid_rows) == 0:
+        st.caption("טרם הוזנו תחזיות. הזן ערכים ב-CAPEX_GUIDANCE כדי לראות את הטבלה.")
+    else:
+        st.markdown(capex_guidance_table_html(guid_rows), unsafe_allow_html=True)
+        st.caption("«תחזית אחרונה» = העדכון האחרון שהוזן · «תחזית קודמת» = העדכון שלפניו · "
+                   "«שינוי בתחזית» = כמה השתנתה התחזית בין העדכונים · "
+                   "«תחזית מול בפועל» = כמה התחזית הנוכחית גבוהה/נמוכה מ-CapEx השנה הקודמת שהסתיימה. "
+                   "«—» מציין שאין עדיין נתון (למשל רק עדכון תחזית אחד).")
+
+    # --- כפתור חיפוש תחזיות עדכניות (עוזר למלא את המילון) ---
+    st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+    capex_guid_key = "capex_guid_" + datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if st.button("🔎 חפש את תחזיות ה-CapEx העדכניות (לעדכון ידני של המילון)",
+                 key="capex_guid_btn"):
+        with st.spinner("מחפש תחזיות עדכניות ברשת..."):
+            text, sources = gemini_capex_guidance()
+        st.session_state[capex_guid_key] = {"text": text, "sources": sources}
+
+    saved_guid = st.session_state.get(capex_guid_key)
+    if saved_guid and saved_guid.get("text"):
+        st.markdown("<div dir='rtl' style='text-align:right;'>" + saved_guid["text"] + "</div>",
+                    unsafe_allow_html=True)
+        if saved_guid.get("sources"):
+            with st.expander("מקורות"):
+                for title, uri in saved_guid["sources"]:
+                    st.markdown("• [" + (title or uri) + "](" + uri + ")")
+        st.caption("💡 קח את המספרים מכאן, אמת מול המקורות, והזן אותם ב-CAPEX_GUIDANCE שבראש הקובץ.")
