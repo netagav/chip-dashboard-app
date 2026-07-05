@@ -20,6 +20,14 @@ st.markdown("""
 [data-testid="stSidebar"] { direction: rtl; text-align: right; }
 h1, h2, h3, h4, h5, h6 { text-align: right; }
 [data-testid="stVegaLiteChart"], [data-testid="stArrowVegaLiteChart"] { direction: ltr; }
+/* כיתובי st.caption (הסברים מתחת לכותרות) — יישור לימין בכל הדשבורד */
+[data-testid="stCaptionContainer"], [data-testid="stCaption"], .stCaption {
+    direction: rtl;
+    text-align: right;
+}
+[data-testid="stCaptionContainer"] p, [data-testid="stCaption"] p, .stCaption p {
+    text-align: right;
+}
 /* כפתור ניתוח החדשות — בולט וקשור לאזור החדשות */
 div[data-testid="stButton"] button {
     background: rgba(59,130,246,0.18);
@@ -50,6 +58,25 @@ div[data-testid="stToggle"] label p {
     font-weight: 700 !important;
     font-size: 15px !important;
     color: #c4b5fd !important;
+}
+/* כפתור "פתח" קטן ואפור בטבלת התחומים — דיסקרטי, לא מושך תשומת לב */
+div[data-testid="stButton"] button[kind="tertiary"] {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 6px;
+    color: #9ca3af;
+    font-weight: 500;
+    padding: 4px 10px;
+    min-height: 0;
+    transition: background 0.12s ease, color 0.12s ease;
+}
+div[data-testid="stButton"] button[kind="tertiary"]:hover {
+    background: rgba(255,255,255,0.10);
+    border-color: rgba(255,255,255,0.30);
+    color: #e5e7eb;
+}
+div[data-testid="stButton"] button[kind="tertiary"] p {
+    font-size: 13px !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -641,6 +668,135 @@ def sector_key(sector_name):
     return hashlib.md5(sector_name.encode("utf-8")).hexdigest()[:8]
 
 
+def ranking_bar_chart(items, chart_key, soxx_marker=None, debug=False):
+    """גרף עמודות אופקי לחיץ לדירוג תחומים, בכיוון RTL.
+
+    items = רשימה של (label, value) כבר ממוינת מהגבוה לנמוך.
+    value = התשואה של התחום באחוזים.
+    soxx_marker = ערך תשואת SOXX; אם ניתן, מצויר קו כתום בולט במיקומו.
+    debug = אם True, מדפיס את מבנה אירוע הבחירה (לאבחון קליק).
+    לחיצה על עמודה מחזירה את ה-label שלה (או None אם לא נלחץ כלום).
+
+    RTL: לא הופכים את ציר ה-X (שובר on_select). העמודות יוצאות שמאלה
+    מקו האפס הימני, ושמות התחומים בצד ימין. האורך = שורש הערך המוחלט.
+    """
+    if not items:
+        return None
+
+    def transform(v):
+        # אותה טרנספורמציה כמו העמודות: שורש עם שמירת כיוון-שמאל
+        return -math.sqrt(abs(v))
+
+    labels = [lbl for lbl, val in items]
+    values = [val for lbl, val in items]
+    bar_widths = [transform(v) for v in values]
+    colors = ["#22c55e" if v >= 0 else "#ef4444" for v in values]
+    text_labels = [("+" if v >= 0 else "") + str(round(v, 1)) + "%" for v in values]
+
+    # סדר: הגבוה למעלה. Plotly מצייר מלמטה למעלה, אז הופכים.
+    labels_r = list(reversed(labels))
+    widths_r = list(reversed(bar_widths))
+    colors_r = list(reversed(colors))
+    texts_r = list(reversed(text_labels))
+
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=widths_r, y=labels_r, orientation="h",
+        marker=dict(color=colors_r, line=dict(width=0)),
+        text=texts_r, textposition="outside",
+        textfont=dict(size=13, color="#e5e7eb"),
+        hoverinfo="skip", hovertemplate=None,
+        cliponaxis=False,
+    ))
+    # קו אפס בצד ימין (x=0)
+    fig.add_vline(x=0, line_width=1.5, line_color="rgba(255,255,255,0.30)")
+
+    max_w = max((abs(w) for w in widths_r), default=1.0)
+
+    # קו SOXX בולט: כתום עבה ומקווקו במיקום תשואת המדד, עם תווית מודגשת בתיבה
+    if soxx_marker is not None:
+        soxx_x = transform(soxx_marker)
+        max_w = max(max_w, abs(soxx_x))
+        fig.add_vline(
+            x=soxx_x, line_width=4, line_color="#f59e0b", line_dash="dash",
+        )
+        fig.add_annotation(
+            x=soxx_x, y=1.0, yref="paper", yanchor="bottom",
+            text="<b>SOXX " + ("+" if soxx_marker >= 0 else "") + str(round(soxx_marker, 1)) + "%</b>",
+            showarrow=False, font=dict(size=15, color="#000000"),
+            bgcolor="#f59e0b", bordercolor="#f59e0b", borderpad=4,
+            xanchor="center", yshift=6,
+        )
+
+    pad = max_w * 0.28
+    row_h = 40
+    top_margin = 34 if soxx_marker is not None else 8
+    chart_h = max(len(labels) * row_h + 30 + top_margin, 120)
+    fig.update_layout(
+        height=chart_h, template="plotly_dark",
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        margin=dict(t=top_margin, b=12, l=20, r=20),
+        showlegend=False, bargap=0.42,
+        hovermode=False,
+        xaxis=dict(visible=False, showgrid=False, zeroline=False,
+                   range=[-max_w - pad, pad]),
+        yaxis=dict(showgrid=False, side="right", automargin=True,
+                   tickfont=dict(size=13, color="#d1d5db")),
+    )
+
+    event = st.plotly_chart(
+        fig, use_container_width=True, key=chart_key,
+        on_select="rerun", selection_mode="points",
+    )
+
+    # בלוק דיבאג זמני: מציג את מבנה אירוע הבחירה כדי לאבחן את הקליק
+    if debug:
+        st.caption("🔧 דיבאג — מבנה אירוע הבחירה (זמני):")
+        st.write({"type": str(type(event)), "event": event})
+
+    # חילוץ התחום שנלחץ — חסין למספר מבנים אפשריים של האירוע
+    try:
+        sel = None
+        if isinstance(event, dict):
+            sel = event.get("selection")
+        else:
+            sel = getattr(event, "selection", None)
+        if sel is not None:
+            points = sel["points"] if isinstance(sel, dict) else getattr(sel, "points", None)
+            if points:
+                p0 = points[0]
+                # התווית יכולה לחזור תחת 'y' (קטגוריה) או 'label'
+                if isinstance(p0, dict):
+                    return p0.get("y") or p0.get("label")
+                return getattr(p0, "y", None)
+    except (KeyError, TypeError, IndexError, AttributeError):
+        pass
+    return None
+
+
+def section_banner(number, total, icon, title, color, subtitle=""):
+    """באנר גדול ובולט לתחילת אזור ראשי בדשבורד (SOXX, מפת חום, צלילה, פילוח).
+    שונה מ-section_header (שמיועד לתת-אזורים קטנים בתוך כרטיס) — זה עבור
+    ארבעת האזורים הגדולים של הדשבורד עצמו, עם מספור, רקע מלא ומרווח נדיב."""
+    sub_html = ""
+    if subtitle:
+        sub_html = ("<div style='font-size:14px; color:rgba(255,255,255,0.75); "
+                    "margin-top:4px; font-weight:400;'>" + subtitle + "</div>")
+    st.markdown(
+        "<div style='height:36px;'></div>"
+        "<div dir='rtl' style='text-align:right; background:linear-gradient(90deg, " + color + "22, transparent); "
+        "border-right:8px solid " + color + "; border-radius:10px; "
+        "padding:16px 20px; margin-bottom:18px;'>"
+        "<div style='display:flex; align-items:center; justify-content:space-between;'>"
+        "<span style='font-size:24px; font-weight:800; color:#ffffff;'>" + icon + "&nbsp; " + title + "</span>"
+        "<span style='font-size:13px; color:rgba(255,255,255,0.45); font-weight:600; "
+        "background:rgba(255,255,255,0.06); padding:3px 10px; border-radius:20px;'>"
+        "אזור " + str(number) + "/" + str(total) + "</span>"
+        "</div>" + sub_html + "</div>",
+        unsafe_allow_html=True,
+    )
+
+
 def section_header(title, accent):
     # כותרת אזור מובלטת עם פס צבעוני ורקע עדין, להפרדה ברורה בתוך הכרטיס
     return ("<div dir='rtl' style='text-align:right; font-weight:800; font-size:18px; "
@@ -753,10 +909,11 @@ st.sidebar.caption("בחרי תקופה — כל הדשבורד יתעדכן")
 # ======================================================
 # אזור SOXX
 # ======================================================
+section_banner(1, 4, "🏆", "מדד סקטור השבבים — SOXX", "#f59e0b",
+                "התנהגות המדד הכללי, עם התראות AI על תנועות חריגות")
 soxx_close = get_history(BENCHMARK, period)
 
 if soxx_close is None:
-    st.markdown("### 🏆 SOXX — מדד סקטור השבבים")
     st.warning("לא הצלחנו למשוך נתוני SOXX כרגע")
     soxx_change = None
     holdings_pairs = []
@@ -832,7 +989,6 @@ else:
             st.markdown("<div style='text-align:right; font-weight:700; font-size:16px;'>📉 הירידות הגדולות</div>", unsafe_allow_html=True)
             st.markdown(returns_table_html(bottom5, descending=False), unsafe_allow_html=True)
 
-st.divider()
 
 # ---------- חישוב הדירוג ----------
 with st.spinner("סורק את כל התחומים..."):
@@ -865,149 +1021,185 @@ with st.spinner("סורק את כל התחומים..."):
         max_abs_dist = 1.0
 
 # ---------- מפת חום ----------
-st.header("🗺️ מפת חום — דירוג התחומים")
-st.caption("מדורג לפי המרחק מ-SOXX — מי מכה את המדד הכי הרבה. לחצי על תחום לפרטים.")
+def render_domain_detail(sector, pairs, period):
+    """מרנדר את תוכן הפרטים של תחום: מניות, גרף מגמת הפער, וחדשות + ניתוח AI.
+    משמש גם במפת החום (שרשרת ערך). נקרא רק כשהשורה של התחום פתוחה."""
+    # --- אזור טבלת המניות ---
+    st.markdown(section_header("📊 מניות בתחום", "#3b82f6"), unsafe_allow_html=True)
+    st.markdown(returns_table_html(pairs), unsafe_allow_html=True)
 
-rank = 1
-for median, average, up, down, total, breadth, sector, pairs in results:
-    label, color, bg = label_info(median, breadth, soxx_change, period)
-    # רקע לפי המרחק האמיתי מ-SOXX: ירוק (מכה), צהוב (קרוב), אדום (מפגר)
-    threshold = RELATIVE_THRESHOLD.get(period, 10.0)
-    rel_dist = median - soxx_ref
-    grad_bg = zone_bg(rel_dist, threshold, max_abs_dist)
+    # --- גרף מגמת הפער מ-SOXX לאורך התקופה ---
+    st.markdown(section_header("📈 מגמת הפער מ-SOXX לאורך התקופה", "#22c55e"), unsafe_allow_html=True)
+    spread_chart = build_spread_chart(value_chain[sector], period)
+    if spread_chart is not None:
+        st.altair_chart(spread_chart, use_container_width=True)
+        st.caption("🟢 מעל הקו = התחום מכה את SOXX · 🔴 מתחת = מפגר · הנקודה האחרונה = הפער הנוכחי")
+    else:
+        st.caption("אין מספיק נתונים לגרף המגמה")
 
-    driver = ""
-    if average - median >= GAP_THRESHOLD and breadth < BROAD_THRESHOLD:
-        top_symbol = pairs[0][0]
-        top_change = pairs[0][1]
-        for s, c in pairs:
-            if c > top_change:
-                top_symbol = s
-                top_change = c
-        driver = ("<div style='color:#f59e0b; font-size:13px; margin-top:6px;'>📍 מונע בעיקר ע\"י <b>"
-                  + top_symbol + "</b> (" + str(round(top_change, 1)) + "%)</div>")
+    # --- אזור החדשות ---
+    sector_news = []
+    for symbol, change in pairs:
+        for item in get_news(symbol, limit=2):
+            sector_news.append((symbol, item))
 
-    summary_line = ("<div style='color:" + color + "; font-weight:600; margin-top:6px;'>חציון "
-                    + str(round(median, 1)) + "% · ממוצע " + str(round(average, 1))
-                    + "% · עלו " + str(up) + " · ירדו " + str(down) + " · מתוך " + str(total) + "</div>")
+    st.markdown(section_header("📰 חדשות אחרונות בתחום", "#a78bfa"), unsafe_allow_html=True)
+    if len(sector_news) == 0:
+        st.caption("אין חדשות זמינות כרגע לתחום הזה")
+        return
 
-    # שורת השוואה למדד: כמה התחום מכה או מפגר אחרי SOXX
-    soxx_line = ""
-    if soxx_change is not None:
-        rel = median - soxx_change
-        if rel >= 0:
-            rel_color = "#22c55e"
-            rel_text = "📊 מכה את SOXX ב-+" + str(round(rel, 1)) + " נק'"
+    st.caption("לחצי לניתוח סנטימנט החדשות עם AI")
+    titles_list = [item["title"] for sym, item in sector_news]
+    sig = titles_signature(titles_list)
+    news_key = "news_analysis_" + sector_key(sector) + "_" + sig
+    do_analyze = st.button("🧠 נתח חדשות", key="newsbtn_" + sector_key(sector))
+
+    if do_analyze:
+        titles_block = ""
+        for t in titles_list:
+            titles_block += "- " + t + "\n"
+        with st.spinner("מנתח חדשות עם Gemini..."):
+            st.session_state[news_key] = gemini_analyze_news(clean_name(sector), sig, titles_block)
+
+    analysis = st.session_state.get(news_key)
+
+    if analysis and "overall" in analysis:
+        ov = analysis["overall"]
+        ov_color = {"positive": "#22c55e", "negative": "#ef4444"}.get(ov, "#eab308")
+        ov_label = {"positive": "🟢 חיובי", "negative": "🔴 שלילי"}.get(ov, "⚪ ניטרלי")
+        st.markdown(
+            "<div dir='rtl' style='text-align:right; color:" + ov_color +
+            "; font-weight:700; margin:8px 0;'>סנטימנט חדשות בתחום: " + ov_label +
+            " — " + analysis.get("overall_note", "") + "</div>",
+            unsafe_allow_html=True,
+        )
+        if ov == "negative":
+            st.markdown(
+                "<div dir='rtl' style='text-align:right; color:#ef4444; font-weight:700;'>⚠️ הערת אזהרה: יש חדשות שליליות בתחום הזה</div>",
+                unsafe_allow_html=True,
+            )
+
+    item_map = {}
+    if analysis and "items" in analysis:
+        for it in analysis["items"]:
+            item_map[it.get("title", "")] = it
+
+    for sym, item in sector_news:
+        date_part = ""
+        if item["date"]:
+            date_part = " (" + item["date"] + ")"
+        info = item_map.get(item["title"])
+        badge = ""
+        if info:
+            s = info.get("sentiment", "neutral")
+            emoji = {"positive": "🟢", "negative": "🔴"}.get(s, "⚪")
+            risk = " ⚠️ סיכון" if s == "negative" else ""
+            badge = emoji + risk + " "
+        if item["link"]:
+            title_html = "<a href='" + item["link"] + "' target='_blank'>" + item["title"] + "</a>"
         else:
-            rel_color = "#ef4444"
-            rel_text = "📊 מפגר אחרי SOXX ב-" + str(round(rel, 1)) + " נק'"
-        soxx_line = ("<div style='color:" + rel_color + "; font-weight:600; font-size:14px; margin-top:4px;'>"
-                     + rel_text + " (SOXX " + str(round(soxx_change, 1)) + "%)</div>")
+            title_html = item["title"]
+        summary_html = ""
+        if info and info.get("summary"):
+            summary_html = "<div style='color:#aaa; font-size:13px; margin-top:3px;'>" + info["summary"] + "</div>"
+        st.markdown(
+            "<div dir='rtl' style='text-align:right; background:rgba(255,255,255,0.03); "
+            "border:1px solid #333; border-radius:8px; padding:8px 10px; margin-top:6px;'>"
+            "<b>" + sym + "</b> · " + badge + title_html + date_part + summary_html + "</div>",
+            unsafe_allow_html=True,
+        )
 
-    card = ("<div dir='rtl' style='background:" + grad_bg + "; border-right:6px solid " + color +
-            "; border-radius:10px; padding:10px 14px; margin-bottom:2px; text-align:right;'>"
-            "<div style='font-weight:700; font-size:17px;'>"
-            + str(rank) + ". " + label + " — " + clean_name(sector) + "</div>"
-            + summary_line + soxx_line + driver + "</div>")
-    st.markdown(card, unsafe_allow_html=True)
 
-    # מצב פתוח/סגור נשמר לפי זהות התחום (sector_key), לא לפי מיקומו בדירוג.
-    # כך אם פותחים תחום ומחליפים תקופה, אותו תחום נשאר פתוח גם אם ירד/עלה בדירוג.
-    open_key = "open_heat_" + sector_key(sector)
-    is_open = st.toggle("📂 פרטים, מניות וחדשות", key=open_key)
-    if is_open:
-        # --- אזור טבלת המניות ---
-        st.markdown(section_header("📊 מניות בתחום", "#3b82f6"), unsafe_allow_html=True)
-        st.markdown(returns_table_html(pairs), unsafe_allow_html=True)
+section_banner(2, 4, "🗺️", "מפת חום — דירוג שרשרת הערך", "#3b82f6",
+                "11 חוליות שרשרת הערך, מדורגות לפי המרחק מ-SOXX")
+st.caption("מדורג לפי המרחק מ-SOXX — מי מכה את המדד הכי הרבה. הגרף מציג את התמונה; לחצי על שורה בטבלה למטה כדי לפתוח פרטים.")
 
-        # --- גרף מגמת הפער מ-SOXX לאורך התקופה ---
-        st.markdown(section_header("📈 מגמת הפער מ-SOXX לאורך התקופה", "#22c55e"), unsafe_allow_html=True)
-        spread_chart = build_spread_chart(value_chain[sector], period)
-        if spread_chart is not None:
-            st.altair_chart(spread_chart, use_container_width=True)
-            st.caption("🟢 מעל הקו = התחום מכה את SOXX · 🔴 מתחת = מפגר · הנקודה האחרונה = הפער הנוכחי")
+# גרף עמודות אופקי לתצוגה: כל תחום לפי החציון שלו, ממוין מהגבוה לנמוך,
+# עם קו SOXX בולט. הגרף הוא תצוגה בלבד; האינטראקציה בטבלה שמתחתיו.
+heat_items = [(clean_name(r[6]), r[0]) for r in results]   # (שם נקי, חציון)
+all_sectors = [r[6] for r in results]
+
+with st.container(border=True):
+    ranking_bar_chart(heat_items, "heat_bar_" + period, soxx_marker=soxx_change)
+
+st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+
+# ---------- טבלת התחומים — טבלה צבעונית במסגרת + כפתור "פתח" אפור קטן ----------
+# כל שורה מוצגת כ-HTML צבעוני, ולצידה (משמאל) כפתור "פתח/סגור" אפור קטן.
+# מצב הפתיחה נשמר לפי זהות התחום (sector_key) — יציב בין תקופות.
+soxx_hdr = ""
+if soxx_change is not None:
+    soxx_hdr = "SOXX " + ("+" if soxx_change >= 0 else "") + str(round(soxx_change, 1)) + "%"
+
+with st.container(border=True):
+    # כותרת עמודות
+    h1, h2 = st.columns([9, 1.3])
+    with h1:
+        st.markdown(
+            "<div dir='rtl' style='display:flex; align-items:center; padding:4px 10px; "
+            "font-size:12px; color:#9ca3af; font-weight:600;'>"
+            "<span style='width:32px; text-align:right;'>#</span>"
+            "<span style='flex:1; text-align:right;'>תחום</span>"
+            "<span style='width:80px; text-align:center;'>חציון</span>"
+            "<span style='width:170px; text-align:center;'>מול המדד " + soxx_hdr + "</span>"
+            "<span style='width:90px; text-align:center;'>רוחב</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+    with h2:
+        st.markdown("<div style='height:1px;'></div>", unsafe_allow_html=True)
+
+    rank = 1
+    for median, average, up, down, total, breadth, sector, pairs in results:
+        med_color = "#22c55e" if median >= 0 else "#ef4444"
+        med_txt = ("+" if median >= 0 else "") + str(round(median, 1)) + "%"
+        if soxx_change is not None:
+            rel = median - soxx_change
+            if rel >= 0:
+                vs_color = "#22c55e"
+                vs_txt = "▲ מכה ב-" + str(round(rel, 1)) + " נק'"
+            else:
+                vs_color = "#ef4444"
+                vs_txt = "▼ מפגר ב-" + str(round(abs(rel), 1)) + " נק'"
         else:
-            st.caption("אין מספיק נתונים לגרף המגמה")
+            vs_color = "#9ca3af"
+            vs_txt = "—"
+        bcolor = "#22c55e" if breadth >= BROAD_THRESHOLD else ("#eab308" if breadth >= 0.4 else "#ef4444")
 
-        # --- אזור החדשות ---
-        sector_news = []
-        for symbol, change in pairs:
-            for item in get_news(symbol, limit=2):
-                sector_news.append((symbol, item))
+        open_key = "open_heat_" + sector_key(sector)
+        is_open = st.session_state.get(open_key, False)
+        row_bg = "rgba(96,165,250,0.12)" if is_open else "transparent"
 
-        if len(sector_news) == 0:
-            st.markdown(section_header("📰 חדשות אחרונות בתחום", "#a78bfa"), unsafe_allow_html=True)
-            st.caption("אין חדשות זמינות כרגע לתחום הזה")
-        else:
-            st.markdown(section_header("📰 חדשות אחרונות בתחום", "#a78bfa"), unsafe_allow_html=True)
-            st.caption("לחצי לניתוח סנטימנט החדשות עם AI")
-            titles_list = [item["title"] for sym, item in sector_news]
-            sig = titles_signature(titles_list)
-            news_key = "news_analysis_" + sector_key(sector) + "_" + sig
-            do_analyze = st.button("🧠 נתח חדשות", key="newsbtn_" + sector_key(sector))
+        row_col, btn_col = st.columns([9, 1.3])
+        with row_col:
+            st.markdown(
+                "<div dir='rtl' style='display:flex; align-items:center; padding:8px 10px; "
+                "background:" + row_bg + "; border-top:1px solid rgba(255,255,255,0.06); "
+                "border-radius:6px; min-height:34px;'>"
+                "<span style='width:32px; text-align:right; color:#9ca3af;'>" + str(rank) + "</span>"
+                "<span style='flex:1; text-align:right; font-weight:600;'>" + clean_name(sector) + "</span>"
+                "<span style='width:80px; text-align:center; color:" + med_color + "; font-weight:700;'>" + med_txt + "</span>"
+                "<span style='width:170px; text-align:center; color:" + vs_color + "; font-weight:600; font-size:14px;'>" + vs_txt + "</span>"
+                "<span style='width:90px; text-align:center; color:" + bcolor + "; font-size:14px;'>" + str(up) + "/" + str(total) + " עלו</span>"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+        with btn_col:
+            btn_txt = "סגור" if is_open else "פתח"
+            if st.button(btn_txt, key="heatrow_" + sector_key(sector),
+                         use_container_width=True, type="tertiary"):
+                st.session_state[open_key] = not is_open
+                st.rerun()
 
-            if do_analyze:
-                titles_block = ""
-                for t in titles_list:
-                    titles_block += "- " + t + "\n"
-                with st.spinner("מנתח חדשות עם Gemini..."):
-                    st.session_state[news_key] = gemini_analyze_news(clean_name(sector), sig, titles_block)
+        if is_open:
+            with st.container(border=True):
+                render_domain_detail(sector, pairs, period)
 
-            analysis = st.session_state.get(news_key)
-
-            if analysis and "overall" in analysis:
-                ov = analysis["overall"]
-                ov_color = {"positive": "#22c55e", "negative": "#ef4444"}.get(ov, "#eab308")
-                ov_label = {"positive": "🟢 חיובי", "negative": "🔴 שלילי"}.get(ov, "⚪ ניטרלי")
-                st.markdown(
-                    "<div dir='rtl' style='text-align:right; color:" + ov_color +
-                    "; font-weight:700; margin:8px 0;'>סנטימנט חדשות בתחום: " + ov_label +
-                    " — " + analysis.get("overall_note", "") + "</div>",
-                    unsafe_allow_html=True,
-                )
-                if ov == "negative":
-                    st.markdown(
-                        "<div dir='rtl' style='text-align:right; color:#ef4444; font-weight:700;'>⚠️ הערת אזהרה: יש חדשות שליליות בתחום הזה</div>",
-                        unsafe_allow_html=True,
-                    )
-
-            item_map = {}
-            if analysis and "items" in analysis:
-                for it in analysis["items"]:
-                    item_map[it.get("title", "")] = it
-
-            for sym, item in sector_news:
-                date_part = ""
-                if item["date"]:
-                    date_part = " (" + item["date"] + ")"
-                info = item_map.get(item["title"])
-                badge = ""
-                if info:
-                    s = info.get("sentiment", "neutral")
-                    emoji = {"positive": "🟢", "negative": "🔴"}.get(s, "⚪")
-                    risk = " ⚠️ סיכון" if s == "negative" else ""
-                    badge = emoji + risk + " "
-                if item["link"]:
-                    title_html = "<a href='" + item["link"] + "' target='_blank'>" + item["title"] + "</a>"
-                else:
-                    title_html = item["title"]
-                summary_html = ""
-                if info and info.get("summary"):
-                    summary_html = "<div style='color:#aaa; font-size:13px; margin-top:3px;'>" + info["summary"] + "</div>"
-                st.markdown(
-                    "<div dir='rtl' style='text-align:right; background:rgba(255,255,255,0.03); "
-                    "border:1px solid #333; border-radius:8px; padding:8px 10px; margin-top:6px;'>"
-                    "<b>" + sym + "</b> · " + badge + title_html + date_part + summary_html + "</div>",
-                    unsafe_allow_html=True,
-                )
-
-    st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
-
-    rank = rank + 1
+        rank = rank + 1
 
 # ---------- צלילה לתחום ----------
-st.divider()
-st.header("🔍 צלילה לתחום")
+section_banner(3, 4, "🔍", "צלילה לתחום — השוואת מניות", "#22c55e",
+                "בחרי תחום כדי להשוות בין המניות שבו, מול חציון התחום ומול SOXX")
 
 sector_names = []
 for r in results:
@@ -1088,7 +1280,8 @@ else:
         yaxis=dict(title="מנורמל ל-100", gridcolor="rgba(255,255,255,0.08)"),
         xaxis=dict(gridcolor="rgba(255,255,255,0.08)"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    with st.container(border=True):
+        st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("טבלת תשואות")
     chosen_pairs = get_changes(value_chain[chosen], period)
@@ -1103,78 +1296,50 @@ else:
                 str(round(soxx_change2, 1)) + "%  →  " + better + " (" + str(round(diff, 1)) + " נק')")
 
 # ======================================================
-# חדש: פילוח טכנולוגי — ליבה ומעטפת
+# פילוח טכנולוגי — ליבה ומעטפת
 # ======================================================
-st.divider()
-st.header("🧬 פילוח טכנולוגי — ליבה ומעטפת")
+section_banner(4, 4, "🧬", "פילוח טכנולוגי — ליבה ומעטפת", "#a78bfa")
 st.caption("כל תחום מדורג לפי תשואה משוקללת: ליבה (חשיפה × 1.0) ומעטפת (חשיפה × 0.4). "
            "שני צירים חופפים בכוונה — טכנולוגיה (מה מוכרים) ושוקי קצה (למי מוכרים) — אין להשוות ביניהם כסכום.")
 
 
-def render_tech_group_card(group_name, idx, card_rank):
-    """כרטיס תחום טכנולוגי: כותרת עם תשואה משוקללת, ופירוק ליבה/מעטפת."""
+def render_tech_detail(idx):
+    """מרנדר את פירוק הליבה/מעטפת של תחום טכנולוגי. נקרא כשהשורה פתוחה."""
     wret = idx["weighted_return"]
-    color = "#22c55e" if wret >= 0 else "#ef4444"
     sign = "+" if wret >= 0 else ""
-    n_core = len(idx["core"])
-    n_env = len(idx["env"])
-
-    # שורת סיכום: כמה מניות עלו/ירדו, וכמה מהמשקל יושב בליבה
-    core_weight_pct = str(round(idx["core_weight"] * 100)) + "%"
-    summary = ("ליבה " + str(n_core) + " · מעטפת " + str(n_env) +
-               " · עלו " + str(idx["up"]) + " · ירדו " + str(idx["down"]) +
-               " · משקל הליבה " + core_weight_pct)
-
+    core_sign = "+" if idx["core_contrib"] >= 0 else ""
+    env_sign = "+" if idx["env_contrib"] >= 0 else ""
     st.markdown(
-        "<div dir='rtl' style='background:rgba(120,120,120,0.10); border-right:6px solid " + color +
-        "; border-radius:10px; padding:12px 16px; margin-bottom:2px; text-align:right;'>"
-        "<div style='display:flex; justify-content:space-between; align-items:center;'>"
-        "<span style='font-weight:700; font-size:18px;'>" + str(card_rank) + ". " + group_name + "</span>"
-        "<span style='color:" + color + "; font-weight:800; font-size:20px;'>" + sign + str(round(wret, 1)) + "%</span>"
-        "</div>"
-        "<div style='color:#9ca3af; font-size:13px; margin-top:5px;'>" + summary + "</div>"
-        "</div>",
+        "<div dir='rtl' style='text-align:right; color:#999; font-size:13px; margin-bottom:10px;'>"
+        "💡 <b>ליבה</b> = התחום הוא עיקר העסק (מכפיל 1.0) · <b>מעטפת</b> = מעגל שני שנהנה עקיפות (מכפיל 0.4). "
+        "המשקל בטבלה = החלק האפקטיבי של המניה בתשואת התחום. "
+        "תרומת הליבה: <b>" + core_sign + str(round(idx["core_contrib"], 1)) + " נק'</b> · "
+        "תרומת המעטפת: <b>" + env_sign + str(round(idx["env_contrib"], 1)) + " נק'</b> — יחד = התשואה הכוללת.</div>",
         unsafe_allow_html=True,
     )
-
-    # מצב פתוח/סגור נשמר לפי שם התחום, לא לפי מיקומו בדירוג.
-    open_key = "open_tech_" + sector_key(group_name)
-    if st.toggle("📂 פירוק: ליבה מול מעטפת  ·  " + str(n_core + n_env) + " מניות", key=open_key):
-        core_sign = "+" if idx["core_contrib"] >= 0 else ""
-        env_sign = "+" if idx["env_contrib"] >= 0 else ""
+    right_col, left_col = st.columns(2)
+    with right_col:
         st.markdown(
-            "<div dir='rtl' style='text-align:right; color:#999; font-size:13px; margin-bottom:10px;'>"
-            "💡 <b>ליבה</b> = התחום הוא עיקר העסק (מכפיל 1.0) · <b>מעטפת</b> = מעגל שני שנהנה עקיפות (מכפיל 0.4). "
-            "המשקל בטבלה = החלק האפקטיבי של המניה בתשואת התחום. "
-            "תרומת הליבה: <b>" + core_sign + str(round(idx["core_contrib"], 1)) + " נק'</b> · "
-            "תרומת המעטפת: <b>" + env_sign + str(round(idx["env_contrib"], 1)) + " נק'</b> — יחד = התשואה הכוללת.</div>",
+            "<div dir='rtl' style='text-align:center; font-weight:800; color:#22c55e; "
+            "border-top:3px solid #22c55e; background:rgba(34,197,94,0.06); "
+            "border-radius:6px; padding:6px; margin-bottom:4px;'>🎯 ליבת התחום</div>",
             unsafe_allow_html=True,
         )
-        right_col, left_col = st.columns(2)
-        with right_col:
-            st.markdown(
-                "<div dir='rtl' style='text-align:center; font-weight:800; color:#22c55e; "
-                "border-top:3px solid #22c55e; background:rgba(34,197,94,0.06); "
-                "border-radius:6px; padding:6px; margin-bottom:4px;'>🎯 ליבת התחום</div>",
-                unsafe_allow_html=True,
-            )
-            if idx["core"]:
-                st.markdown(tech_table_html(idx["core"]), unsafe_allow_html=True)
-            else:
-                st.caption("אין מניות ליבה עם נתונים")
-        with left_col:
-            st.markdown(
-                "<div dir='rtl' style='text-align:center; font-weight:800; color:#f59e0b; "
-                "border-top:3px solid #f59e0b; background:rgba(245,158,11,0.06); "
-                "border-radius:6px; padding:6px; margin-bottom:4px;'>↪️ מעטפת — נהנות עקיפות</div>",
-                unsafe_allow_html=True,
-            )
-            if idx["env"]:
-                st.markdown(tech_table_html(idx["env"]), unsafe_allow_html=True)
-            else:
-                st.caption("אין מניות מעטפת בתחום זה")
-
-    st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+        if idx["core"]:
+            st.markdown(tech_table_html(idx["core"]), unsafe_allow_html=True)
+        else:
+            st.caption("אין מניות ליבה עם נתונים")
+    with left_col:
+        st.markdown(
+            "<div dir='rtl' style='text-align:center; font-weight:800; color:#f59e0b; "
+            "border-top:3px solid #f59e0b; background:rgba(245,158,11,0.06); "
+            "border-radius:6px; padding:6px; margin-bottom:4px;'>↪️ מעטפת — נהנות עקיפות</div>",
+            unsafe_allow_html=True,
+        )
+        if idx["env"]:
+            st.markdown(tech_table_html(idx["env"]), unsafe_allow_html=True)
+        else:
+            st.caption("אין מניות מעטפת בתחום זה")
 
 
 with st.spinner("מחשב את הפילוח הטכנולוגי..."):
@@ -1200,7 +1365,64 @@ with st.spinner("מחשב את הפילוח הטכנולוגי..."):
             st.caption("אין נתונים זמינים לציר זה כרגע")
             continue
 
-        card_rank = 1
-        for wret, group_name, idx in axis_results:
-            render_tech_group_card(group_name, idx, card_rank)
-            card_rank = card_rank + 1
+        # גרף עמודות אופקי לתצוגה לציר: כל תחום לפי תשואתו המשוקללת.
+        # הגרף הוא תצוגה בלבד; האינטראקציה בשורות שמתחתיו.
+        axis_items = [(group_name, wret) for wret, group_name, idx in axis_results]
+        axis_chart_key = "tech_bar_" + sector_key(axis_name) + "_" + period
+        with st.container(border=True):
+            ranking_bar_chart(axis_items, axis_chart_key)
+        st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+
+        # טבלת התחומים של הציר — במסגרת, עם כפתור "פתח" אפור קטן
+        with st.container(border=True):
+            th1, th2 = st.columns([9, 1.3])
+            with th1:
+                st.markdown(
+                    "<div dir='rtl' style='display:flex; align-items:center; padding:4px 10px; "
+                    "font-size:12px; color:#9ca3af; font-weight:600;'>"
+                    "<span style='width:32px; text-align:right;'>#</span>"
+                    "<span style='flex:1; text-align:right;'>תחום</span>"
+                    "<span style='width:90px; text-align:center;'>תשואה</span>"
+                    "<span style='width:190px; text-align:center;'>ליבה / מעטפת</span>"
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+            with th2:
+                st.markdown("<div style='height:1px;'></div>", unsafe_allow_html=True)
+
+            rankn = 1
+            for wret, group_name, idx in axis_results:
+                n_core = len(idx["core"])
+                n_env = len(idx["env"])
+                core_weight_pct = str(round(idx["core_weight"] * 100)) + "%"
+                wret_color = "#22c55e" if wret >= 0 else "#ef4444"
+                wret_txt = ("+" if wret >= 0 else "") + str(round(wret, 1)) + "%"
+                open_key = "open_tech_" + sector_key(group_name)
+                is_open = st.session_state.get(open_key, False)
+                row_bg = "rgba(96,165,250,0.12)" if is_open else "transparent"
+
+                row_col, btn_col = st.columns([9, 1.3])
+                with row_col:
+                    st.markdown(
+                        "<div dir='rtl' style='display:flex; align-items:center; padding:8px 10px; "
+                        "background:" + row_bg + "; border-top:1px solid rgba(255,255,255,0.06); "
+                        "border-radius:6px; min-height:34px;'>"
+                        "<span style='width:32px; text-align:right; color:#9ca3af;'>" + str(rankn) + "</span>"
+                        "<span style='flex:1; text-align:right; font-weight:600;'>" + group_name + "</span>"
+                        "<span style='width:90px; text-align:center; color:" + wret_color + "; font-weight:700;'>" + wret_txt + "</span>"
+                        "<span style='width:190px; text-align:center; color:#9ca3af; font-size:13px;'>"
+                        "ליבה " + str(n_core) + " · מעטפת " + str(n_env) + " · משקל " + core_weight_pct + "</span>"
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
+                with btn_col:
+                    btn_txt = "סגור" if is_open else "פתח"
+                    if st.button(btn_txt, key="techrow_" + sector_key(group_name),
+                                 use_container_width=True, type="tertiary"):
+                        st.session_state[open_key] = not is_open
+                        st.rerun()
+
+                if is_open:
+                    with st.container(border=True):
+                        render_tech_detail(idx)
+                rankn = rankn + 1
