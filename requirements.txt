@@ -4,3 +4,4 @@ pandas
 altair
 plotly
 google-genai
+lxml
