@@ -310,6 +310,22 @@ PERIOD_OPTIONS = {
 }
 DAILY_PERIODS = ["online", "lastclose"]
 
+# ---------- מצב מפתח ----------
+# DEV_MODE=True: כלי הזנה ידנית גלויים (ניתוח Gemini, שמירה לקובץ, חיפוש CapEx).
+# DEV_MODE=False (ברירת מחדל): מוצג רק תוכן שכבר הוזן — מצב צפייה.
+# ניתן להפעיל דרך st.secrets["DEV_MODE"]=true או URL ?dev=1.
+def _resolve_dev_mode():
+    flag = False
+    try:
+        flag = bool(st.secrets.get("DEV_MODE", False))
+    except Exception:
+        pass
+    if st.query_params.get("dev") == "1":
+        flag = True
+    return flag
+
+DEV_MODE = _resolve_dev_mode()
+
 
 # ---------- מפתח Gemini ----------
 def get_gemini_key():
@@ -735,6 +751,21 @@ def gemini_capex_guidance():
     cache_key = "capex_guidance|" + day
     return _cached_gemini(cache_key, prompt, 259200)
 
+def gemini_summarize_capex_guidance(guidance_lines):
+    """מסכם את עדכוני תחזית ה-CapEx השנתיות והמשמעות לסקטור השבבים — גלוי ליוזר."""
+    prompt = (
+        "אלה תחזיות ה-CapEx השנתיות של ענקיות הענן, כפי שדווחו בשיחות הוועידה:\n"
+        + guidance_lines + "\n\n"
+        "חפש ברשת הקשר ועדכונים נוספים, ולאחר מכן כתוב בעברית סיכום של 4-5 משפטים:\n"
+        "1. מה כיוון עדכוני התחזית (עולות, יורדות, יציבות)?\n"
+        "2. מה אמרו המנכ\"לים בנוגע להצדקת ההשקעות (AI, תשתיות, תחרות)?\n"
+        "3. מה המשמעות לספקיות השבבים והציוד (NVDA, ASML, AMAT, TSM)?"
+    )
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    cache_key = "capex_guid_summary|" + day
+    return _cached_gemini(cache_key, prompt, 86400)
+
+
 def gemini_analyze_earnings(symbol, season):
     """מנתח דוח ושיחת ועידה של חברה לפי עונה, עם חיפוש רשת.
     season = מחרוזת כמו '2026Q2'. מחזיר dict מובנה, או None בשגיאה.
@@ -802,6 +833,13 @@ def gemini_israeli_impact(il_symbol, season, context_text):
         "NVMI": "Nova — ציוד מדידה ובקרת תהליכים (process control & metrology)",
         "CAMT": "Camtek — ציוד בדיקה ומדידה לאריזה מתקדמת",
         "MBLY": "Mobileye — מערכות ראייה ממוחשבת לרכב אוטונומי",
+        "MSFT": "Microsoft — ענקית תוכנה וענן (Azure), לקוחה מרכזית של NVDA ו-AMD לתשתיות AI",
+        "META": "Meta Platforms — רשתות חברתיות, משקיעה עצומה בתשתיות AI ומרכזי נתונים",
+        "GOOGL": "Alphabet/Google — מנוע חיפוש, ענן (GCP) ו-AI; מפתחת שבבי TPU מקוריים",
+        "AMZN": "Amazon — ענן AWS ומסחר אלקטרוני; הלקוחה הגדולה ביותר של תשתיות GPU",
+        "ORCL": "Oracle — תוכנה ארגונית ותשתיות ענן (OCI); צומחת מהר בהשכרת תשתיות AI",
+        "005930.KS": "Samsung Electronics — יצרן זיכרון DRAM/NAND/HBM וגם מפעילה foundry לייצור לוגיקה",
+        "000660.KS": "SK Hynix — יצרן זיכרון DRAM/NAND/HBM; ספק HBM מרכזי ל-NVDA",
     }
     desc = _desc.get(il_symbol, il_symbol)
     prompt = (
@@ -1206,25 +1244,40 @@ def ranking_bar_chart(items, chart_key, soxx_marker=None, debug=False):
     return None
 
 
-def section_banner(number, total, icon, title, color, subtitle=""):
-    """באנר גדול ובולט לתחילת אזור ראשי בדשבורד (SOXX, מפת חום, צלילה, פילוח).
-    שונה מ-section_header (שמיועד לתת-אזורים קטנים בתוך כרטיס) — זה עבור
-    ארבעת האזורים הגדולים של הדשבורד עצמו, עם מספור, רקע מלא ומרווח נדיב."""
+def section_banner(number, total, icon, title, color, subtitle="", period_dependent=None, period_label=""):
+    """באנר גדול ובולט לתחילת אזור ראשי בדשבורד.
+    period_dependent=True  → תגית 🕐 מגיב לתקופה
+    period_dependent=False → תגית 📌 נתונים עצמאיים
+    period_dependent=None  → ללא תגית (תאימות לאחור)"""
     sub_html = ""
     if subtitle:
         sub_html = ("<div style='font-size:14px; color:rgba(255,255,255,0.75); "
                     "margin-top:4px; font-weight:400;'>" + subtitle + "</div>")
+    if period_dependent is True:
+        period_tag = ("<span style='font-size:11px; color:#fbbf24; font-weight:600; "
+                      "background:rgba(251,191,36,0.12); padding:2px 8px; border-radius:20px; "
+                      "border:1px solid rgba(251,191,36,0.3);'>"
+                      "🕐 מגיב לתקופה: " + period_label + "</span>")
+    elif period_dependent is False:
+        period_tag = ("<span style='font-size:11px; color:#6b7280; font-weight:600; "
+                      "background:rgba(107,114,128,0.12); padding:2px 8px; border-radius:20px; "
+                      "border:1px solid rgba(107,114,128,0.3);'>"
+                      "📌 נתונים עצמאיים</span>")
+    else:
+        period_tag = ""
     st.markdown(
-        "<div style='height:36px;'></div>"
+        "<div id='zone-" + str(number) + "' style='height:36px;'></div>"
         "<div dir='rtl' style='text-align:right; background:linear-gradient(90deg, " + color + "22, transparent); "
         "border-right:8px solid " + color + "; border-radius:10px; "
         "padding:16px 20px; margin-bottom:18px;'>"
         "<div style='display:flex; align-items:center; justify-content:space-between;'>"
         "<span style='font-size:24px; font-weight:800; color:#ffffff;'>" + icon + "&nbsp; " + title + "</span>"
+        "<div style='display:flex; flex-direction:column; align-items:flex-end; gap:4px;'>"
         "<span style='font-size:13px; color:rgba(255,255,255,0.45); font-weight:600; "
         "background:rgba(255,255,255,0.06); padding:3px 10px; border-radius:20px;'>"
         "אזור " + str(number) + "/" + str(total) + "</span>"
-        "</div>" + sub_html + "</div>",
+        + (period_tag if period_tag else "") +
+        "</div></div>" + sub_html + "</div>",
         unsafe_allow_html=True,
     )
 
@@ -1508,16 +1561,42 @@ def render_ai_alert(soxx_change, holdings_pairs, period, period_label):
 
 # ---------- ממשק ----------
 st.title("💹 דשבורד שרשרת הערך של השבבים")
+if DEV_MODE:
+    st.markdown(
+        "<div style='background:rgba(234,179,8,0.15); border:1px solid #ca8a04; "
+        "border-radius:8px; padding:6px 14px; margin-bottom:6px; "
+        "font-size:13px; font-weight:700; color:#fbbf24; direction:rtl; text-align:right;'>"
+        "🔧 מצב מפתח פעיל</div>",
+        unsafe_allow_html=True,
+    )
+
+st.sidebar.markdown(
+    "<div dir='rtl' style='text-align:right; margin-bottom:10px;'>"
+    "<div style='font-size:12px; font-weight:700; color:#9ca3af; "
+    "margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.1);'>"
+    "📑 ניווט מהיר</div>"
+    "<div style='display:flex; flex-direction:column; gap:4px;'>"
+    "<a href='#zone-1' style='color:#f59e0b; text-decoration:none; font-size:13px;'>🏆 SOXX — מדד השבבים</a>"
+    "<a href='#zone-2' style='color:#3b82f6; text-decoration:none; font-size:13px;'>🗺️ מפת חום — שרשרת הערך</a>"
+    "<a href='#zone-3' style='color:#22c55e; text-decoration:none; font-size:13px;'>🔍 צלילה לתחום</a>"
+    "<a href='#zone-4' style='color:#a78bfa; text-decoration:none; font-size:13px;'>🧬 פילוח טכנולוגי</a>"
+    "<a href='#zone-5' style='color:#22d3ee; text-decoration:none; font-size:13px;'>🏗️ CapEx — ענקיות הענן</a>"
+    "<a href='#zone-6' style='color:#f59e0b; text-decoration:none; font-size:13px;'>📋 דוחות — עונת הדוחות</a>"
+    "</div></div>",
+    unsafe_allow_html=True,
+)
+st.sidebar.divider()
 
 period_label = st.sidebar.selectbox("Period:", list(PERIOD_OPTIONS.keys()), index=3)
 period = PERIOD_OPTIONS[period_label]
-st.sidebar.caption("בחרי תקופה — כל הדשבורד יתעדכן")
+st.sidebar.caption("משפיע על אזורים 1–4 בלבד")
 
 # ======================================================
 # אזור SOXX
 # ======================================================
 section_banner(1, 6, "🏆", "מדד סקטור השבבים — SOXX", "#f59e0b",
-                "התנהגות המדד הכללי, עם התראות AI על תנועות חריגות")
+               subtitle="התנהגות המדד הכללי, עם התראות AI על תנועות חריגות",
+               period_dependent=True, period_label=period_label)
 soxx_close = get_history(BENCHMARK, period)
 
 if soxx_close is None:
@@ -1835,8 +1914,10 @@ def render_domain_detail(sector, pairs, period):
         st.caption("עונה אחת שמורה לתחום זה — הגרף יופיע לאחר עונה נוספת.")
 
 
+st.divider()
 section_banner(2, 6, "🗺️", "מפת חום — דירוג שרשרת הערך", "#3b82f6",
-                "11 חוליות שרשרת הערך, מדורגות לפי המרחק מ-SOXX")
+               subtitle="11 חוליות שרשרת הערך, מדורגות לפי המרחק מ-SOXX",
+               period_dependent=True, period_label=period_label)
 st.caption("מדורג לפי המרחק מ-SOXX — מי מכה את המדד הכי הרבה. הגרף מציג את התמונה; לחצי על שורה בטבלה למטה כדי לפתוח פרטים.")
 
 # גרף עמודות אופקי לתצוגה: כל תחום לפי החציון שלו, ממוין מהגבוה לנמוך,
@@ -1931,8 +2012,10 @@ with st.container(border=True):
         rank = rank + 1
 
 # ---------- צלילה לתחום ----------
+st.divider()
 section_banner(3, 6, "🔍", "צלילה לתחום — השוואת מניות", "#22c55e",
-                "בחרי תחום כדי להשוות בין המניות שבו, מול חציון התחום ומול SOXX")
+               subtitle="בחרי תחום כדי להשוות בין המניות שבו, מול חציון התחום ומול SOXX",
+               period_dependent=True, period_label=period_label)
 
 sector_names = []
 for r in results:
@@ -2031,7 +2114,8 @@ else:
 # ======================================================
 # פילוח טכנולוגי — ליבה ומעטפת
 # ======================================================
-section_banner(4, 6, "🧬", "פילוח טכנולוגי — ליבה ומעטפת", "#a78bfa")
+st.divider()
+section_banner(4, 6, "🧬", "פילוח טכנולוגי — ליבה ומעטפת", "#a78bfa", period_dependent=True, period_label=period_label)
 st.caption("כל תחום מדורג לפי תשואה משוקללת: ליבה (חשיפה × 1.0) ומעטפת (חשיפה × 0.4). "
            "שני צירים חופפים בכוונה — טכנולוגיה (מה מוכרים) ושוקי קצה (למי מוכרים) — אין להשוות ביניהם כסכום.")
 
@@ -2272,8 +2356,10 @@ with st.spinner("מחשב את הפילוח הטכנולוגי..."):
 # ======================================================
 # CapEx — השקעות ענקיות הענן
 # ======================================================
+st.divider()
 section_banner(5, 6, "🏗️", "CapEx — השקעות ענקיות הענן", "#22d3ee",
-                "ההשקעות ההוניות של מיקרוסופט, גוגל, אמזון ומטא — מנוע הביקוש של הסקטור")
+               subtitle="ההשקעות ההוניות של מיקרוסופט, גוגל, אמזון ומטא — מנוע הביקוש של הסקטור",
+               period_dependent=False)
 st.caption("נתוני CapEx בפועל מדוחות תזרים המזומנים (yfinance). "
            "תחזיות שנתיות מוזנות ידנית מהשיחות ועידה. "
            "האזור אינו תלוי בתקופה שנבחרה בסרגל הצד.")
@@ -2355,7 +2441,7 @@ else:
 
     # --- כפתור ניתוח מגמה רבעונית ---
     capex_trend_key = "capex_trend_" + datetime.now(timezone.utc).strftime("%Y-%W")
-    if st.button("🧠 נתח את מגמת ה-CapEx", key="capex_trend_btn"):
+    if st.button("📊 הסבר את תחזית ה-CapEx", key="capex_trend_btn"):
         lines = []
         for sym, s in capex_q.items():
             vals = ", ".join(str(round(float(v), 1)) for v in s.values[-4:])
@@ -2440,12 +2526,13 @@ else:
                         unsafe_allow_html=True,
                     )
             else:
-                st.markdown(
-                    "<div dir='rtl' style='text-align:right; color:#9ca3af; font-size:13px;'>"
-                    "⚠️ טרם הוזנו עדכוני תחזית ל-" + year_label +
-                    " — עדכן את CAPEX_GUIDANCE בקוד.</div>",
-                    unsafe_allow_html=True,
-                )
+                if DEV_MODE:
+                    st.markdown(
+                        "<div dir='rtl' style='text-align:right; color:#9ca3af; font-size:13px;'>"
+                        "⚠️ טרם הוזנו עדכוני תחזית ל-" + year_label +
+                        " — עדכן את CAPEX_GUIDANCE בקוד.</div>",
+                        unsafe_allow_html=True,
+                    )
 
             fig_a.update_layout(
                 barmode="group", height=340, template="plotly_dark",
@@ -2661,24 +2748,49 @@ else:
                    "«תחזית מול בפועל» = כמה התחזית הנוכחית גבוהה/נמוכה מ-CapEx השנה הקודמת שהסתיימה. "
                    "«—» מציין שאין עדיין נתון (למשל רק עדכון תחזית אחד).")
 
-    # --- כפתור חיפוש תחזיות עדכניות (עוזר למלא את המילון) ---
-    st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-    capex_guid_key = "capex_guid_" + datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    if st.button("🔎 חפש את תחזיות ה-CapEx העדכניות (לעדכון ידני של המילון)",
-                 key="capex_guid_btn"):
-        with st.spinner("מחפש תחזיות עדכניות ברשת..."):
-            text, sources = gemini_capex_guidance()
-        st.session_state[capex_guid_key] = {"text": text, "sources": sources}
+    # --- סיכום עדכוני תחזית — גלוי לכולם ---
+    if len(guid_rows) > 0:
+        _guid_sum_key = "capex_guid_summary_" + datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if st.button("📊 סכם את עדכוני תחזית ה-CapEx", key="capex_guid_summary_btn"):
+            _guid_lines = []
+            for sym in CAPEX_COMPANIES:
+                guid = CAPEX_GUIDANCE.get(sym, {})
+                updates = [(lbl, v) for lbl, v in guid.get("updates", []) if v is not None]
+                if updates:
+                    parts = [lbl + ": $" + str(v) + "B" for lbl, v in updates]
+                    _guid_lines.append(CAPEX_COMPANIES[sym] + " — " + " → ".join(parts))
+            with st.spinner("מסכם עדכוני תחזית עם Gemini..."):
+                _gs_text, _gs_sources = gemini_summarize_capex_guidance("\n".join(_guid_lines))
+            st.session_state[_guid_sum_key] = {"text": _gs_text, "sources": _gs_sources}
 
-    saved_guid = st.session_state.get(capex_guid_key)
-    if saved_guid and saved_guid.get("text"):
-        st.markdown("<div dir='rtl' style='text-align:right;'>" + saved_guid["text"] + "</div>",
-                    unsafe_allow_html=True)
-        if saved_guid.get("sources"):
-            with st.expander("מקורות"):
-                for title, uri in saved_guid["sources"]:
-                    st.markdown("• [" + (title or uri) + "](" + uri + ")")
-        st.caption("💡 קח את המספרים מכאן, אמת מול המקורות, והזן אותם ב-CAPEX_GUIDANCE שבראש הקובץ.")
+        _gs_saved = st.session_state.get(_guid_sum_key)
+        if _gs_saved and _gs_saved.get("text"):
+            st.markdown("<div dir='rtl' style='text-align:right;'>" + _gs_saved["text"] + "</div>",
+                        unsafe_allow_html=True)
+            if _gs_saved.get("sources"):
+                with st.expander("מקורות"):
+                    for _t, _u in _gs_saved["sources"]:
+                        st.markdown("• [" + (_t or _u) + "](" + _u + ")")
+
+    # --- כפתור חיפוש תחזיות עדכניות — מצב מפתח בלבד ---
+    if DEV_MODE:
+        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+        capex_guid_key = "capex_guid_" + datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if st.button("🔎 חפש את תחזיות ה-CapEx העדכניות (לעדכון ידני של המילון)",
+                     key="capex_guid_btn"):
+            with st.spinner("מחפש תחזיות עדכניות ברשת..."):
+                text, sources = gemini_capex_guidance()
+            st.session_state[capex_guid_key] = {"text": text, "sources": sources}
+
+        saved_guid = st.session_state.get(capex_guid_key)
+        if saved_guid and saved_guid.get("text"):
+            st.markdown("<div dir='rtl' style='text-align:right;'>" + saved_guid["text"] + "</div>",
+                        unsafe_allow_html=True)
+            if saved_guid.get("sources"):
+                with st.expander("מקורות"):
+                    for title, uri in saved_guid["sources"]:
+                        st.markdown("• [" + (title or uri) + "](" + uri + ")")
+            st.caption("💡 קח את המספרים מכאן, אמת מול המקורות, והזן אותם ב-CAPEX_GUIDANCE שבראש הקובץ.")
 
 # ======================================================
 # אזור 6 — דוחות כספיים וסנטימנט עונת הדוחות
@@ -2687,11 +2799,15 @@ CORE_COMPANIES = [
     "ASML", "AMAT", "LRCX", "KLAC", "NVDA", "AMD", "TSM", "INTC", "MU",
     "TXN", "ADI", "AVGO", "QCOM", "MRVL", "ARM",
     "TSEM", "NVMI", "CAMT", "MBLY",
+    "MSFT", "META", "GOOGL", "AMZN", "ORCL",
+    "005930.KS", "000660.KS",
 ]
 ISRAELI_TICKERS = {"TSEM", "NVMI", "CAMT", "MBLY"}
 
+st.divider()
 section_banner(6, 6, "📋", "דוחות כספיים — ניתוח עונת הדוחות", "#f59e0b",
-               "ניתוח דוחות ושיחות ועידה עם AI · סנטימנט מצטבר לפי תחום")
+               subtitle="ניתוח דוחות ושיחות ועידה עם AI · סנטימנט מצטבר לפי תחום",
+               period_dependent=False)
 
 _z6_sent_data = load_sentiment()
 
@@ -3133,8 +3249,8 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
         )
 
 
-# --- תוצאה ממתינה לאישור (מ-Gemini, טרם נשמרה) ---
-if _z6_pending:
+# --- תוצאה ממתינה לאישור (מ-Gemini, טרם נשמרה) — מצב מפתח בלבד ---
+if DEV_MODE and _z6_pending:
     if "error" in _z6_pending:
         st.warning(_z6_pending["error"])
     else:
@@ -3164,7 +3280,6 @@ if _z6_pending:
 
 # --- ניתוח שמור בקובץ ---
 elif _z6_saved_rec:
-    # חיפוש הפתעת EPS מנתוני הלוח + תגובת שוק ביום שאחרי
     _z6_eps_surp = None
     _z6_react = None
     _z6_rd = _z6_saved_rec.get("report_date")
@@ -3177,18 +3292,20 @@ elif _z6_saved_rec:
     with st.container(border=True):
         _render_analysis_record(_z6_saved_rec, label="שמור",
                                 eps_surprise=_z6_eps_surp, stock_reaction=_z6_react)
-    if st.button("🔄 עדכן ניתוח עם Gemini", key="z6_analyzebtn_" + _z6_chosen):
-        with st.spinner("מחפש דוח ושיחת ועידה עם Gemini..."):
-            st.session_state[_z6_result_key] = gemini_analyze_earnings(_z6_chosen, _z6_season)
-        st.rerun()
+    if DEV_MODE:
+        if st.button("🔄 עדכן ניתוח עם Gemini", key="z6_analyzebtn_" + _z6_chosen):
+            with st.spinner("מחפש דוח ושיחת ועידה עם Gemini..."):
+                st.session_state[_z6_result_key] = gemini_analyze_earnings(_z6_chosen, _z6_season)
+            st.rerun()
 
 # --- אין ניתוח עדיין ---
 else:
-    st.caption("אין ניתוח שמור לחברה זו בעונה " + _z6_season + ".")
-    if st.button("🧠 נתח דוח עם Gemini", key="z6_analyzebtn_" + _z6_chosen, type="primary"):
-        with st.spinner("מחפש דוח ושיחת ועידה עם Gemini..."):
-            st.session_state[_z6_result_key] = gemini_analyze_earnings(_z6_chosen, _z6_season)
-        st.rerun()
+    st.caption("אין ניתוח שמור לחברה זו בעונה " + _z6_season + " — טרם נותח.")
+    if DEV_MODE:
+        if st.button("🧠 נתח דוח עם Gemini", key="z6_analyzebtn_" + _z6_chosen, type="primary"):
+            with st.spinner("מחפש דוח ושיחת ועידה עם Gemini..."):
+                st.session_state[_z6_result_key] = gemini_analyze_earnings(_z6_chosen, _z6_season)
+            st.rerun()
 
 # ======================================================
 # גרף מגמת סנטימנט לפי חברה ספציפית
