@@ -639,6 +639,71 @@ def get_capex_annual(symbol):
 
 
 @st.cache_data(ttl=86400)
+def get_earnings_history(symbol):
+    """היסטוריית EPS מ-earnings_dates: רק רבעונים שדווחו (Reported EPS לא ריק), עד 8 אחורה."""
+    try:
+        df = yf.Ticker(symbol).earnings_dates
+        if df is None or df.empty:
+            return None
+        reported = df[df["Reported EPS"].notna()].copy()
+        if reported.empty:
+            return None
+        return reported.sort_index(ascending=False).head(8)
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=86400)
+def get_quarterly_revenue(symbol):
+    """הכנסות רבעוניות מ-quarterly_financials. מחזיר (Series ב-1e9, שם_שורה) או (None, None)."""
+    try:
+        qf = yf.Ticker(symbol).quarterly_financials
+        if qf is None or qf.empty:
+            return None, None
+        for name in ("Total Revenue", "TotalRevenue", "Revenue"):
+            if name in qf.index:
+                row = qf.loc[name].dropna() / 1e9
+                return row.sort_index(), name
+        return None, None
+    except Exception:
+        return None, None
+
+
+@st.cache_data(ttl=86400)
+def get_financial_currency(symbol):
+    """קוד המטבע הפיננסי (financialCurrency) מ-ticker.info."""
+    try:
+        return yf.Ticker(symbol).info.get("financialCurrency", "USD") or "USD"
+    except Exception:
+        return "USD"
+
+
+@st.cache_data(ttl=86400)
+def get_forward_estimates(symbol):
+    """תחזיות אנליסטים לרבעון הקרוב: eps_est, revenue_est_b, revenue_growth_pct."""
+    try:
+        t = yf.Ticker(symbol)
+        result = {}
+        ee = t.earnings_estimate
+        if ee is not None and not ee.empty and "0q" in ee.index:
+            avg = ee.loc["0q"].get("avg")
+            if avg is not None and not (isinstance(avg, float) and math.isnan(avg)):
+                result["eps_est"] = float(avg)
+        re_ = t.revenue_estimate
+        if re_ is not None and not re_.empty and "0q" in re_.index:
+            row = re_.loc["0q"]
+            avg = row.get("avg")
+            growth = row.get("growth")
+            if avg is not None and not (isinstance(avg, float) and math.isnan(avg)):
+                result["revenue_est_b"] = float(avg) / 1e9
+            if growth is not None and not (isinstance(growth, float) and math.isnan(growth)):
+                result["revenue_growth_pct"] = float(growth) * 100
+        return result if result else None
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=86400)
 def get_stock_reaction(symbol, report_date_str):
     """% שינוי של המניה מסגירת יום הדוח לסגירת יום המסחר הבא.
     מחזיר (reaction_pct, next_date) או (None, None) בשגיאה."""
@@ -799,14 +864,34 @@ def gemini_analyze_earnings(symbol, season):
         '  "domain_signals": [\n'
         '    {"domain": "<שם מהרשימה הסגורה בלבד>", "direction": "improving|stable|deteriorating", '
         '"note": "<משפט קצר בעברית מה אמרה ההנהלה על שוק הקצה הזה>"}\n'
-        "  ]\n"
+        "  ],\n"
+        '  "revenue_actual_b": <הכנסות בפועל במיליארדי דולרים, מספר עשרוני, או null>,\n'
+        '  "revenue_estimate_b": <קונצנזוס האנליסטים להכנסות לפני הדוח, במיליארדי דולרים, או null>,\n'
+        '  "eps_actual": <EPS בפועל, מספר עשרוני, או null>,\n'
+        '  "eps_estimate": <קונצנזוס האנליסטים ל-EPS לפני הדוח, מספר עשרוני, או null>,\n'
+        '  "next_q_guidance": {\n'
+        '    "revenue_b": <אמצע טווח תחזית ההכנסות שהחברה נתנה לרבעון הבא, או null>,\n'
+        '    "eps": <אמצע טווח תחזית ה-EPS של החברה לרבעון הבא, או null>,\n'
+        '    "analyst_revenue_b": <קונצנזוס האנליסטים להכנסות הרבעון הבא, או null>,\n'
+        '    "vs_consensus": "above|inline|below|none"\n'
+        "  }\n"
         "}\n\n"
         "חוקי חובה:\n"
-        "1. sentiment_score: השתמש בסולם רציף. beat+raised = קרוב ל-+1, miss+lowered = קרוב ל--1.\n"
+        "1. sentiment_score: הציון משקף אך ורק את התוצאות מול הציפיות ואת כיוון ההנחיה — "
+        "לא את תגובת המניה בשוק ולא את סנטימנט המשקיעים. "
+        "גם אם המניה ירדה אחרי דוח חזק (או עלתה אחרי דוח חלש), התעלם מכך בציון. "
+        "השתמש בסולם רציף: beat+raised = \u200F0.8 עד \u200F1.0, "
+        "beat+maintained = \u200F0.5 עד \u200F0.7, "
+        "meet+maintained = \u200F-0.1 עד \u200F0.2, "
+        "miss+lowered = \u200F-0.8 עד \u200F-1.0. "
+        "חששות או סיכונים שההנהלה עצמה ציינה (למשל אילוצי אספקה, הגבלות יצוא) "
+        "יכולים להוריד את הציון במעט בתוך הטווח, אך לא לשנות את המדרגה.\n"
         "2. domain: חובה לבחור אך ורק מהרשימה הסגורה הבאה. אין להמציא שמות:\n"
         + domains_list + "\n"
         "3. כלול ב-domain_signals רק תחומים שהוזכרו בצורה מפורשת בשיחה. אם אין — השאר רשימה ריקה.\n"
-        "4. אם לא מצאת דוח לתקופה זו, החזר: {\"error\": \"לא נמצא דוח לתקופה זו\"}"
+        "4. אם לא מצאת דוח לתקופה זו, החזר: {\"error\": \"לא נמצא דוח לתקופה זו\"}\n"
+        "5. כל שדה מספרי שלא נמצא במקורות — החזר null, אל תנחש. "
+        "vs_consensus = השוואת תחזית ההכנסות של החברה מול קונצנזוס האנליסטים לרבעון הבא."
     )
 
     text, _ = _gemini_call(prompt)
@@ -1303,13 +1388,7 @@ def render_sentiment_trend(seasons, scores, chart_key):
         textfont=dict(size=13, color="#e5e7eb"),
         hovertemplate="<b>%{x}</b><br>ציון: %{y:.2f}<extra></extra>",
     ))
-    fig.add_hline(y=0,     line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1)
-    fig.add_hline(y=0.15,  line_dash="dot", line_color="rgba(34,197,94,0.30)",   line_width=1)
-    fig.add_hline(y=-0.15, line_dash="dot", line_color="rgba(239,68,68,0.30)",   line_width=1)
-    fig.add_annotation(x=seasons[-1], y=0.15,  xanchor="left", showarrow=False,
-                        text="סף חיובי", font=dict(size=10, color="rgba(34,197,94,0.7)"))
-    fig.add_annotation(x=seasons[-1], y=-0.15, xanchor="left", showarrow=False,
-                        text="סף שלילי", font=dict(size=10, color="rgba(239,68,68,0.7)"))
+    fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1)
     fig.update_layout(
         height=240, template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
@@ -1764,7 +1843,7 @@ def render_earnings_analysis_ui(sector, symbols, season):
             )
         signals = result.get("domain_signals", [])
         if signals:
-            dir_map = {"improving": "📈", "stable": "➡️", "deteriorating": "📉"}
+            dir_map = {"improving": "🟢⬆️", "stable": "⚪➡️", "deteriorating": "🔴⬇️"}
             rows_html = ""
             for sig in signals:
                 icon = dir_map.get(sig.get("direction", ""), "")
@@ -1796,6 +1875,11 @@ def render_earnings_analysis_ui(sector, symbols, season):
                     "guidance_direction": result.get("guidance_direction", ""),
                     "summary": summary,
                     "domain_signals": signals,
+                    "revenue_actual_b": result.get("revenue_actual_b"),
+                    "revenue_estimate_b": result.get("revenue_estimate_b"),
+                    "eps_actual": result.get("eps_actual"),
+                    "eps_estimate": result.get("eps_estimate"),
+                    "next_q_guidance": result.get("next_q_guidance"),
                     "analyzed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                 }
                 save_sentiment_record(chosen_sym, season, record)
@@ -2027,89 +2111,152 @@ chart_data = build_chart(value_chain[chosen], period)
 if chart_data.empty:
     st.warning("אין מספיק נתונים לתחום הזה")
 else:
-    st.caption("ביצועי המניות מול חציון התחום ומול מדד SOXX — הכל מנורמל ל-100 בתחילת התקופה. לחצי על מניה במקרא כדי להסתיר/להציג אותה.")
-
-    date_index = chart_data.index
-    median_series = chart_data.median(axis=1)
-    soxx_close2 = get_history(BENCHMARK, period)
-
-    # פלטת צבעים ברורה ועקבית בין המקרא לקווים
+    # פלטת צבעים משותפת לשני הטאבים לעקביות ויזואלית
     palette = ["#60a5fa", "#f472b6", "#34d399", "#fbbf24", "#a78bfa",
                "#fb7185", "#22d3ee", "#a3e635", "#fb923c", "#e879f9",
                "#4ade80", "#38bdf8", "#facc15", "#f87171", "#c084fc"]
 
-    def ret_html(ret_series):
-        # תשואה צבועה: ירוק לחיובי, אדום לשלילי, שתי ספרות אחרי הנקודה
-        out = []
-        for v in ret_series:
-            color = "#22c55e" if v >= 0 else "#ef4444"
-            sign = "+" if v >= 0 else ""
-            out.append("<span style='color:" + color + "'>" + sign + format(v, ".2f") + "%</span>")
-        return out
+    _z3_tab_perf, _z3_tab_sent = st.tabs(["📈 ביצועי מניות", "🧠 סנטימנט התחום"])
 
-    fig = go.Figure()
-    fig.add_hline(y=100, line_dash="dot", line_color="#888", line_width=1)
+    with _z3_tab_perf:
+        st.caption("ביצועי המניות מול חציון התחום ומול מדד SOXX — הכל מנורמל ל-100 בתחילת התקופה. לחצי על מניה במקרא כדי להסתיר/להציג אותה.")
 
-    for i, symbol in enumerate(chart_data.columns):
-        col_color = palette[i % len(palette)]
-        series = chart_data[symbol]
-        ret = series - 100
+        date_index = chart_data.index
+        median_series = chart_data.median(axis=1)
+        soxx_close2 = get_history(BENCHMARK, period)
+
+        def ret_html(ret_series):
+            out = []
+            for v in ret_series:
+                color = "#22c55e" if v >= 0 else "#ef4444"
+                sign = "+" if v >= 0 else ""
+                out.append("<span style='color:" + color + "'>" + sign + format(v, ".2f") + "%</span>")
+            return out
+
+        fig = go.Figure()
+        fig.add_hline(y=100, line_dash="dot", line_color="#888", line_width=1)
+
+        for i, symbol in enumerate(chart_data.columns):
+            col_color = palette[i % len(palette)]
+            series = chart_data[symbol]
+            ret = series - 100
+            fig.add_trace(go.Scatter(
+                x=date_index, y=series, name=symbol, mode="lines",
+                line=dict(color=col_color, width=1.6), opacity=0.85,
+                customdata=ret_html(ret),
+                hovertemplate="<b>" + symbol + "</b><br>%{x|%d/%m/%Y}<br>"
+                              "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
+            ))
+
+        median_ret = median_series - 100
         fig.add_trace(go.Scatter(
-            x=date_index, y=series, name=symbol, mode="lines",
-            line=dict(color=col_color, width=1.6), opacity=0.85,
-            customdata=ret_html(ret),
-            hovertemplate="<b>" + symbol + "</b><br>%{x|%d/%m/%Y}<br>"
+            x=date_index, y=median_series, name="חציון התחום", mode="lines",
+            line=dict(color="#ffffff", width=4),
+            customdata=ret_html(median_ret),
+            hovertemplate="<b>חציון התחום</b><br>%{x|%d/%m/%Y}<br>"
                           "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
         ))
 
-    median_ret = median_series - 100
-    fig.add_trace(go.Scatter(
-        x=date_index, y=median_series, name="חציון התחום", mode="lines",
-        line=dict(color="#ffffff", width=4),
-        customdata=ret_html(median_ret),
-        hovertemplate="<b>חציון התחום</b><br>%{x|%d/%m/%Y}<br>"
-                      "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
-    ))
+        if soxx_close2 is not None:
+            soxx_norm2 = soxx_close2 / soxx_close2.iloc[0] * 100
+            soxx_ret = soxx_norm2 - 100
+            fig.add_trace(go.Scatter(
+                x=soxx_norm2.index, y=soxx_norm2, name="SOXX", mode="lines",
+                line=dict(color="#f59e0b", width=4, dash="dash"),
+                customdata=ret_html(soxx_ret),
+                hovertemplate="<b>SOXX</b><br>%{x|%d/%m/%Y}<br>"
+                              "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
+            ))
 
-    if soxx_close2 is not None:
-        soxx_norm2 = soxx_close2 / soxx_close2.iloc[0] * 100
-        soxx_ret = soxx_norm2 - 100
-        fig.add_trace(go.Scatter(
-            x=soxx_norm2.index, y=soxx_norm2, name="SOXX", mode="lines",
-            line=dict(color="#f59e0b", width=4, dash="dash"),
-            customdata=ret_html(soxx_ret),
-            hovertemplate="<b>SOXX</b><br>%{x|%d/%m/%Y}<br>"
-                          "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
-        ))
+        fig.update_layout(
+            height=460,
+            hovermode="closest",
+            template="plotly_dark",
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+            margin=dict(t=20, b=40, l=50, r=40),
+            legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.08,
+                        title="מניה", font=dict(size=12),
+                        bgcolor="rgba(255,255,255,0.04)",
+                        bordercolor="rgba(255,255,255,0.20)", borderwidth=1),
+            yaxis=dict(title="מנורמל ל-100", gridcolor="rgba(255,255,255,0.08)"),
+            xaxis=dict(gridcolor="rgba(255,255,255,0.08)"),
+        )
+        with st.container(border=True):
+            st.plotly_chart(fig, use_container_width=True)
 
-    fig.update_layout(
-        height=460,
-        hovermode="closest",
-        template="plotly_dark",
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        margin=dict(t=20, b=40, l=50, r=40),
-        legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.08,
-                    title="מניה", font=dict(size=12),
-                    bgcolor="rgba(255,255,255,0.04)",
-                    bordercolor="rgba(255,255,255,0.20)", borderwidth=1),
-        yaxis=dict(title="מנורמל ל-100", gridcolor="rgba(255,255,255,0.08)"),
-        xaxis=dict(gridcolor="rgba(255,255,255,0.08)"),
-    )
-    with st.container(border=True):
-        st.plotly_chart(fig, use_container_width=True)
+        st.subheader("טבלת תשואות")
+        chosen_pairs = get_changes(value_chain[chosen], period)
+        st.markdown(returns_table_html(chosen_pairs), unsafe_allow_html=True)
 
-    st.subheader("טבלת תשואות")
-    chosen_pairs = get_changes(value_chain[chosen], period)
-    st.markdown(returns_table_html(chosen_pairs), unsafe_allow_html=True)
+        soxx_change2 = get_change(BENCHMARK, period)
+        if soxx_change2 is not None and len(chosen_pairs) > 0:
+            sector_median = statistics.median([c for s, c in chosen_pairs])
+            diff = sector_median - soxx_change2
+            better = "📈 התחום מכה את המדד" if diff >= 0 else "📉 התחום מפגר אחרי המדד"
+            st.info("חציון התחום: " + str(round(sector_median, 1)) + "%  |  SOXX: " +
+                    str(round(soxx_change2, 1)) + "%  →  " + better + " (" + str(round(diff, 1)) + " נק')")
 
-    soxx_change2 = get_change(BENCHMARK, period)
-    if soxx_change2 is not None and len(chosen_pairs) > 0:
-        sector_median = statistics.median([c for s, c in chosen_pairs])
-        diff = sector_median - soxx_change2
-        better = "📈 התחום מכה את המדד" if diff >= 0 else "📉 התחום מפגר אחרי המדד"
-        st.info("חציון התחום: " + str(round(sector_median, 1)) + "%  |  SOXX: " +
-                str(round(soxx_change2, 1)) + "%  →  " + better + " (" + str(round(diff, 1)) + " נק')")
+    with _z3_tab_sent:
+        # אגרגט התחום לאורך עונות — value_chain_sentiment (ממוצע פשוט, זהה לכרטיסיות)
+        _z3_all_s = sorted({s for sd in _sentiment_data.values() for s in sd})
+        _z3_tx, _z3_ty = [], []
+        for _s in _z3_all_s:
+            _agg = value_chain_sentiment(chosen, _s, _sentiment_data)
+            if _agg is not None:
+                _z3_tx.append(_s)
+                _z3_ty.append(_agg["score"])
+
+        # קו לכל מניה בתחום עם ≥2 עונות מנותחות
+        _z3_syms = list(value_chain[chosen])
+        _z3_sym_series: dict[str, tuple[list, list]] = {}
+        for _sym in _z3_syms:
+            _sx, _sy = [], []
+            for _s in _z3_all_s:
+                _r = (_sentiment_data.get(_sym) or {}).get(_s)
+                if _r and _r.get("sentiment_score") is not None:
+                    _sx.append(_s)
+                    _sy.append(float(_r["sentiment_score"]))
+            if len(_sx) >= 2:
+                _z3_sym_series[_sym] = (_sx, _sy)
+
+        if len(_z3_tx) < 2 and not _z3_sym_series:
+            st.caption("אין מספיק נתוני סנטימנט להצגת מגמה (נדרשות ≥2 עונות).")
+        else:
+            _z3_fig = go.Figure()
+            _z3_fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1)
+
+            # קווי מניות דקים — אותה פלטה כמו טאב הביצועים
+            for _ci, (_sym, (_sx, _sy)) in enumerate(_z3_sym_series.items()):
+                _clr = palette[_ci % len(palette)]
+                _z3_fig.add_trace(go.Scatter(
+                    x=_sx, y=_sy, name=_sym, mode="lines+markers",
+                    line=dict(color=_clr, width=1.5),
+                    marker=dict(size=7, color=_clr, line=dict(color="#1e2533", width=1)),
+                    hovertemplate="<b>" + _sym + "</b><br>%{x}: %{y:.2f}<extra></extra>",
+                ))
+
+            # קו התחום — לבן ועבה (עוגן, זהה לחציון בטאב הביצועים)
+            if len(_z3_tx) >= 2:
+                _z3_fig.add_trace(go.Scatter(
+                    x=_z3_tx, y=_z3_ty, name=chosen + " (תחום)", mode="lines+markers",
+                    line=dict(color="#ffffff", width=3),
+                    marker=dict(size=10, color="#ffffff", line=dict(color="#1e2533", width=2)),
+                    hovertemplate="<b>" + chosen + " (אגרגט)</b><br>%{x}: %{y:.2f}<extra></extra>",
+                ))
+
+            _z3_fig.update_layout(
+                height=380, template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                margin=dict(t=20, b=20, l=55, r=10),
+                yaxis=dict(range=[-1.1, 1.3], gridcolor="rgba(255,255,255,0.06)",
+                           tickvals=[-1, -0.5, 0, 0.5, 1],
+                           ticktext=["-100%", "-50%", "0%", "+50%", "+100%"]),
+                xaxis=dict(gridcolor="rgba(255,255,255,0.06)"),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                            font=dict(size=11)),
+            )
+            st.plotly_chart(_z3_fig, use_container_width=True, key="z3_sent_" + sector_key(chosen))
 
 # ======================================================
 # פילוח טכנולוגי — ליבה ומעטפת
@@ -2190,7 +2337,14 @@ def render_tech_detail(idx, sentiment_data=None, season=None, group_name=None):
                     unsafe_allow_html=True,
                 )
 
-        _td_dir_emoji = {"improving": "📈", "stable": "➡️", "deteriorating": "📉"}
+        # רבעון קלנדרי קודם בדיוק (לא "האחרון שדיווח") — YYYYQN
+        _td_prev_q = int(season[5]) - 1
+        _td_prev_y = int(season[:4])
+        if _td_prev_q == 0:
+            _td_prev_q, _td_prev_y = 4, _td_prev_y - 1
+        _td_prev_season = f"{_td_prev_y}Q{_td_prev_q}"
+
+        _td_dir_emoji = {"improving": "🟢⬆️", "stable": "⚪➡️", "deteriorating": "🔴⬇️"}
         _td_dir_color = {"improving": "#22c55e", "stable": "#9ca3af", "deteriorating": "#ef4444"}
         _td_dir_order = {"improving": 0, "stable": 1, "deteriorating": 2}
         _td_entries = []
@@ -2200,10 +2354,22 @@ def render_tech_detail(idx, sentiment_data=None, season=None, group_name=None):
                 continue
             for _sig in _rec.get("domain_signals", []):
                 if _sig.get("domain") == group_name:
+                    _prev_rec = _sym_data.get(_td_prev_season)
+                    if _prev_rec is None:
+                        # אין רשומה כלל לרבעון הקלנדרי הקודם
+                        _prev_dir = None
+                    else:
+                        _prev_sig = next(
+                            (s for s in _prev_rec.get("domain_signals", []) if s.get("domain") == group_name),
+                            None,
+                        )
+                        # False = דיווח קיים אך ללא התייחסות לתחום זה
+                        _prev_dir = _prev_sig.get("direction") if _prev_sig else False
                     _td_entries.append({
                         "sym": _sym,
                         "direction": _sig.get("direction", "stable"),
                         "note": _sig.get("note", ""),
+                        "prev_dir": _prev_dir,
                     })
         if _td_entries:
             _td_entries.sort(key=lambda e: _td_dir_order.get(e["direction"], 1))
@@ -2212,16 +2378,49 @@ def render_tech_detail(idx, sentiment_data=None, season=None, group_name=None):
             _td_net = _td_pos - _td_neg
             _td_net_col = "#22c55e" if _td_net > 0 else ("#ef4444" if _td_net < 0 else "#9ca3af")
             _td_net_sign = "+" if _td_net > 0 else ""
-            _td_sig_rows = "".join(
-                "<tr style='border-top:1px solid rgba(255,255,255,0.07);'>"
-                "<td style='text-align:right; padding:6px 10px; font-weight:600; white-space:nowrap;'>" + e["sym"] + "</td>"
-                "<td style='text-align:center; padding:6px 10px;'>"
-                "<span style='color:" + _td_dir_color.get(e["direction"], "#9ca3af") + "; font-size:16px;'>"
-                + _td_dir_emoji.get(e["direction"], "") + "</span></td>"
-                "<td style='text-align:right; padding:6px 10px; color:#d1d5db; font-size:12px;'>" + e["note"] + "</td>"
-                "</tr>"
-                for e in _td_entries
-            )
+            _td_sig_rows = ""
+            for e in _td_entries:
+                _cur = e["direction"]
+                _prev = e["prev_dir"]
+                # פיצול להיפוך חיובי/שלילי — מעבר דרך stable אינו היפוך
+                _is_pos_flip = isinstance(_prev, str) and _cur == "improving" and _prev == "deteriorating"
+                _is_neg_flip = isinstance(_prev, str) and _cur == "deteriorating" and _prev == "improving"
+                _is_flip = _is_pos_flip or _is_neg_flip
+                _row_bg = (
+                    " background:rgba(34,197,94,0.08);" if _is_pos_flip else
+                    " background:rgba(239,68,68,0.10);" if _is_neg_flip else ""
+                )
+                # עמודת "כיוון רבעון קודם"
+                if _prev is None:
+                    _prev_dir_cell = "<span style='color:#6b7280;'>—</span>"
+                elif _prev is False:
+                    _prev_dir_cell = "<span style='color:#6b7280; font-style:italic;'>לא היתה התייחסות</span>"
+                else:
+                    _prev_dir_cell = (
+                        "<span style='color:" + _td_dir_color.get(_prev, "#9ca3af") + ";'>"
+                        + _td_dir_emoji.get(_prev, "") + "</span>"
+                        + " <span style='color:#6b7280; font-size:11px;'>" + _td_prev_season + "</span>"
+                    )
+                # עמודת "מגמה" — רלוונטית רק כשיש כיוון קודם ממשי
+                if not isinstance(_prev, str):
+                    _trend_cell = "<span style='color:#6b7280;'>—</span>"
+                elif _is_pos_flip:
+                    _trend_cell = "<span style='color:#22c55e; font-weight:700;'>✅ שינוי לחיובי</span>"
+                elif _is_neg_flip:
+                    _trend_cell = "<span style='color:#ef4444; font-weight:700;'>⚠️ שינוי לשלילי</span>"
+                else:
+                    _trend_cell = "<span style='color:#ca8a04;'>ללא שינוי</span>"
+                _td_sig_rows += (
+                    "<tr style='border-top:1px solid rgba(255,255,255,0.07);" + _row_bg + "'>"
+                    "<td style='text-align:right; padding:6px 10px; font-weight:600; white-space:nowrap;'>" + e["sym"] + "</td>"
+                    "<td style='text-align:center; padding:6px 10px;'>"
+                    "<span style='color:" + _td_dir_color.get(_cur, "#9ca3af") + "; font-size:16px;'>"
+                    + _td_dir_emoji.get(_cur, "") + "</span></td>"
+                    "<td style='text-align:right; padding:6px 10px; color:#d1d5db; font-size:12px;'>" + e["note"] + "</td>"
+                    "<td style='text-align:center; padding:6px 10px; font-size:12px; white-space:nowrap;'>" + _prev_dir_cell + "</td>"
+                    "<td style='text-align:center; padding:6px 10px; font-size:12px; white-space:nowrap;'>" + _trend_cell + "</td>"
+                    "</tr>"
+                )
             st.markdown(section_header("📡 ניתוח סנטימנט בדוחות — " + season, "#a78bfa"), unsafe_allow_html=True)
             st.markdown(
                 "<div dir='rtl' style='margin-bottom:6px; font-size:13px; color:#9ca3af;'>"
@@ -2233,6 +2432,8 @@ def render_tech_detail(idx, sentiment_data=None, season=None, group_name=None):
                 "<th style='text-align:right; padding:6px 10px; color:#9ca3af;'>חברה</th>"
                 "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>כיוון</th>"
                 "<th style='text-align:right; padding:6px 10px; color:#9ca3af;'>מה אמרה ההנהלה</th>"
+                "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>כיוון רבעון קודם</th>"
+                "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>מגמה</th>"
                 "</tr>" + _td_sig_rows + "</table></div>",
                 unsafe_allow_html=True,
             )
@@ -2855,6 +3056,15 @@ _z6_cal_dict = {}
 for _e in _z6_all_entries:
     _z6_cal_dict.setdefault(str(_e["date"]), []).append(_e)
 
+# אוסף תחזיות לחברות עתידיות בחודש המוצג
+_z6_fwd_est: dict[str, dict] = {}
+for _fe_date, _fe_entries in _z6_cal_dict.items():
+    for _fe in _fe_entries:
+        if _fe["is_future"] and _fe["symbol"] not in _z6_fwd_est:
+            _fe_data = get_forward_estimates(_fe["symbol"])
+            if _fe_data:
+                _z6_fwd_est[_fe["symbol"]] = _fe_data
+
 # בניית גריד הלוח
 import calendar as _cal_mod
 _cal_mod.setfirstweekday(6)   # יום ראשון = תחילת שבוע
@@ -2907,20 +3117,78 @@ for _week in _weeks:
             _status = get_symbol_cal_status(_sym, _d, _has_report, _z6_sent_data)
             _bg, _fg = _status_bg_fg[_status]
             _bd = _status_border[_status]
-            _cell += (
-                "<div style='background:" + _bg + "; color:" + _fg + "; border:" + _bd + "; "
-                "font-size:11px; font-weight:700; padding:3px 6px; "
-                "border-radius:5px; margin:2px 0; white-space:nowrap; "
-                "text-align:center;'>"
-                + _sym + "</div>"
-            )
+            if _status == "future":
+                _days_left = (_d - _today_date).days
+                _days_txt = (
+                    "היום" if _days_left == 0
+                    else ("מחר" if _days_left == 1
+                    else f"{_days_left} ימים")
+                )
+                _fwd = _z6_fwd_est.get(_sym, {})
+                _tip_lines = [f"📅 {_days_txt}"]
+                _eps_e = _fwd.get("eps_est")
+                if _eps_e is not None:
+                    _tip_lines.append(f"EPS צפי: ${_eps_e:.2f}")
+                _rev_e = _fwd.get("revenue_est_b")
+                if _rev_e is not None:
+                    _tip_lines.append(f"הכנסות: ${_rev_e:.1f}B")
+                _grw = _fwd.get("revenue_growth_pct")
+                if _grw is not None:
+                    _grw_sign = "+" if _grw > 0 else ""
+                    _tip_lines.append(f"צמיחה: {_grw_sign}{_grw:.1f}%")
+                _tip_html = "<br>".join(_tip_lines)
+                _cell += (
+                    "<div class='chip-future-wrap'>"
+                    "<div class='chip-future' style='background:" + _bg + "; color:" + _fg + "; border:" + _bd + "; "
+                    "font-size:11px; font-weight:700; padding:3px 6px; "
+                    "border-radius:5px; margin:2px 0; white-space:nowrap; "
+                    "text-align:center; position:relative; cursor:default;'>"
+                    + _sym +
+                    "<div class='chip-tip'>" + _tip_html + "</div>"
+                    "</div>"
+                    "</div>"
+                )
+            else:
+                _cell += (
+                    "<div style='background:" + _bg + "; color:" + _fg + "; border:" + _bd + "; "
+                    "font-size:11px; font-weight:700; padding:3px 6px; "
+                    "border-radius:5px; margin:2px 0; white-space:nowrap; "
+                    "text-align:center;'>"
+                    + _sym + "</div>"
+                )
         _cell += "</td>"
         _row += _cell
     _rows_html += _row + "</tr>"
 
 st.markdown(
-    "<div style='overflow-x:auto; margin-top:8px;'>"
-    "<table style='width:100%; border-collapse:separate; border-spacing:3px; table-layout:fixed;'>"
+    "<style>"
+    ".chip-future-wrap { position: relative; display: block; }"
+    ".chip-future { position: relative; cursor: default; }"
+    ".chip-tip {"
+    "  display: none;"
+    "  position: absolute;"
+    "  top: calc(100% + 4px);"
+    "  left: 50%;"
+    "  transform: translateX(-50%);"
+    "  background: #1e2533;"
+    "  color: #e5e7eb;"
+    "  font-size: 11px;"
+    "  font-weight: 400;"
+    "  line-height: 1.7;"
+    "  padding: 6px 10px;"
+    "  border-radius: 6px;"
+    "  border: 1px solid #374151;"
+    "  white-space: nowrap;"
+    "  z-index: 9999;"
+    "  text-align: right;"
+    "  direction: rtl;"
+    "  pointer-events: none;"
+    "  box-shadow: 0 4px 12px rgba(0,0,0,0.5);"
+    "}"
+    ".chip-future:hover .chip-tip { display: block; }"
+    "</style>"
+    "<div style='overflow:visible; margin-top:8px;'>"
+    "<table style='width:100%; border-collapse:separate; border-spacing:3px; table-layout:fixed; overflow:visible;'>"
     + _hdr_html + _rows_html +
     "</table>"
     "<div dir='rtl' style='font-size:12px; color:#9ca3af; margin-top:10px; display:flex; gap:12px; flex-wrap:wrap;'>"
@@ -3143,11 +3411,46 @@ st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 st.markdown(section_header("🧠 ניתוח דוח ושיחת ועידה", "#f59e0b"), unsafe_allow_html=True)
 
 _z6_chosen = st.selectbox("חברה:", CORE_COMPANIES, key="z6_sym_select")
-_z6_season = latest_season_with_data(_z6_sent_data)
+
+_z6_default_season = latest_season_with_data(_z6_sent_data)
+if DEV_MODE:
+    # בחירה חופשית — כולל עונות שטרם נותחו; לשימוש מפתח בלבד
+    _now_z6 = datetime.now(timezone.utc)
+    _q, _y = (_now_z6.month - 1) // 3 + 1, _now_z6.year
+    _season_opts: list[str] = []
+    for _ in range(4):
+        _season_opts.append(f"{_y}Q{_q}")
+        _q -= 1
+        if _q == 0:
+            _q, _y = 4, _y - 1
+    _default_idx = _season_opts.index(_z6_default_season) if _z6_default_season in _season_opts else 0
+    _z6_season: str = st.selectbox("עונה:", _season_opts, index=_default_idx, key="z6_season_select")
+else:
+    _z6_season = _z6_default_season
 
 _z6_result_key = "earnings_result_" + _z6_chosen + "_" + _z6_season
 _z6_saved_rec = get_record(_z6_sent_data, _z6_chosen, _z6_season)
 _z6_pending = st.session_state.get(_z6_result_key)
+
+
+def israeli_exposure_to_signals(domain_signals):
+    """מצליב סיגנלים תחומיים של דוח עם חשיפות TSEM/NVMI/CAMT מ-TECH_GROUPS.
+    מחזיר {sym: [(domain, direction, eff_exposure), ...]} — רק חברות עם התאמה."""
+    ISRAELI_SYMS = {"TSEM", "NVMI", "CAMT"}
+    signal_domains = {s.get("domain"): s.get("direction") for s in domain_signals if s.get("domain")}
+    result: dict[str, list] = {}
+    for axis in TECH_GROUPS.values():
+        for domain_name, tiers in axis.items():
+            if domain_name not in signal_domains:
+                continue
+            direction = signal_domains[domain_name]
+            for tier_key, tier_mult in (("core", TIER_CORE), ("env", TIER_ENV)):
+                for sym, exp in tiers.get(tier_key, {}).items():
+                    if sym in ISRAELI_SYMS:
+                        result.setdefault(sym, []).append((domain_name, direction, exp * tier_mult))
+    for sym in result:
+        result[sym].sort(key=lambda x: -x[2])
+    return result
 
 
 def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=None):
@@ -3208,12 +3511,117 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
             + " · ".join(mkt_parts) + "</div>"
         )
 
+    _gemini_tag = (
+        "<span style='font-size:11px; color:#a78bfa; background:rgba(167,139,250,0.12); "
+        "padding:1px 6px; border-radius:4px; border:1px solid rgba(167,139,250,0.3);'>"
+        "🔮 מוערך (Gemini)</span>"
+    )
+
+    # --- שורת EPS + הכנסות מוערכות (מ-Gemini) — EPS ראשון, אחר כך הכנסות, תג אחד בסוף ---
+    rev_row = ""
+    _combined_parts: list[str] = []
+
+    # חלק EPS — רק אם שני השדות קיימים ואינם null
+    _eps_act = rec.get("eps_actual")
+    _eps_est = rec.get("eps_estimate")
+    if _eps_act is not None and _eps_est is not None:
+        try:
+            _ea_f = float(_eps_act)
+            _ee_f = float(_eps_est)
+            _eps_parts = [
+                f"EPS: <b>${_ea_f:.2f}</b> בפועל",
+                f"<span style='color:#9ca3af;'>${_ee_f:.2f} צפי</span>",
+            ]
+            if _ee_f != 0:
+                _es = _ea_f / _ee_f * 100 - 100
+                _es_col = "#22c55e" if _es > 0 else ("#ef4444" if _es < 0 else "#9ca3af")
+                _es_sign = "+" if _es > 0 else ""
+                _eps_parts.append(
+                    f"<span style='color:{_es_col}; font-weight:700;'>{_es_sign}{_es:.1f}% הפתעה</span>"
+                )
+            _combined_parts.extend(_eps_parts)
+        except (TypeError, ValueError):
+            pass
+
+    # חלק הכנסות — רק אם שני השדות קיימים ואינם null
+    _rev_act = rec.get("revenue_actual_b")
+    _rev_est = rec.get("revenue_estimate_b")
+    if _rev_act is not None and _rev_est is not None:
+        try:
+            _rev_act_f = float(_rev_act)
+            _rev_est_f = float(_rev_est)
+            _rev_parts = [
+                f"הכנסות: <b>${_rev_act_f:.2f}B</b> בפועל",
+                f"<span style='color:#9ca3af;'>${_rev_est_f:.2f}B צפי</span>",
+            ]
+            if _rev_est_f != 0:
+                _rs = _rev_act_f / _rev_est_f * 100 - 100
+                _rs_col = "#22c55e" if _rs > 0 else ("#ef4444" if _rs < 0 else "#9ca3af")
+                _rs_sign = "+" if _rs > 0 else ""
+                _rev_parts.append(
+                    f"<span style='color:{_rs_col}; font-weight:700;'>{_rs_sign}{_rs:.1f}% הפתעה</span>"
+                )
+            _combined_parts.extend(_rev_parts)
+        except (TypeError, ValueError):
+            pass
+
+    if _combined_parts:
+        rev_row = (
+            "<div dir='rtl' style='display:flex; gap:12px; margin:0 0 6px; flex-wrap:wrap; "
+            "align-items:center; font-size:13px; background:rgba(30,37,51,0.6); "
+            "padding:5px 10px; border-radius:6px;'>"
+            + " · ".join(_combined_parts) + " " + _gemini_tag + "</div>"
+        )
+
+    # --- שורת תחזית לרבעון הבא (מ-Gemini, מוצגת רק אם יש לפחות ערך אחד שאינו null) ---
+    guid_row = ""
+    _nqg = rec.get("next_q_guidance")
+    if isinstance(_nqg, dict):
+        _nq_parts = []
+        _nq_rev = _nqg.get("revenue_b")
+        _nq_eps = _nqg.get("eps")
+        _nq_arv = _nqg.get("analyst_revenue_b")
+        _nq_vs = _nqg.get("vs_consensus", "none")
+        if _nq_rev is not None:
+            try:
+                _nq_parts.append(f"צפי הכנסות רבעון הבא: <b>${float(_nq_rev):.2f}B</b>")
+            except (TypeError, ValueError):
+                pass
+        if _nq_eps is not None:
+            try:
+                _nq_parts.append(f"EPS: <b>${float(_nq_eps):.2f}</b>")
+            except (TypeError, ValueError):
+                pass
+        if _nq_arv is not None:
+            try:
+                _nq_parts.append(
+                    f"<span style='color:#9ca3af;'>קונצנזוס: ${float(_nq_arv):.2f}B</span>"
+                )
+            except (TypeError, ValueError):
+                pass
+        if _nq_vs and _nq_vs != "none":
+            _vs_map = {
+                "above": "🟢 מעל הקונצנזוס",
+                "inline": "⚪ בקו עם הקונצנזוס",
+                "below": "🔴 מתחת לקונצנזוס",
+            }
+            _vs_lbl = _vs_map.get(_nq_vs, "")
+            if _vs_lbl:
+                _nq_parts.append(_vs_lbl)
+        if _nq_parts:
+            guid_row = (
+                "<div dir='rtl' style='display:flex; gap:12px; margin:0 0 6px; flex-wrap:wrap; "
+                "align-items:center; font-size:13px; background:rgba(30,37,51,0.6); "
+                "padding:5px 10px; border-radius:6px;'>"
+                + " · ".join(_nq_parts) + " " + _gemini_tag + "</div>"
+            )
+
     st.markdown(
         "<div dir='rtl' style='text-align:right; margin-bottom:6px;'>"
         "<span style='font-size:17px; font-weight:800;'>" + _z6_chosen + "</span>"
         + (" <span style='font-size:11px; color:#9ca3af; background:#1e2533; padding:1px 6px; border-radius:4px;'>" + label + "</span>" if label else "") +
         "<span style='color:#6b7280; font-size:13px; margin-right:10px;'> " + _z6_season + " · " + report_date + "</span></div>"
-        + mkt_row + alert_html +
+        + mkt_row + alert_html + rev_row + guid_row +
         "<div dir='rtl' style='display:flex; gap:20px; margin:6px 0 10px; flex-wrap:wrap; font-size:14px;'>"
         "<span>סנטימנט: " + emoji + " <b style='color:" + col + ";'>" + sign + str(pct) + "%</b></span>"
         "<span>תוצאות: " + res_txt + "</span>"
@@ -3228,7 +3636,7 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
             unsafe_allow_html=True,
         )
     if signals:
-        dir_map = {"improving": "📈", "stable": "➡️", "deteriorating": "📉"}
+        dir_map = {"improving": "🟢⬆️", "stable": "⚪➡️", "deteriorating": "🔴⬇️"}
         sig_rows = "".join(
             "<tr>"
             "<td style='text-align:right; padding:4px 8px; font-size:13px;'>" + s.get("domain", "") + "</td>"
@@ -3247,6 +3655,40 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
             "</tr>" + sig_rows + "</table></div>",
             unsafe_allow_html=True,
         )
+        # --- נגיעה בחברות הישראליות (הצלבה מקומית, ללא AI) ---
+        _il_matches = israeli_exposure_to_signals(signals)
+        if _il_matches:
+            _il_dir_map = {"improving": "🟢⬆️", "stable": "⚪➡️", "deteriorating": "🔴⬇️"}
+            _il_rows_html = []
+            for _il_sym in ["TSEM", "NVMI", "CAMT"]:
+                _il_hits = _il_matches.get(_il_sym)
+                if not _il_hits:
+                    continue
+                _il_parts = [f"<b>{_il_sym}</b>"]
+                for _il_dom, _il_dir, _il_eff in _il_hits:
+                    _il_icon = _il_dir_map.get(_il_dir, "")
+                    _il_pct = int(round(_il_eff * 100))
+                    _il_parts.append(
+                        f"{_il_icon} {_il_dom} "
+                        f"<span style='color:#6b7280; font-size:11px;'>({_il_pct}%)</span>"
+                    )
+                _il_rows_html.append(" · ".join(_il_parts))
+            if _il_rows_html:
+                st.markdown(
+                    "<div dir='rtl' style='text-align:right; margin-top:8px; "
+                    "background:rgba(20,24,36,0.7); border:1px solid #2d3748; "
+                    "border-radius:6px; padding:8px 12px;'>"
+                    "<div style='font-size:13px; font-weight:700; color:#e5e7eb; margin-bottom:6px;'>"
+                    "🇮🇱 נגיעה בחברות הישראליות:</div>"
+                    + "".join(
+                        "<div style='font-size:13px; color:#d1d5db; margin-bottom:3px;'>" + r + "</div>"
+                        for r in _il_rows_html
+                    )
+                    + "<div style='font-size:11px; color:#6b7280; margin-top:6px;'>"
+                    "הצלבה אוטומטית של סיגנלי הדוח עם חשיפות החברות ב-TECH_GROUPS — לא ניתוח AI"
+                    "</div></div>",
+                    unsafe_allow_html=True,
+                )
 
 
 # --- תוצאה ממתינה לאישור (מ-Gemini, טרם נשמרה) — מצב מפתח בלבד ---
@@ -3268,6 +3710,11 @@ if DEV_MODE and _z6_pending:
                         "guidance_direction": _z6_pending.get("guidance_direction", ""),
                         "summary": _z6_pending.get("summary", ""),
                         "domain_signals": _z6_pending.get("domain_signals", []),
+                        "revenue_actual_b": _z6_pending.get("revenue_actual_b"),
+                        "revenue_estimate_b": _z6_pending.get("revenue_estimate_b"),
+                        "eps_actual": _z6_pending.get("eps_actual"),
+                        "eps_estimate": _z6_pending.get("eps_estimate"),
+                        "next_q_guidance": _z6_pending.get("next_q_guidance"),
                         "analyzed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
                     })
                     del st.session_state[_z6_result_key]
@@ -3306,6 +3753,144 @@ else:
             with st.spinner("מחפש דוח ושיחת ועידה עם Gemini..."):
                 st.session_state[_z6_result_key] = gemini_analyze_earnings(_z6_chosen, _z6_season)
             st.rerun()
+
+# --- היסטוריית תוצאות מול צפי ---
+with st.expander("📊 היסטוריית תוצאות מול צפי", expanded=False):
+    _hist_eps_df = get_earnings_history(_z6_chosen)
+    _hist_rev_s, _hist_rev_name = get_quarterly_revenue(_z6_chosen)
+    _hist_ccy = get_financial_currency(_z6_chosen)
+
+    if _hist_eps_df is None:
+        st.caption("אין נתוני EPS היסטוריים זמינים לחברה זו.")
+    else:
+        # מיפוי YYYYQN → נתוני EPS
+        _h_eps_by_q: dict[str, dict] = {}
+        for _hdt, _hrow in _hist_eps_df.iterrows():
+            _hqk = season_from_date(_hdt)
+            _h_eps_by_q[_hqk] = {
+                "date": str(_hdt.date()) if hasattr(_hdt, "date") else str(_hdt)[:10],
+                "actual": _hrow.get("Reported EPS"),
+                "est":    _hrow.get("EPS Estimate"),
+                "surp":   _hrow.get("Surprise(%)"),
+            }
+
+        # מיפוי YYYYQN → הכנסות
+        _h_rev_by_q: dict[str, float] = {}
+        if _hist_rev_s is not None:
+            for _rdt, _rv in zip(_hist_rev_s.index, _hist_rev_s.values):
+                _h_rev_by_q[season_from_date(_rdt)] = float(_rv)
+
+        _h_has_rev = bool(_h_rev_by_q)
+
+        # מיפוי YYYYQN → רשומת סנטימנט מ-Gemini (_z6_sent_data כבר בסקופ)
+        _h_sent_by_q: dict[str, dict] = {
+            _sqk: _srec
+            for _sqk, _srec in (_z6_sent_data.get(_z6_chosen) or {}).items()
+        }
+
+        # רק רבעונים מנותחים ושמורים — הטבלה תצבור כל ניתוח חדש
+        _h_quarters = sorted(_h_sent_by_q.keys(), reverse=True)
+
+        def _hfmt(v, dec=2):
+            if v is None or (isinstance(v, float) and math.isnan(v)):
+                return "<span style='color:#6b7280;'>—</span>"
+            return f"{v:.{dec}f}"
+
+        def _hfmt_surp(v):
+            if v is None or (isinstance(v, float) and math.isnan(v)):
+                return "<span style='color:#6b7280;'>—</span>"
+            c = "#22c55e" if v > 0 else ("#ef4444" if v < 0 else "#9ca3af")
+            s = "+" if v > 0 else ""
+            return f"<span style='color:{c}; font-weight:700;'>{s}{v:.1f}%</span>"
+
+        def _hfmt_sent(score):
+            sc = float(score)
+            pct = int(round(sc * 100))
+            sign = "+" if pct >= 0 else ""
+            col = "#22c55e" if sc >= 0.15 else ("#ef4444" if sc <= -0.15 else "#9ca3af")
+            emoji = "🟢" if sc >= 0.15 else ("🔴" if sc <= -0.15 else "⚪")
+            return f"{emoji} <span style='color:{col}; font-weight:700;'>{sign}{pct}%</span>"
+
+        _rev_hdr_txt = f"הכנסות ({_hist_ccy}, B)" if _h_has_rev else ""
+        _h_thdr = (
+            "<tr style='border-bottom:1px solid #444;'>"
+            "<th style='text-align:right; padding:6px 10px; color:#9ca3af;'>רבעון</th>"
+            "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>תאריך</th>"
+            "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>EPS בפועל</th>"
+            "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>EPS צפי</th>"
+            "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הפתעה %</th>"
+            + (f"<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>{_rev_hdr_txt}</th>"
+               if _h_has_rev else "")
+            + "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הכנסות צפי 🔮 ($B)</th>"
+            "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הפתעת הכנסות 🔮</th>"
+            "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>סנטימנט</th>"
+            "</tr>"
+        )
+        _h_td_dash = "<td style='text-align:center; padding:6px 10px; color:#6b7280;'>—</td>"
+        _h_rows_html = ""
+        for _hqk in _h_quarters:
+            _hq = _h_eps_by_q.get(_hqk) or {}
+            _h_srec = _h_sent_by_q.get(_hqk) or {}
+            _rev_cell = ""
+            if _h_has_rev:
+                _hrv = _h_rev_by_q.get(_hqk)
+                if _hrv is not None and not (isinstance(_hrv, float) and math.isnan(_hrv)):
+                    _rev_cell = f"<td style='text-align:center; padding:6px 10px;'>{_hrv:.2f}B</td>"
+                else:
+                    _rev_cell = _h_td_dash
+
+            # --- תאי Gemini: הכנסות צפי / הפתעת הכנסות / סנטימנט ---
+            _h_rev_est_gem = _h_srec.get("revenue_estimate_b")
+            _h_rev_act_gem = _h_srec.get("revenue_actual_b")
+            _h_sent_score  = _h_srec.get("sentiment_score")
+
+            # עמודה 1: הכנסות צפי
+            _gem_est_cell = _h_td_dash
+            if _h_rev_est_gem is not None:
+                try:
+                    _gem_est_cell = f"<td style='text-align:center; padding:6px 10px;'>${float(_h_rev_est_gem):.2f}B</td>"
+                except (TypeError, ValueError):
+                    pass
+
+            # עמודה 2: הפתעת הכנסות (מזוג Gemini בלבד, לא מול yfinance)
+            _gem_surp_cell = _h_td_dash
+            if _h_rev_act_gem is not None and _h_rev_est_gem is not None:
+                try:
+                    _ge_f = float(_h_rev_est_gem)
+                    _ga_f = float(_h_rev_act_gem)
+                    if _ge_f != 0:
+                        _gem_surp_cell = f"<td style='text-align:center; padding:6px 10px;'>{_hfmt_surp(_ga_f / _ge_f * 100 - 100)}</td>"
+                except (TypeError, ValueError):
+                    pass
+
+            # עמודה 3: סנטימנט
+            _gem_sent_cell = _h_td_dash
+            if _h_sent_score is not None:
+                try:
+                    _gem_sent_cell = f"<td style='text-align:center; padding:6px 10px;'>{_hfmt_sent(_h_sent_score)}</td>"
+                except (TypeError, ValueError):
+                    pass
+
+            _h_date_val = _hq.get('date') or _h_srec.get('report_date', '—')
+            _h_rows_html += (
+                "<tr style='border-top:1px solid rgba(255,255,255,0.07);'>"
+                f"<td style='text-align:right; padding:6px 10px; font-weight:600;'>{_hqk}</td>"
+                f"<td style='text-align:center; padding:6px 10px; color:#9ca3af; font-size:11px;'>{_h_date_val}</td>"
+                f"<td style='text-align:center; padding:6px 10px;'>{_hfmt(_hq.get('actual'))}</td>"
+                f"<td style='text-align:center; padding:6px 10px; color:#9ca3af;'>{_hfmt(_hq.get('est'))}</td>"
+                f"<td style='text-align:center; padding:6px 10px;'>{_hfmt_surp(_hq.get('surp'))}</td>"
+                + _rev_cell
+                + _gem_est_cell + _gem_surp_cell + _gem_sent_cell
+                + "</tr>"
+            )
+        st.markdown(
+            "<div dir='rtl' style='overflow-x:auto;'>"
+            "<table dir='rtl' style='width:100%; border-collapse:collapse; font-size:13px;'>"
+            + _h_thdr + _h_rows_html + "</table></div>",
+            unsafe_allow_html=True,
+        )
+        if not _h_has_rev:
+            st.caption("אין נתוני הכנסות רבעוניים זמינים לחברה זו.")
 
 # ======================================================
 # גרף מגמת סנטימנט לפי חברה ספציפית
