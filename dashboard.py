@@ -597,6 +597,10 @@ def get_news(symbol, limit=3):
 
 
 # ---------- פונקציות Gemini ----------
+class GeminiError(Exception):
+    pass
+
+
 def _gemini_call(prompt):
     key = get_gemini_key()
     if not key:
@@ -618,12 +622,19 @@ def _gemini_call(prompt):
                     sources.append((chunk.web.title, chunk.web.uri))
         return response.text, sources
     except Exception as e:
-        return "שגיאה בקבלת תשובה מ-Gemini: " + str(e), []
+        raise GeminiError(str(e))
 
 
 @st.cache_data
 def _cached_gemini(cache_key, prompt, ttl):
     return _gemini_call(prompt)
+
+
+def _gemini_cached_safe(cache_key, prompt, ttl):
+    try:
+        return _cached_gemini(cache_key, prompt, ttl)
+    except GeminiError as e:
+        return "שגיאה בקבלת תשובה מ-Gemini: " + str(e), []
 
 
 def gemini_explain_move(change, period_label, period_code, movers_text):
@@ -639,7 +650,7 @@ def gemini_explain_move(change, period_label, period_code, movers_text):
     ttl = AI_CACHE_TTL.get(period_code, 3600)
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     cache_key = "move|" + period_code + "|" + day + "|" + str(round(change, 2))
-    return _cached_gemini(cache_key, prompt, ttl)
+    return _gemini_cached_safe(cache_key, prompt, ttl)
 
 
 def gemini_explain_outliers(soxx_change, outliers_text, period_code, period_label):
@@ -660,7 +671,7 @@ def gemini_explain_outliers(soxx_change, outliers_text, period_code, period_labe
         str(round(soxx_change, 2)) + "|" +
         hashlib.md5(outliers_text.encode("utf-8")).hexdigest()[:8]
     )
-    return _cached_gemini(cache_key, prompt, ttl)
+    return _gemini_cached_safe(cache_key, prompt, ttl)
 
 
 def gemini_trend_summary(period_label, period_code, soxx_change, sector_lines):
@@ -675,7 +686,7 @@ def gemini_trend_summary(period_label, period_code, soxx_change, sector_lines):
     ttl = AI_CACHE_TTL.get(period_code, 604800)
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     cache_key = "trend|" + period_code + "|" + day
-    return _cached_gemini(cache_key, prompt, ttl)
+    return _gemini_cached_safe(cache_key, prompt, ttl)
 
 
 @st.cache_data(ttl=43200)
@@ -898,21 +909,6 @@ def get_earnings_calendar(symbols, days_back=120, days_fwd=120):
     return out
 
 
-def gemini_capex_trend(capex_lines):
-    """סיכום מגמת ה-CapEx הרבעוני עם חיפוש ברשת."""
-    prompt = (
-        "אלה נתוני ה-CapEx הרבעוניים האחרונים של ענקיות הענן, במיליארדי דולרים: "
-        + capex_lines + ". "
-        "חפש ברשת וכתוב בעברית סיכום קצר: האם הכיוון הוא האצה או האטה בהשקעות, "
-        "מה החברות אמרו בשיחות הוועידה האחרונות, "
-        "ומה המשמעות לספקיות השבבים והציוד (NVDA, AVGO, TSM, ציוד ייצור). "
-        "ענה ב-4 עד 6 משפטים."
-    )
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    cache_key = "capex_trend|" + day
-    return _cached_gemini(cache_key, prompt, 604800)
-
-
 def gemini_capex_guidance():
     """חיפוש התחזיות השנתיות העדכניות — עוזר למלא את CAPEX_GUIDANCE ידנית."""
     prompt = (
@@ -926,22 +922,7 @@ def gemini_capex_guidance():
     )
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     cache_key = "capex_guidance|" + day
-    return _cached_gemini(cache_key, prompt, 259200)
-
-def gemini_summarize_capex_guidance(guidance_lines):
-    """מסכם את עדכוני תחזית ה-CapEx השנתיות והמשמעות לסקטור השבבים — גלוי ליוזר."""
-    prompt = (
-        "אלה תחזיות ה-CapEx השנתיות של ענקיות הענן, כפי שדווחו בשיחות הוועידה:\n"
-        + guidance_lines + "\n\n"
-        "חפש ברשת הקשר ועדכונים נוספים, ולאחר מכן כתוב בעברית סיכום של 4-5 משפטים:\n"
-        "1. מה כיוון עדכוני התחזית (עולות, יורדות, יציבות)?\n"
-        "2. מה אמרו המנכ\"לים בנוגע להצדקת ההשקעות (AI, תשתיות, תחרות)?\n"
-        "3. מה המשמעות לספקיות השבבים והציוד (NVDA, ASML, AMAT, TSM)?"
-    )
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    cache_key = "capex_guid_summary|" + day
-    return _cached_gemini(cache_key, prompt, 86400)
-
+    return _gemini_cached_safe(cache_key, prompt, 259200)
 
 def gemini_capex_combined(quarterly_lines, guidance_lines):
     """סיכום משולב של מגמת CapEx רבעונית ועדכוני תחזית שנתית."""
@@ -968,7 +949,7 @@ def gemini_capex_combined(quarterly_lines, guidance_lines):
     )
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     cache_key = "capex_combined|" + day
-    return _cached_gemini(cache_key, prompt, 604800)
+    return _gemini_cached_safe(cache_key, prompt, 604800)
 
 
 def gemini_analyze_earnings(symbol, season):
@@ -1034,7 +1015,10 @@ def gemini_analyze_earnings(symbol, season):
         "vs_consensus = השוואת תחזית ההכנסות של החברה מול קונצנזוס האנליסטים לרבעון הבא."
     )
 
-    text, _ = _gemini_call(prompt)
+    try:
+        text, _ = _gemini_call(prompt)
+    except GeminiError:
+        return None
     if not text:
         return None
     # מחלץ JSON מהתשובה (Gemini עלול להוסיף טקסט לפני/אחרי)
@@ -1076,7 +1060,10 @@ def gemini_israeli_impact(il_symbol, season, context_text):
         "ענה בעברית, 4-5 משפטים: אילו סיגנלים מהדוחות רלוונטיים ל-" + il_symbol + ", "
         "מה חיובי ומה שלילי, ומה הציפיות לדוח של " + il_symbol + " בעונה זו."
     )
-    return _gemini_call(prompt)
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    ctx_hash = hashlib.md5(context_text.encode("utf-8")).hexdigest()[:8]
+    cache_key = "il_impact|" + il_symbol + "|" + season + "|" + day + "|" + ctx_hash
+    return _gemini_cached_safe(cache_key, prompt, 86400)
 
 
 # ======================================================
@@ -1783,24 +1770,29 @@ def render_ai_alert(soxx_change, holdings_pairs, period, period_label):
                 "🚨 התראת תנועה חריגה — SOXX " + pct_html + " ביום המסחר האחרון</div>",
                 unsafe_allow_html=True,
             )
-            movers = []
-            for sym, ch in holdings_pairs[:3]:
-                movers.append(sym + " " + str(round(ch, 1)) + "%")
-            for sym, ch in holdings_pairs[-3:]:
-                movers.append(sym + " " + str(round(ch, 1)) + "%")
-            movers_text = ", ".join(movers)
-
-            with st.spinner("מבקש הסבר מ-Gemini עם חיפוש ברשת..."):
-                text, sources = gemini_explain_move(round(soxx_change, 2), period_label, period, movers_text)
-            if text:
-                st.markdown("<div dir='rtl' style='text-align:right; font-weight:700; margin-top:8px;'>🧠 הסבר לתנועה:</div>", unsafe_allow_html=True)
-                st.markdown("<div dir='rtl' style='text-align:right;'>" + text + "</div>", unsafe_allow_html=True)
-                if sources:
-                    with st.expander("מקורות"):
-                        for title, uri in sources:
-                            st.markdown("• [" + (title or uri) + "](" + uri + ")")
-            else:
-                st.caption("הסבר AI לא זמין כרגע (חסר מפתח Gemini).")
+            _move_stamp = period_stamp(period)
+            _move_key = "move_" + period + "_" + _move_stamp
+            if st.button("🧠 הסבר את תנועת המדד", key="movebtn_" + period):
+                movers = []
+                for sym, ch in holdings_pairs[:3]:
+                    movers.append(sym + " " + str(round(ch, 1)) + "%")
+                for sym, ch in holdings_pairs[-3:]:
+                    movers.append(sym + " " + str(round(ch, 1)) + "%")
+                movers_text = ", ".join(movers)
+                with st.spinner("מבקש הסבר מ-Gemini עם חיפוש ברשת..."):
+                    text, sources = gemini_explain_move(round(soxx_change, 2), period_label, period, movers_text)
+                st.session_state[_move_key] = {"text": text, "sources": sources}
+            _saved_move = st.session_state.get(_move_key)
+            if _saved_move is not None:
+                if _saved_move.get("text"):
+                    st.markdown("<div dir='rtl' style='text-align:right; font-weight:700; margin-top:8px;'>🧠 הסבר לתנועה:</div>", unsafe_allow_html=True)
+                    st.markdown("<div dir='rtl' style='text-align:right;'>" + _saved_move["text"] + "</div>", unsafe_allow_html=True)
+                    if _saved_move.get("sources"):
+                        with st.expander("מקורות"):
+                            for title, uri in _saved_move["sources"]:
+                                st.markdown("• [" + (title or uri) + "](" + uri + ")")
+                else:
+                    st.caption("הסבר AI לא זמין כרגע (חסר מפתח Gemini).")
     else:
         stamp = period_stamp(period)
         trend_key = "trend_" + period + "_" + stamp
@@ -2055,112 +2047,6 @@ with st.spinner("סורק את כל התחומים..."):
 
 
 # ---------- מפת חום ----------
-def render_earnings_analysis_ui(sector, symbols, season):
-    """כלי ניתוח דוח: selectbox + Gemini + תצוגת תוצאה + שמירה לקובץ."""
-    st.markdown(section_header("🧠 ניתוח דוח ושיחת ועידה", "#f59e0b"), unsafe_allow_html=True)
-    col_sel, col_btn = st.columns([3, 1])
-    sk = sector_key(sector)
-    with col_sel:
-        chosen_sym = st.selectbox("בחרי חברה לניתוח:", symbols, key="earningsym_" + sk)
-    result_key = "earnings_result_" + chosen_sym + "_" + season
-    with col_btn:
-        st.markdown("<div style='height:27px;'></div>", unsafe_allow_html=True)
-        if st.button("🧠 נתח דוח", key="analyzebtn_" + chosen_sym + "_" + sk,
-                     use_container_width=True):
-            with st.spinner("מחפש דוח ושיחת ועידה ב-Gemini..."):
-                st.session_state[result_key] = gemini_analyze_earnings(chosen_sym, season)
-
-    result = st.session_state.get(result_key)
-    if result is None:
-        return
-
-    if "error" in result:
-        st.warning(result["error"])
-        return
-
-    score = result.get("sentiment_score", 0) or 0
-    pct = int(round(score * 100))
-    sign = "+" if pct >= 0 else ""
-    sent_emoji = "🟢" if score >= 0.15 else ("🔴" if score <= -0.15 else "⚪")
-    sent_color = "#22c55e" if score >= 0.15 else ("#ef4444" if score <= -0.15 else "#9ca3af")
-    res_map = {"beat": "🟢 הכה ציפיות", "meet": "⚪ עמד בציפיות", "miss": "🔴 פספס ציפיות"}
-    guid_map = {"raised": "📈 הועלתה", "maintained": "➡️ נשמרה", "lowered": "📉 הורדה", "none": "—"}
-    res_txt = res_map.get(result.get("results_vs_expectations", ""), "—")
-    guid_txt = guid_map.get(result.get("guidance_direction", ""), "—")
-    report_date = result.get("report_date", "—")
-
-    with st.container(border=True):
-        st.markdown(
-            "<div dir='rtl' style='text-align:right;'>"
-            "<span style='font-size:18px; font-weight:800;'>" + chosen_sym + "</span>"
-            "<span style='color:#9ca3af; font-size:13px; margin-right:10px;'>" + season + " · " + report_date + "</span>"
-            "</div>"
-            "<div dir='rtl' style='display:flex; gap:24px; margin:10px 0; flex-wrap:wrap;'>"
-            "<span>סנטימנט: " + sent_emoji + " <b style='color:" + sent_color + ";'>" + sign + str(pct) + "%</b></span>"
-            "<span>תוצאות: " + res_txt + "</span>"
-            "<span>הנחיה: " + guid_txt + "</span>"
-            "</div>",
-            unsafe_allow_html=True,
-        )
-        summary = result.get("summary", "")
-        if summary:
-            st.markdown(
-                "<div dir='rtl' style='text-align:right; color:#d1d5db; font-size:14px; "
-                "margin:8px 0; line-height:1.6;'>" + summary + "</div>",
-                unsafe_allow_html=True,
-            )
-        signals = result.get("domain_signals", [])
-        if signals:
-            dir_map = {"improving": "🟢⬆️", "stable": "⚪➡️", "deteriorating": "🔴⬇️"}
-            rows_html = ""
-            for sig in signals:
-                icon = dir_map.get(sig.get("direction", ""), "")
-                rows_html += (
-                    "<tr>"
-                    "<td style='text-align:right; padding:3px 8px; font-size:13px;'>" + sig.get("domain", "") + "</td>"
-                    "<td style='text-align:center; padding:3px 8px;'>" + icon + "</td>"
-                    "<td style='text-align:right; padding:3px 8px; color:#9ca3af; font-size:12px;'>" + sig.get("note", "") + "</td>"
-                    "</tr>"
-                )
-            st.markdown(
-                "<div dir='rtl'><b style='font-size:13px;'>סיגנלים תחומיים:</b>"
-                "<table dir='rtl' style='width:100%; border-collapse:collapse; margin-top:4px;'>"
-                "<tr><th style='text-align:right; padding:3px 8px; font-size:12px; color:#9ca3af; border-bottom:1px solid #444;'>תחום</th>"
-                "<th style='text-align:center; padding:3px 8px; font-size:12px; color:#9ca3af; border-bottom:1px solid #444;'>כיוון</th>"
-                "<th style='text-align:right; padding:3px 8px; font-size:12px; color:#9ca3af; border-bottom:1px solid #444;'>הערה</th></tr>"
-                + rows_html + "</table></div>",
-                unsafe_allow_html=True,
-            )
-
-        save_col, discard_col = st.columns([1, 1])
-        with save_col:
-            if st.button("✅ שמור לקובץ", key="savebtn_" + chosen_sym + "_" + sk,
-                         use_container_width=True, type="primary"):
-                record = {
-                    "report_date": report_date,
-                    "sentiment_score": result.get("sentiment_score"),
-                    "results_vs_expectations": result.get("results_vs_expectations", ""),
-                    "guidance_direction": result.get("guidance_direction", ""),
-                    "summary": summary,
-                    "domain_signals": signals,
-                    "revenue_actual_b": result.get("revenue_actual_b"),
-                    "revenue_estimate_b": result.get("revenue_estimate_b"),
-                    "eps_actual": result.get("eps_actual"),
-                    "eps_estimate": result.get("eps_estimate"),
-                    "next_q_guidance": result.get("next_q_guidance"),
-                    "analyzed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                }
-                save_sentiment_record(chosen_sym, season, record)
-                del st.session_state[result_key]
-                st.success("נשמר: " + chosen_sym + " / " + season)
-                st.rerun()
-        with discard_col:
-            if st.button("🗑️ בטל", key="discardbtn_" + chosen_sym + "_" + sk,
-                         use_container_width=True):
-                del st.session_state[result_key]
-                st.rerun()
-
-
 def render_domain_detail(sector, pairs, period):
     """מרנדר את תוכן הפרטים של תחום: מניות, גרף מגמת הפער, וחדשות + ניתוח AI.
     משמש גם במפת החום (שרשרת ערך). נקרא רק כשהשורה של התחום פתוחה."""
