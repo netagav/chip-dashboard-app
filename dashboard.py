@@ -943,6 +943,34 @@ def gemini_summarize_capex_guidance(guidance_lines):
     return _cached_gemini(cache_key, prompt, 86400)
 
 
+def gemini_capex_combined(quarterly_lines, guidance_lines):
+    """סיכום משולב של מגמת CapEx רבעונית ועדכוני תחזית שנתית."""
+    parts = []
+    if quarterly_lines:
+        parts.append(
+            "נתוני CapEx רבעוניים בפועל של ענקיות הענן (מיליארדי דולרים, 4 רבעונים אחרונים): "
+            + quarterly_lines + "."
+        )
+    if guidance_lines:
+        parts.append(
+            "עדכוני תחזית CapEx שנתית של ענקיות הענן (כפי שדווחו בשיחות הוועידה):\n"
+            + guidance_lines + "."
+        )
+    data_block = " ".join(parts) if parts else "אין נתונים זמינים."
+    prompt = (
+        data_block + "\n\n"
+        "חפש ברשת הקשר ועדכונים נוספים, ולאחר מכן כתוב בעברית סיכום של 5-6 משפטים "
+        "שעונה על שלוש שאלות: "
+        "(א) מה מראה המגמה הרבעונית בפועל — האצה או האטה בהשקעות? "
+        "(ב) מה כיוון עדכוני התחזית השנתית (עולות/יורדות/יציבות) ומה אמרו המנכ\"לים "
+        "בשיחות הוועידה בהצדקת ההשקעות? "
+        "(ג) מה המשמעות המשולבת לספקיות השבבים והציוד (NVDA, ASML, AMAT, TSM)?"
+    )
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    cache_key = "capex_combined|" + day
+    return _cached_gemini(cache_key, prompt, 604800)
+
+
 def gemini_analyze_earnings(symbol, season):
     """מנתח דוח ושיחת ועידה של חברה לפי עונה, עם חיפוש רשת.
     season = מחרוזת כמו '2026Q2'. מחזיר dict מובנה, או None בשגיאה.
@@ -2519,11 +2547,23 @@ else:
 
             _z3_fig.update_layout(
                 height=380, template="plotly_dark",
-                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                margin=dict(t=20, b=20, l=55, r=10),
-                yaxis=dict(range=[_z3_y_low, _z3_y_high], gridcolor="rgba(255,255,255,0.06)",
-                           tickvals=_z3_tick_vals, ticktext=_z3_tick_text),
-                xaxis=dict(gridcolor="rgba(255,255,255,0.06)"),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(255,255,255,0.03)",
+                margin=dict(t=20, b=48, l=60, r=10),
+                yaxis=dict(
+                    range=[_z3_y_low, _z3_y_high],
+                    tickvals=_z3_tick_vals, ticktext=_z3_tick_text,
+                    gridcolor="rgba(255,255,255,0.12)",
+                    showline=True, linecolor="rgba(255,255,255,0.25)", linewidth=1,
+                    tickfont=dict(size=12),
+                    zeroline=False,
+                ),
+                xaxis=dict(
+                    gridcolor="rgba(255,255,255,0.10)",
+                    showline=True, linecolor="rgba(255,255,255,0.25)", linewidth=1,
+                    tickfont=dict(size=12),
+                    tickangle=0,
+                ),
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
                             font=dict(size=11)),
             )
@@ -2919,26 +2959,6 @@ else:
             unsafe_allow_html=True,
         )
 
-    # --- כפתור ניתוח מגמה רבעונית ---
-    capex_trend_key = "capex_trend_" + datetime.now(timezone.utc).strftime("%Y-%W")
-    if st.button("📊 הסבר את תחזית ה-CapEx", key="capex_trend_btn"):
-        lines = []
-        for sym, s in capex_q.items():
-            vals = ", ".join(str(round(float(v), 1)) for v in s.values[-4:])
-            lines.append(sym + ": " + vals)
-        with st.spinner("מבקש ניתוח מ-Gemini..."):
-            text, sources = gemini_capex_trend(" | ".join(lines))
-        st.session_state[capex_trend_key] = {"text": text, "sources": sources}
-
-    saved_trend = st.session_state.get(capex_trend_key)
-    if saved_trend and saved_trend.get("text"):
-        st.markdown("<div dir='rtl' style='text-align:right;'>" + saved_trend["text"] + "</div>",
-                    unsafe_allow_html=True)
-        if saved_trend.get("sources"):
-            with st.expander("מקורות"):
-                for title, uri in saved_trend["sources"]:
-                    st.markdown("• [" + (title or uri) + "](" + uri + ")")
-
     # ==================================================
     # תחזית שנתית מול שנים קודמות — טאב לכל חברה + טאב מצטבר
     # ==================================================
@@ -3228,10 +3248,19 @@ else:
                    "«תחזית מול בפועל» = כמה התחזית הנוכחית גבוהה/נמוכה מ-CapEx השנה הקודמת שהסתיימה. "
                    "«—» מציין שאין עדיין נתון (למשל רק עדכון תחזית אחד).")
 
-    # --- סיכום עדכוני תחזית — גלוי לכולם ---
-    if len(guid_rows) > 0:
-        _guid_sum_key = "capex_guid_summary_" + datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        if st.button("📊 סכם את עדכוני תחזית ה-CapEx", key="capex_guid_summary_btn"):
+    # --- כפתור מאוחד: מגמה רבעונית + עדכוני תחזית — גלוי לכולם ---
+    if len(capex_q) > 0 or len(guid_rows) > 0:
+        _combined_key = "capex_combined_" + datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        if st.button("📊 סכם את מגמת ה-CapEx והתחזיות", key="capex_combined_btn"):
+            # בניית quarterly_lines
+            if capex_q:
+                _q_parts = []
+                for sym, s in capex_q.items():
+                    _q_parts.append(sym + ": " + ", ".join(str(round(float(v), 1)) for v in s.values[-4:]))
+                _quarterly_lines = " | ".join(_q_parts)
+            else:
+                _quarterly_lines = ""
+            # בניית guidance_lines
             _guid_lines = []
             for sym in CAPEX_COMPANIES:
                 guid = CAPEX_GUIDANCE.get(sym, {})
@@ -3239,17 +3268,18 @@ else:
                 if updates:
                     parts = [lbl + ": $" + str(v) + "B" for lbl, v in updates]
                     _guid_lines.append(CAPEX_COMPANIES[sym] + " — " + " → ".join(parts))
-            with st.spinner("מסכם עדכוני תחזית עם Gemini..."):
-                _gs_text, _gs_sources = gemini_summarize_capex_guidance("\n".join(_guid_lines))
-            st.session_state[_guid_sum_key] = {"text": _gs_text, "sources": _gs_sources}
+            _guidance_lines = "\n".join(_guid_lines)
+            with st.spinner("מסכם את מגמת ה-CapEx עם Gemini..."):
+                _comb_text, _comb_sources = gemini_capex_combined(_quarterly_lines, _guidance_lines)
+            st.session_state[_combined_key] = {"text": _comb_text, "sources": _comb_sources}
 
-        _gs_saved = st.session_state.get(_guid_sum_key)
-        if _gs_saved and _gs_saved.get("text"):
-            st.markdown("<div dir='rtl' style='text-align:right;'>" + _gs_saved["text"] + "</div>",
+        _comb_saved = st.session_state.get(_combined_key)
+        if _comb_saved and _comb_saved.get("text"):
+            st.markdown("<div dir='rtl' style='text-align:right;'>" + _comb_saved["text"] + "</div>",
                         unsafe_allow_html=True)
-            if _gs_saved.get("sources"):
+            if _comb_saved.get("sources"):
                 with st.expander("מקורות"):
-                    for _t, _u in _gs_saved["sources"]:
+                    for _t, _u in _comb_saved["sources"]:
                         st.markdown("• [" + (_t or _u) + "](" + _u + ")")
 
     # --- כפתור חיפוש תחזיות עדכניות — מצב מפתח בלבד ---
@@ -3431,6 +3461,115 @@ for _week in _weeks:
                     "</div>"
                     "</div>"
                 )
+            elif _status == "analyzed":
+                _rec = get_record(_z6_sent_data, _sym, season_from_date(_d))
+                if not _rec:
+                    _cell += (
+                        "<div style='background:" + _bg + "; color:" + _fg + "; border:" + _bd + "; "
+                        "font-size:11px; font-weight:700; padding:3px 6px; "
+                        "border-radius:5px; margin:2px 0; white-space:nowrap; "
+                        "text-align:center;'>"
+                        + _sym + "</div>"
+                    )
+                else:
+                    _a_tip = []
+                    # סנטימנט
+                    _sc = _rec.get("sentiment_score")
+                    if _sc is not None:
+                        _sc_f = float(_sc)
+                        _sc_pct = int(round(_sc_f * 100))
+                        _sc_sign = "+" if _sc_pct >= 0 else ""
+                        _sc_emoji = "🟢" if _sc_f >= 0.15 else ("🔴" if _sc_f <= -0.15 else "⚪")
+                        _sc_col = "#22c55e" if _sc_f >= 0.15 else ("#ef4444" if _sc_f <= -0.15 else "#9ca3af")
+                        _a_tip.append(
+                            _sc_emoji + " סנטימנט: <b style='color:" + _sc_col + ";'>"
+                            + _sc_sign + str(_sc_pct) + "%</b>"
+                        )
+                    # EPS
+                    _ea = _rec.get("eps_actual")
+                    _ee = _rec.get("eps_estimate")
+                    if _ea is not None and _ee is not None:
+                        try:
+                            _ea_f = float(_ea); _ee_f = float(_ee)
+                            _eps_str = f"EPS: ${_ea_f:.2f} / ${_ee_f:.2f} צפי"
+                            if _ee_f != 0:
+                                _es = _ea_f / _ee_f * 100 - 100
+                                _es_sign = "+" if _es > 0 else ""
+                                _es_col = "#22c55e" if _es > 0 else ("#ef4444" if _es < 0 else "#9ca3af")
+                                _eps_str += " <span style='color:" + _es_col + ";'>(" + _es_sign + f"{_es:.1f}%)</span>"
+                            _a_tip.append(_eps_str)
+                        except (TypeError, ValueError):
+                            pass
+                    # הכנסות
+                    _ra = _rec.get("revenue_actual_b")
+                    _re = _rec.get("revenue_estimate_b")
+                    if _ra is not None and _re is not None:
+                        try:
+                            _ra_f = float(_ra); _re_f = float(_re)
+                            _rev_str = f"הכנסות: ${_ra_f:.2f}B / ${_re_f:.2f}B צפי"
+                            if _re_f != 0:
+                                _rs = _ra_f / _re_f * 100 - 100
+                                _rs_sign = "+" if _rs > 0 else ""
+                                _rs_col = "#22c55e" if _rs > 0 else ("#ef4444" if _rs < 0 else "#9ca3af")
+                                _rev_str += " <span style='color:" + _rs_col + ";'>(" + _rs_sign + f"{_rs:.1f}%)</span>"
+                            _a_tip.append(_rev_str)
+                        except (TypeError, ValueError):
+                            pass
+                    # תחזית רבעון הבא
+                    _nqg = _rec.get("next_q_guidance")
+                    if isinstance(_nqg, dict):
+                        _nq_rev = _nqg.get("revenue_b")
+                        _nq_eps = _nqg.get("eps")
+                        _nq_parts = []
+                        if _nq_rev is not None:
+                            try:
+                                _nq_parts.append("הכנסות $" + f"{float(_nq_rev):.2f}B")
+                            except (TypeError, ValueError):
+                                pass
+                        if _nq_eps is not None:
+                            try:
+                                _nq_parts.append("EPS $" + f"{float(_nq_eps):.2f}")
+                            except (TypeError, ValueError):
+                                pass
+                        if _nq_parts:
+                            _a_tip.append("תחזית רבעון הבא: " + " · ".join(_nq_parts))
+                        # מול הקונצנזוס
+                        _nq_arv = _nqg.get("analyst_revenue_b")
+                        _nq_vs = _nqg.get("vs_consensus", "none")
+                        _cons_parts = []
+                        if _nq_arv is not None:
+                            try:
+                                _cons_parts.append(
+                                    "<span style='color:#9ca3af; font-size:10px;'>קונצנזוס: $"
+                                    + f"{float(_nq_arv):.2f}B</span>"
+                                )
+                            except (TypeError, ValueError):
+                                pass
+                        if _nq_vs and _nq_vs != "none":
+                            _vs_map = {
+                                "above": "🟢 מעל הקונצנזוס",
+                                "inline": "⚪ בקו עם הקונצנזוס",
+                                "below": "🔴 מתחת לקונצנזוס",
+                            }
+                            _vs_lbl = _vs_map.get(_nq_vs, "")
+                            if _vs_lbl:
+                                _cons_parts.append(_vs_lbl)
+                        if _cons_parts:
+                            _a_tip.append(" · ".join(_cons_parts))
+                    # תג מקור
+                    _a_tip.append("<span style='color:#a78bfa; font-size:10px;'>🔮 מוערך (Gemini)</span>")
+                    _a_tip_html = "<br>".join(_a_tip)
+                    _cell += (
+                        "<div class='chip-analyzed-wrap'>"
+                        "<div class='chip-analyzed' style='background:" + _bg + "; color:" + _fg + "; border:" + _bd + "; "
+                        "font-size:11px; font-weight:700; padding:3px 6px; "
+                        "border-radius:5px; margin:2px 0; white-space:nowrap; "
+                        "text-align:center; position:relative; cursor:default;'>"
+                        + _sym +
+                        "<div class='chip-tip'>" + _a_tip_html + "</div>"
+                        "</div>"
+                        "</div>"
+                    )
             else:
                 _cell += (
                     "<div style='background:" + _bg + "; color:" + _fg + "; border:" + _bd + "; "
@@ -3469,6 +3608,9 @@ st.markdown(
     "  box-shadow: 0 4px 12px rgba(0,0,0,0.5);"
     "}"
     ".chip-future:hover .chip-tip { display: block; }"
+    ".chip-analyzed-wrap { position: relative; display: block; }"
+    ".chip-analyzed { position: relative; cursor: default; }"
+    ".chip-analyzed:hover .chip-tip { display: block; }"
     "</style>"
     "<div style='overflow:visible; margin-top:8px;'>"
     "<table style='width:100%; border-collapse:separate; border-spacing:3px; table-layout:fixed; overflow:visible;'>"
@@ -3906,7 +4048,7 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
         st.markdown(
             "<div dir='rtl' style='margin:10px 0 8px; padding-top:10px; "
             "border-top:1px solid rgba(255,255,255,0.10); "
-            "font-size:12px; color:#6b7280; font-weight:700; letter-spacing:0.03em;'>📝 ניתוח</div>",
+            "font-size:12px; color:#6b7280; font-weight:700; letter-spacing:0.03em; text-align:right;'>📝 ניתוח</div>",
             unsafe_allow_html=True,
         )
     if summary:
