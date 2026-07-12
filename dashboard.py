@@ -1035,22 +1035,39 @@ def gemini_analyze_earnings(symbol, season):
     return None
 
 
+_COMPANY_DESC = {
+    "TSEM": "Tower Semiconductor — foundry ישראלי לשבבים אנלוגיים, RF ומיוחדים",
+    "NVMI": "Nova — ציוד מדידה ובקרת תהליכים (process control & metrology)",
+    "CAMT": "Camtek — ציוד בדיקה ומדידה לאריזה מתקדמת",
+    "MBLY": "Mobileye — מערכות ראייה ממוחשבת לרכב אוטונומי",
+    "ASML": "ASML — מונופול ציוד הליתוגרפיה (EUV/DUV); שסתום צוואר הבקבוק של ייצור שבבים מתקדמים",
+    "AMAT": "Applied Materials — ציוד הפקדה (deposition) ואיטום; מוביל שוק ה-CVD/PVD",
+    "LRCX": "Lam Research — ציוד חריטה (etch) ועיבוד ווייפרים",
+    "KLAC": "KLA — ציוד בקרת תהליכים (process control & metrology); מוביל ה-inspection",
+    "NVDA": "NVIDIA — מעבדי GPU לאימון והסקה של AI; מוביל שוק מרכזי הנתונים",
+    "AMD": "AMD — מעבדי CPU ו-GPU למחשוב ומרכזי נתונים; מתחרה עיקרי של NVDA ו-INTC",
+    "TSM": "TSMC — גדולת ה-foundries בעולם; מייצרת שבבים ל-Apple, NVDA, AMD ועוד",
+    "INTC": "Intel — יצרן מעבדים משולב (IDM); בתהליך מיצוב מחדש כ-foundry",
+    "MU": "Micron — יצרן זיכרון DRAM/NAND/HBM; לקוח גדול של ASML ו-AMAT",
+    "TXN": "Texas Instruments — שבבים אנלוגיים ומשובצים; חשיפה לאוטומציה ורכב",
+    "ADI": "Analog Devices — שבבים אנלוגיים ומעורב-אות; תעשייה, בריאות ורכב",
+    "AVGO": "Broadcom — שבבי תקשורת ו-ASIC מותאמים; הרשתות ו-AI custom chips",
+    "QCOM": "Qualcomm — SoC לסמארטפונים ו-IoT; חשיפה גוברת לרכב ו-AI edge",
+    "MRVL": "Marvell — שבבי תשתית ורשתות; מנוע AI custom silicon בצמיחה",
+    "ARM": "Arm Holdings — ארכיטקטורת CPU מורשת; רוב שבבי הסמארטפון והשרת בנויים על IP שלה",
+    "MSFT": "Microsoft — ענקית תוכנה וענן (Azure), לקוחה מרכזית של NVDA ו-AMD לתשתיות AI",
+    "META": "Meta Platforms — רשתות חברתיות, משקיעה עצומה בתשתיות AI ומרכזי נתונים",
+    "GOOGL": "Alphabet/Google — מנוע חיפוש, ענן (GCP) ו-AI; מפתחת שבבי TPU מקוריים",
+    "AMZN": "Amazon — ענן AWS ומסחר אלקטרוני; הלקוחה הגדולה ביותר של תשתיות GPU",
+    "ORCL": "Oracle — תוכנה ארגונית ותשתיות ענן (OCI); צומחת מהר בהשכרת תשתיות AI",
+    "005930.KS": "Samsung Electronics — יצרן זיכרון DRAM/NAND/HBM וגם מפעילה foundry לייצור לוגיקה",
+    "000660.KS": "SK Hynix — יצרן זיכרון DRAM/NAND/HBM; ספק HBM מרכזי ל-NVDA",
+}
+
+
 def gemini_israeli_impact(il_symbol, season, context_text):
     """ניתוח השפעת דוחות שפורסמו בעונה על חברה ישראלית ספציפית."""
-    _desc = {
-        "TSEM": "Tower Semiconductor — foundry ישראלי לשבבים אנלוגיים, RF ומיוחדים",
-        "NVMI": "Nova — ציוד מדידה ובקרת תהליכים (process control & metrology)",
-        "CAMT": "Camtek — ציוד בדיקה ומדידה לאריזה מתקדמת",
-        "MBLY": "Mobileye — מערכות ראייה ממוחשבת לרכב אוטונומי",
-        "MSFT": "Microsoft — ענקית תוכנה וענן (Azure), לקוחה מרכזית של NVDA ו-AMD לתשתיות AI",
-        "META": "Meta Platforms — רשתות חברתיות, משקיעה עצומה בתשתיות AI ומרכזי נתונים",
-        "GOOGL": "Alphabet/Google — מנוע חיפוש, ענן (GCP) ו-AI; מפתחת שבבי TPU מקוריים",
-        "AMZN": "Amazon — ענן AWS ומסחר אלקטרוני; הלקוחה הגדולה ביותר של תשתיות GPU",
-        "ORCL": "Oracle — תוכנה ארגונית ותשתיות ענן (OCI); צומחת מהר בהשכרת תשתיות AI",
-        "005930.KS": "Samsung Electronics — יצרן זיכרון DRAM/NAND/HBM וגם מפעילה foundry לייצור לוגיקה",
-        "000660.KS": "SK Hynix — יצרן זיכרון DRAM/NAND/HBM; ספק HBM מרכזי ל-NVDA",
-    }
-    desc = _desc.get(il_symbol, il_symbol)
+    desc = _COMPANY_DESC.get(il_symbol, il_symbol)
     prompt = (
         "עונת הדוחות " + season + ".\n"
         "הדוחות הבאים פורסמו עד כה בסקטור השבבים:\n"
@@ -1063,6 +1080,40 @@ def gemini_israeli_impact(il_symbol, season, context_text):
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     ctx_hash = hashlib.md5(context_text.encode("utf-8")).hexdigest()[:8]
     cache_key = "il_impact|" + il_symbol + "|" + season + "|" + day + "|" + ctx_hash
+    return _gemini_cached_safe(cache_key, prompt, 86400)
+
+
+def gemini_focused_impact(source_sym, target_sym, season, source_record):
+    """ניתוח ממוקד: כיצד דוח חברה אחת משפיע על חברה ספציפית אחרת."""
+    src_desc = _COMPANY_DESC.get(source_sym, source_sym)
+    tgt_desc = _COMPANY_DESC.get(target_sym, target_sym)
+    sc = source_record.get("sentiment_score", 0) or 0
+    sc_pct = ("+" if sc >= 0 else "") + str(int(round(sc * 100))) + "%"
+    sm = source_record.get("summary", "")
+    gd = source_record.get("guidance_direction", "")
+    res = source_record.get("results_vs_expectations", "")
+    signals = source_record.get("domain_signals", [])
+    sig_lines = "\n".join(
+        "  • " + s.get("domain", "") + " [" + s.get("direction", "") + "]: " + s.get("note", "")
+        for s in signals
+    ) if signals else "  אין סיגנלים תחומיים שמורים."
+    prompt = (
+        "עונת הדוחות " + season + ".\n"
+        "להלן סיכום דוח " + source_sym + " (" + src_desc + "):\n"
+        "• סנטימנט: " + sc_pct +
+        (", תוצאות: " + res if res and res != "none" else "") +
+        (", הנחיה: " + gd if gd and gd != "none" else "") + "\n" +
+        ("• סיכום: " + sm + "\n" if sm else "") +
+        "• סיגנלים תחומיים:\n" + sig_lines + "\n\n"
+        "בהתבסס על הדוח לעיל וחיפוש ברשת למידע עדכני, "
+        "נתח ספציפית את ההשפעה הצפויה על " + target_sym + " (" + tgt_desc + ").\n"
+        "התייחס במפורש לסיגנלים התחומיים שהוזכרו — אילו מהם רלוונטיים ישירות לעסקי " + target_sym + ", "
+        "מה מרמז זאת על הביקוש למוצריה ושירותיה, ומה ההשלכה על הדוח הצפוי שלה. "
+        "ענה בעברית, 4-5 משפטים."
+    )
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    rec_hash = hashlib.md5((source_sym + season + str(sc) + sm[:50]).encode("utf-8")).hexdigest()[:8]
+    cache_key = "focused|" + source_sym + "|" + target_sym + "|" + season + "|" + day + "|" + rec_hash
     return _gemini_cached_safe(cache_key, prompt, 86400)
 
 
@@ -1093,6 +1144,14 @@ def latest_season_with_data(sentiment):
     if not all_seasons:
         return current_season()
     return sorted(all_seasons)[-1]
+
+
+def _season_lag(sentiment):
+    """מחזיר (data_season, cur_season, lagging) לתצוגת תגית מצב עונה.
+    lagging=True כשהעונה הקלנדרית מתקדמת מהעונה שיש בה נתונים."""
+    data_s = latest_season_with_data(sentiment)
+    cur_s = current_season()
+    return data_s, cur_s, cur_s > data_s
 
 
 def load_sentiment():
@@ -2184,6 +2243,11 @@ if soxx_change is not None:
 
 _sentiment_data = load_sentiment()
 _sent_season = latest_season_with_data(_sentiment_data)
+_sent_cur_s = current_season()
+if _sent_cur_s > _sent_season:
+    st.caption("⚠️ סנטימנט: מציג נתוני " + _sent_season + " · עונת " + _sent_cur_s + " טרם נותחה")
+else:
+    st.caption("📊 סנטימנט עונה: " + _sent_season)
 
 with st.container(border=True):
     # כותרת עמודות
@@ -2663,6 +2727,11 @@ def render_tech_detail(idx, sentiment_data=None, season=None, group_name=None):
 
 _tech_sent_data = load_sentiment()
 _tech_sent_season = latest_season_with_data(_tech_sent_data)
+_tech_cur_s = current_season()
+if _tech_cur_s > _tech_sent_season:
+    st.caption("⚠️ סנטימנט: מציג נתוני " + _tech_sent_season + " · עונת " + _tech_cur_s + " טרם נותחה")
+else:
+    st.caption("📊 סנטימנט עונה: " + _tech_sent_season)
 
 with st.spinner("מחשב את הפילוח הטכנולוגי..."):
     for axis_name, axis_groups in TECH_GROUPS.items():
@@ -3211,6 +3280,23 @@ section_banner(6, 6, "📋", "דוחות כספיים — ניתוח עונת ה
 
 _z6_sent_data = load_sentiment()
 
+_z6_d_season, _z6_c_season, _z6_lag = _season_lag(_z6_sent_data)
+if _z6_lag:
+    st.markdown(
+        "<div dir='rtl' style='background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.4); "
+        "border-radius:8px; padding:8px 14px; margin:6px 0 10px; text-align:right; "
+        "font-size:14px; color:#fbbf24; font-weight:600;'>"
+        + "⚠️ מציג נתוני " + _z6_d_season + " · עונת " + _z6_c_season + " החלה אך טרם נותחו בה דוחות"
+        + "</div>",
+        unsafe_allow_html=True,
+    )
+else:
+    st.markdown(
+        "<div dir='rtl' style='text-align:right; font-size:13px; color:#6b7280; margin:4px 0 8px;'>"
+        + "📊 עונה נוכחית: " + _z6_d_season + "</div>",
+        unsafe_allow_html=True,
+    )
+
 
 # --- לוח שנה של דוחות ---
 st.markdown(section_header("📅 לוח דוחות", "#3b82f6"), unsafe_allow_html=True)
@@ -3522,6 +3608,30 @@ st.caption("מעקב קבוע אחר ארבע החברות הישראליות ב
 
 _il_season = latest_season_with_data(_z6_sent_data)
 
+def _build_il_ctx(season_analyzed):
+    """בונה טקסט הקשר לניתוח ישראלי. מחזיר (ctx_text, [syms])."""
+    ctx_lines = []
+    syms = []
+    for _s, _r in season_analyzed.items():
+        _sc = _r.get("sentiment_score", 0) or 0
+        _sm = _r.get("summary", "")
+        _gd = _r.get("guidance_direction", "")
+        _sc_pct = ("+" if _sc >= 0 else "") + str(int(round(_sc * 100))) + "%"
+        ctx_lines.append(
+            "• " + _s + " (סנטימנט: " + _sc_pct +
+            (", הנחיה: " + _gd if _gd and _gd != "none" else "") +
+            "): " + _sm
+        )
+        for _sig in _r.get("domain_signals", []):
+            ctx_lines.append(
+                "  ↳ " + _sig.get("domain", "") + ": " +
+                _sig.get("direction", "") + " — " + _sig.get("note", "")
+            )
+        syms.append(_s)
+    ctx_text = "\n".join(ctx_lines) if ctx_lines else "אין ניתוחים שמורים לעונה זו עדיין."
+    return ctx_text, syms
+
+
 # כל הניתוחים השמורים לעונה — יועברו לפונקציית ה-Gemini
 _il_season_analyzed = {
     sym: _z6_sent_data[sym][_il_season]
@@ -3638,29 +3748,24 @@ for _il_i, _il_sym in enumerate(_il_display):
             _il_impact_res = st.session_state.get(_il_impact_key)
             if st.button("🔍 נתח השפעת עונת הדוחות", key="il_impact_btn_" + _il_sym,
                          use_container_width=True):
-                _il_ctx = []
-                for _s, _r in _il_season_analyzed.items():
-                    _sc = _r.get("sentiment_score", 0) or 0
-                    _sm = _r.get("summary", "")
-                    _gd = _r.get("guidance_direction", "")
-                    _sc_pct = ("+" if _sc >= 0 else "") + str(int(round(_sc * 100))) + "%"
-                    _il_ctx.append(
-                        "• " + _s + " (סנטימנט: " + _sc_pct +
-                        (", הנחיה: " + _gd if _gd and _gd != "none" else "") +
-                        "): " + _sm
-                    )
-                    for _sig in _r.get("domain_signals", []):
-                        _il_ctx.append(
-                            "  ↳ " + _sig.get("domain", "") + ": " +
-                            _sig.get("direction", "") + " — " + _sig.get("note", "")
-                        )
-                _il_ctx_text = "\n".join(_il_ctx) if _il_ctx else "אין ניתוחים שמורים לעונה זו עדיין."
+                _il_ctx_text, _il_ctx_syms = _build_il_ctx(_il_season_analyzed)
                 with st.spinner("מנתח השפעת הדוחות על " + _il_sym + "..."):
                     _il_txt, _il_srcs = gemini_israeli_impact(_il_sym, _il_season, _il_ctx_text)
-                st.session_state[_il_impact_key] = {"text": _il_txt, "sources": _il_srcs}
+                st.session_state[_il_impact_key] = {
+                    "text": _il_txt, "sources": _il_srcs,
+                    "count": len(_il_ctx_syms), "companies": _il_ctx_syms,
+                }
                 st.rerun()
 
             if _il_impact_res:
+                _il_saved_count = _il_impact_res.get("count", 0)
+                _il_saved_syms = _il_impact_res.get("companies", [])
+                st.caption(
+                    "מבוסס על " + str(_il_saved_count) + " דוחות שנותחו בעונה " + _il_season +
+                    (": " + ", ".join(_il_saved_syms) if _il_saved_syms else "")
+                )
+                if len(_il_season_analyzed) > _il_saved_count:
+                    st.caption("💡 נותחו דוחות נוספים מאז — לחצי שוב לעדכון")
                 st.markdown(
                     "<div dir='rtl' style='font-size:13px; color:#d1d5db; line-height:1.6; "
                     "background:rgba(255,255,255,0.04); border-radius:6px; padding:8px 10px; margin-top:4px;'>"
@@ -3683,29 +3788,24 @@ with st.expander("🔍 ניתוח השפעת עונת הדוחות — חברו�
     _ext_impact_res = st.session_state.get(_ext_impact_key)
 
     if st.button("🔍 נתח השפעת עונת הדוחות", key="il_ext_impact_btn", use_container_width=True):
-        _ext_ctx = []
-        for _s, _r in _il_season_analyzed.items():
-            _sc = _r.get("sentiment_score", 0) or 0
-            _sm = _r.get("summary", "")
-            _gd = _r.get("guidance_direction", "")
-            _sc_pct = ("+" if _sc >= 0 else "") + str(int(round(_sc * 100))) + "%"
-            _ext_ctx.append(
-                "• " + _s + " (סנטימנט: " + _sc_pct +
-                (", הנחיה: " + _gd if _gd and _gd != "none" else "") +
-                "): " + _sm
-            )
-            for _sig in _r.get("domain_signals", []):
-                _ext_ctx.append(
-                    "  ↳ " + _sig.get("domain", "") + ": " +
-                    _sig.get("direction", "") + " — " + _sig.get("note", "")
-                )
-        _ext_ctx_text = "\n".join(_ext_ctx) if _ext_ctx else "אין ניתוחים שמורים לעונה זו עדיין."
+        _ext_ctx_text, _ext_ctx_syms = _build_il_ctx(_il_season_analyzed)
         with st.spinner("מנתח השפעת הדוחות על " + _ext_chosen + "..."):
             _ext_txt, _ext_srcs = gemini_israeli_impact(_ext_chosen, _il_season, _ext_ctx_text)
-        st.session_state[_ext_impact_key] = {"text": _ext_txt, "sources": _ext_srcs}
+        st.session_state[_ext_impact_key] = {
+            "text": _ext_txt, "sources": _ext_srcs,
+            "count": len(_ext_ctx_syms), "companies": _ext_ctx_syms,
+        }
         st.rerun()
 
     if _ext_impact_res:
+        _ext_saved_count = _ext_impact_res.get("count", 0)
+        _ext_saved_syms = _ext_impact_res.get("companies", [])
+        st.caption(
+            "מבוסס על " + str(_ext_saved_count) + " דוחות שנותחו בעונה " + _il_season +
+            (": " + ", ".join(_ext_saved_syms) if _ext_saved_syms else "")
+        )
+        if len(_il_season_analyzed) > _ext_saved_count:
+            st.caption("💡 נותחו דוחות נוספים מאז — לחצי שוב לעדכון")
         st.markdown(
             "<div dir='rtl' style='font-size:13px; color:#d1d5db; line-height:1.6; "
             "background:rgba(255,255,255,0.04); border-radius:6px; padding:8px 10px; margin-top:4px;'>"
@@ -3716,6 +3816,36 @@ with st.expander("🔍 ניתוח השפעת עונת הדוחות — חברו�
             with st.expander("מקורות"):
                 for _t, _u in _ext_impact_res["sources"]:
                     st.markdown("• [" + (_t or _u) + "](" + _u + ")")
+
+with st.expander("🎯 ניתוח השפעה ממוקדת — דוח של חברה אחת על חברה אחרת"):
+    if not _il_season_analyzed:
+        st.caption("אין עדיין דוחות מנותחים בעונה זו")
+    else:
+        _foc_source_opts = list(_il_season_analyzed.keys())
+        _foc_source = st.selectbox("דוח מקור:", _foc_source_opts, key="foc_source_sel")
+        _foc_target_opts = [c for c in CORE_COMPANIES if c != _foc_source]
+        _foc_target = st.selectbox("חברת יעד:", _foc_target_opts, key="foc_target_sel")
+        _foc_key = "focus_impact_" + _foc_source + "_" + _foc_target + "_" + _il_season
+        _foc_res = st.session_state.get(_foc_key)
+        if st.button("🎯 נתח השפעה", key="foc_impact_btn", use_container_width=True):
+            _foc_record = _il_season_analyzed[_foc_source]
+            with st.spinner("מנתח השפעת " + _foc_source + " על " + _foc_target + "..."):
+                _foc_txt, _foc_srcs = gemini_focused_impact(
+                    _foc_source, _foc_target, _il_season, _foc_record
+                )
+            st.session_state[_foc_key] = {"text": _foc_txt, "sources": _foc_srcs}
+            st.rerun()
+        if _foc_res:
+            st.markdown(
+                "<div dir='rtl' style='font-size:13px; color:#d1d5db; line-height:1.6; "
+                "background:rgba(255,255,255,0.04); border-radius:6px; padding:8px 10px; margin-top:4px;'>"
+                + (_foc_res.get("text") or "") + "</div>",
+                unsafe_allow_html=True,
+            )
+            if _foc_res.get("sources"):
+                with st.expander("מקורות"):
+                    for _t, _u in _foc_res["sources"]:
+                        st.markdown("• [" + (_t or _u) + "](" + _u + ")")
 
 st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
