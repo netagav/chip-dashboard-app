@@ -8,7 +8,7 @@ import hashlib
 import pandas as pd
 import altair as alt
 import plotly.graph_objects as go
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 st.set_page_config(page_title="דשבורד שבבים", page_icon="💹", layout="wide")
 
@@ -157,6 +157,13 @@ SOXX_HOLDINGS = ["NVDA", "AVGO", "AMD", "TXN", "QCOM", "INTC", "MU", "ADI",
 
 TIER_CORE = 1.0
 TIER_ENV = 0.4
+
+# משקל מרכיב הסיגנלים התחומיים בציון המשולב.
+# SIG_WEIGHT_MAX = התקרה, מושגת רק כשיש SIG_FULL_COUNT סיגנלים או יותר.
+# מתחת לזה המשקל דועך ליניארית: סיגנל בודד לא יזיז את הציון כמו קונצנזוס.
+# הסיבה: סולם הסיגנלים דיסקרטי (±1), ולכן ראיה בודדת "צועקת" חזק מדי.
+SIG_WEIGHT_MAX = 0.3
+SIG_FULL_COUNT = 3
 
 TECH_GROUPS = {
     "ציר טכנולוגיה": {
@@ -312,6 +319,17 @@ BROAD_THRESHOLD = 0.6
 GAP_THRESHOLD = 15
 MOVE_ALERT = 2.0
 STOCK_VS_SOXX_ALERT = 3.0  # סף מרחק של מניה בודדת מ-SOXX (נקודות %) לחריגה
+
+# מספר הימים שבהם מדווחות מוקדמות (MU ביוני, AVGO בדצמבר) מקדימות
+# את תחילת הרבעון הקלנדרי הבא. מזיז את גבול העונה אחורה כדי שכל הגל
+# ייפול לאותו דלי. ניתן לכוונון.
+SEASON_EARLY_DAYS = 21
+
+# ספי צבע לסנטימנט דוחות (ציון Gemini בטווח -1.0 עד 1.0).
+# הסף החיובי גבוה מ-0.2 בכוונה: זו התקרה של מדרגת "עמד בציפיות + שמר על הנחיה"
+# בפרומפט, כדי שרבעון ניטרלי לא ייצבע ירוק. הסף השלילי סימטרי לו.
+SENTIMENT_POS = 0.25
+SENTIMENT_NEG = -0.25
 
 # סף מרחק מהמדד לכל תקופה — כמה החציון צריך להכות/לפגר אחרי SOXX
 # כדי שהתחום ייחשב "חם" או "חלש". מטפס עם אורך התקופה.
@@ -634,7 +652,12 @@ def _gemini_cached_safe(cache_key, prompt, ttl):
     try:
         return _cached_gemini(cache_key, prompt, ttl)
     except GeminiError as e:
-        return "שגיאה בקבלת תשובה מ-Gemini: " + str(e), []
+        msg = str(e)
+        if "503" in msg or "UNAVAILABLE" in msg:
+            st.error("⚠️ שרתי Gemini עמוסים כרגע. זו תקלה זמנית — נסי שוב בעוד דקה.")
+        else:
+            st.error("⚠️ שגיאה בקבלת תשובה מ-Gemini: " + msg)
+        return None, []
 
 
 def gemini_explain_move(change, period_label, period_code, movers_text):
@@ -1124,11 +1147,18 @@ SENTIMENT_FILE = "earnings_sentiment.json"
 
 
 def season_from_date(d):
-    """ממפה תאריך דיווח לעונת דוחות = הרבעון הקלנדרי שבו פורסם הדוח."""
+    """עונת דוחות = הרבעון שעליו מדווחים (לא רבעון הפרסום).
+    חלון הדיווח על רבעון N נפתח ~3 שבועות לפני תום רבעון N+1
+    ונמשך עד לפתיחת החלון הבא."""
     if isinstance(d, str):
         d = datetime.fromisoformat(d[:10])
-    q = (d.month - 1) // 3 + 1
-    return str(d.year) + "Q" + str(q)
+    shifted = d + timedelta(days=SEASON_EARLY_DAYS)
+    q = (shifted.month - 1) // 3 + 1
+    y = shifted.year
+    q -= 1                      # התווית = הרבעון המדווח
+    if q == 0:
+        q, y = 4, y - 1
+    return str(y) + "Q" + str(q)
 
 
 def current_season():
@@ -1240,19 +1270,23 @@ def domain_signal_score(group_name, season, sentiment_data):
 
 
 def weighted_tech_score(group_name, group_def, season, sentiment_data):
-    """ציון משוקלל סופי לתחום טכנולוגי: 70% סנטימנט חברות + 30% סיגנלים תחומיים.
+    """ציון משוקלל סופי לתחום טכנולוגי: סנטימנט חברות + סיגנלים תחומיים.
+    משקל הסיגנלים דועך ליניארית: 0% לאפס סיגנלים → SIG_WEIGHT_MAX כשיש ≥ SIG_FULL_COUNT.
     מחזיר dict עם score ורכיביו, או None אם אין נתונים כלל."""
     comp_agg = tech_group_sentiment(group_def, season, sentiment_data)
     sig_score, sig_count = domain_signal_score(group_name, season, sentiment_data)
     if comp_agg is None and sig_score is None:
         return None
     comp_score = comp_agg["score"] if comp_agg else None
+    sig_weight = SIG_WEIGHT_MAX * min(sig_count / SIG_FULL_COUNT, 1.0)
     if comp_score is not None and sig_score is not None:
-        final = 0.7 * comp_score + 0.3 * sig_score
+        final = (1 - sig_weight) * comp_score + sig_weight * sig_score
     elif comp_score is not None:
         final = comp_score
+        sig_weight = 0.0
     else:
         final = sig_score
+        sig_weight = 1.0
     return {
         "score": final,
         "comp_score": comp_score,
@@ -1260,6 +1294,7 @@ def weighted_tech_score(group_name, group_def, season, sentiment_data):
         "comp_total": comp_agg["total"] if comp_agg else 0,
         "sig_score": sig_score,
         "sig_count": sig_count,
+        "sig_weight": sig_weight,
     }
 
 
@@ -1330,10 +1365,11 @@ def build_chart(stocks, period, intraday=False, skip_current_day=True):
     if len(series_list) == 0:
         return pd.DataFrame()
 
-    # איחוד לפי תאריכים (outer join), מילוי קדימה ואחורה ליישור בורסות שונות
     chart_data = pd.concat(series_list, axis=1).sort_index()
-    chart_data = chart_data.ffill().bfill()
-    # השמטת עמודות שעדיין ריקות לגמרי, שלא יופיעו במקרא בלי קו
+    # אינטרפולציה לינארית מבוססת-זמן בין נקודות מסחר אמיתיות.
+    # פותר מראה מדורג כשבורסות עם לוח מסחר שונה (קוריאה מול ארה"ב)
+    # ממוזגות לאותו ציר — במקום ffill שמקפיא ואז קופץ.
+    chart_data = chart_data.interpolate(method="time", limit_direction="both")
     chart_data = chart_data.dropna(axis=1, how="all")
     return chart_data
 
@@ -1571,9 +1607,22 @@ def section_header(title, accent):
             + title + "</div>")
 
 
+def col_header(label, active=False, width=None, flex=False):
+    """כותרת עמודה בשורת ה-header של טבלאות הדירוג.
+    active=True → מודגשת עם חץ ▼ לציון עמודת המיון הפעילה."""
+    color = "#e5e7eb" if active else "#9ca3af"
+    weight = "700" if active else "600"
+    arrow = " ▼" if active else ""
+    sizing = "flex:1;" if flex else ("width:" + width + ";" if width else "")
+    align = "right" if flex else "center"
+    return ("<span style='" + sizing + " text-align:" + align +
+            "; color:" + color + "; font-weight:" + weight + ";'>"
+            + label + arrow + "</span>")
+
+
 def render_sentiment_trend(seasons, scores, chart_key):
     """גרף קו של סנטימנט לאורך עונות. seasons/scores = רשימות מסונכרנות, לפחות 2 פריטים."""
-    colors = ["#22c55e" if s >= 0.15 else ("#ef4444" if s <= -0.15 else "#9ca3af") for s in scores]
+    colors = ["#22c55e" if s >= SENTIMENT_POS else ("#ef4444" if s <= SENTIMENT_NEG else "#9ca3af") for s in scores]
     labels = [("+" if int(round(s * 100)) >= 0 else "") + str(int(round(s * 100))) + "%" for s in scores]
 
     # ציר Y דינמי: ריפוד פרופורציונלי עם רצפה מינימלית, מוגבל לתחום [-1, 1]
@@ -1655,8 +1704,8 @@ def returns_table_html(pairs, descending=True, sentiment_data=None, season=None,
                 score = float(rec["sentiment_score"])
                 pct = int(round(score * 100))
                 sign = "+" if pct >= 0 else ""
-                emoji = "🟢" if score >= 0.15 else ("🔴" if score <= -0.15 else "⚪")
-                col = "#22c55e" if score >= 0.15 else ("#ef4444" if score <= -0.15 else "#9ca3af")
+                emoji = "🟢" if score >= SENTIMENT_POS else ("🔴" if score <= SENTIMENT_NEG else "⚪")
+                col = "#22c55e" if score >= SENTIMENT_POS else ("#ef4444" if score <= SENTIMENT_NEG else "#9ca3af")
                 sent_html = (emoji + " <span style='color:" + col +
                              "; font-weight:700;'>" + sign + str(pct) + "%</span>")
                 report_date = rec.get("report_date", "—")
@@ -1696,8 +1745,8 @@ def tech_table_html(rows, sentiment_data=None, season=None):
                 score = float(rec["sentiment_score"])
                 pct = int(round(score * 100))
                 sign = "+" if pct >= 0 else ""
-                emoji = "🟢" if score >= 0.15 else ("🔴" if score <= -0.15 else "⚪")
-                col = "#22c55e" if score >= 0.15 else ("#ef4444" if score <= -0.15 else "#9ca3af")
+                emoji = "🟢" if score >= SENTIMENT_POS else ("🔴" if score <= SENTIMENT_NEG else "⚪")
+                col = "#22c55e" if score >= SENTIMENT_POS else ("#ef4444" if score <= SENTIMENT_NEG else "#9ca3af")
                 sent_html = (emoji + " <span style='color:" + col +
                              "; font-weight:700;'>" + sign + str(pct) + "%</span>")
             else:
@@ -1726,10 +1775,10 @@ def sentiment_cell_html(agg, wrapper="td", width="110px"):
     total = agg["total"]
     pct = int(round(score * 100))
     sign = "+" if pct >= 0 else ""
-    if score >= 0.15:
+    if score >= SENTIMENT_POS:
         emoji = "🟢"
         color = "#22c55e"
-    elif score <= -0.15:
+    elif score <= SENTIMENT_NEG:
         emoji = "🔴"
         color = "#ef4444"
     else:
@@ -1755,9 +1804,9 @@ def weighted_score_html(ws, wrapper="span"):
     score = ws["score"]
     pct = int(round(score * 100))
     sign = "+" if pct >= 0 else ""
-    if score >= 0.15:
+    if score >= SENTIMENT_POS:
         emoji, color = "🟢", "#22c55e"
-    elif score <= -0.15:
+    elif score <= SENTIMENT_NEG:
         emoji, color = "🔴", "#ef4444"
     else:
         emoji, color = "⚪", "#9ca3af"
@@ -2141,10 +2190,15 @@ def render_domain_detail(sector, pairs, period):
         st.caption("עונה אחת שמורה לתחום זה — הגרף יופיע לאחר עונה נוספת.")
 
     # --- אזור החדשות ---
-    sector_news = []
+    sector_news = {}   # title -> {"item": item, "symbols": [...]}
     for symbol, change in pairs:
         for item in get_news(symbol, limit=2):
-            sector_news.append((symbol, item))
+            t = item["title"]
+            if t in sector_news:
+                if symbol not in sector_news[t]["symbols"]:
+                    sector_news[t]["symbols"].append(symbol)
+            else:
+                sector_news[t] = {"item": item, "symbols": [symbol]}
 
     st.markdown(section_header("📰 חדשות אחרונות בתחום", "#a78bfa"), unsafe_allow_html=True)
     if len(sector_news) == 0:
@@ -2152,7 +2206,7 @@ def render_domain_detail(sector, pairs, period):
         return
 
     st.caption("לחצי לניתוח סנטימנט החדשות עם AI")
-    titles_list = [item["title"] for sym, item in sector_news]
+    titles_list = list(sector_news.keys())
     sig = titles_signature(titles_list)
     news_key = "news_analysis_" + sector_key(sector) + "_" + sig
     do_analyze = st.button("🧠 נתח חדשות", key="newsbtn_" + sector_key(sector))
@@ -2187,16 +2241,18 @@ def render_domain_detail(sector, pairs, period):
         for it in analysis["items"]:
             item_map[it.get("title", "")] = it
 
-    for sym, item in sector_news:
+    for entry in sector_news.values():
+        item = entry["item"]
+        syms = entry["symbols"]
         date_part = ""
         if item["date"]:
             date_part = " (" + item["date"] + ")"
         info = item_map.get(item["title"])
         badge = ""
         if info:
-            s = info.get("sentiment", "neutral")
-            emoji = {"positive": "🟢", "negative": "🔴"}.get(s, "⚪")
-            risk = " ⚠️ סיכון" if s == "negative" else ""
+            sent = info.get("sentiment", "neutral")
+            emoji = {"positive": "🟢", "negative": "🔴"}.get(sent, "⚪")
+            risk = " ⚠️ סיכון" if sent == "negative" else ""
             badge = emoji + risk + " "
         if item["link"]:
             title_html = "<a href='" + item["link"] + "' target='_blank'>" + item["title"] + "</a>"
@@ -2205,10 +2261,13 @@ def render_domain_detail(sector, pairs, period):
         summary_html = ""
         if info and info.get("summary"):
             summary_html = "<div style='color:#aaa; font-size:13px; margin-top:3px;'>" + info["summary"] + "</div>"
+        syms_html = " · ".join("<b>" + s + "</b>" for s in syms)
+        if len(syms) > 1:
+            syms_html += " <span style='color:#6b7280; font-size:11px;'>🔗 משותף</span>"
         st.markdown(
             "<div dir='rtl' style='text-align:right; background:rgba(255,255,255,0.03); "
             "border:1px solid #333; border-radius:8px; padding:8px 10px; margin-top:6px;'>"
-            "<b>" + sym + "</b> · " + badge + title_html + date_part + summary_html + "</div>",
+            + syms_html + " · " + badge + title_html + date_part + summary_html + "</div>",
             unsafe_allow_html=True,
         )
 
@@ -2249,27 +2308,51 @@ if _sent_cur_s > _sent_season:
 else:
     st.caption("📊 סנטימנט עונה: " + _sent_season)
 
+_heat_sort = st.radio(
+    "מיין לפי:",
+    ["📈 מרחק מ-SOXX", "🧠 סנטימנט דוחות"],
+    horizontal=True,
+    key="heat_sort_mode",
+)
+if _heat_sort == "🧠 סנטימנט דוחות":
+    st.caption(
+        "ℹ️ תחומים ללא דוחות מנותחים מוצגים בתחתית (—). "
+        "שים לב שהכיסוי חלקי: חלק מהתחומים כוללים חברות שאינן ב-CORE_COMPANIES ולעולם לא יקבלו ציון סנטימנט."
+    )
+    _heat_sent_cache = {
+        row[6]: value_chain_sentiment(row[6], _sent_season, _sentiment_data)
+        for row in results
+    }
+    def _heat_sent_key(row):
+        agg = _heat_sent_cache[row[6]]
+        return (agg is not None, agg["score"] if agg is not None else 0.0)
+    _display_results = sorted(results, key=_heat_sent_key, reverse=True)
+else:
+    _display_results = results
+
 with st.container(border=True):
     # כותרת עמודות
     h1, h2 = st.columns([9, 1.3])
     with h1:
+        _h_soxx_active = (_heat_sort == "📈 מרחק מ-SOXX")
+        _h_sent_active = (_heat_sort == "🧠 סנטימנט דוחות")
         st.markdown(
             "<div dir='rtl' style='display:flex; align-items:center; padding:4px 10px; "
             "font-size:12px; color:#9ca3af; font-weight:600;'>"
             "<span style='width:32px; text-align:right;'>#</span>"
-            "<span style='flex:1; text-align:right;'>תחום</span>"
-            "<span style='width:80px; text-align:center;'>חציון</span>"
-            "<span style='width:170px; text-align:center;'>מול המדד " + soxx_hdr + "</span>"
-            "<span style='width:90px; text-align:center;'>רוחב</span>"
-            "<span style='width:110px; text-align:center;'>סנטימנט הדוח האחרון</span>"
-            "</div>",
+            + col_header("תחום", flex=True)
+            + col_header("חציון", width="80px")
+            + col_header("מול המדד " + soxx_hdr, active=_h_soxx_active, width="170px")
+            + col_header("רוחב", width="90px")
+            + col_header("סנטימנט הדוח האחרון", active=_h_sent_active, width="110px")
+            + "</div>",
             unsafe_allow_html=True,
         )
     with h2:
         st.markdown("<div style='height:1px;'></div>", unsafe_allow_html=True)
 
     rank = 1
-    for median, average, up, down, total, breadth, sector, pairs in results:
+    for median, average, up, down, total, breadth, sector, pairs in _display_results:
         med_color = "#22c55e" if median >= 0 else "#ef4444"
         med_txt = ("+" if median >= 0 else "") + str(round(median, 1)) + "%"
         if soxx_change is not None:
@@ -2584,23 +2667,56 @@ def render_tech_detail(idx, sentiment_data=None, season=None, group_name=None):
                 def _fmt(v):
                     p = int(round(v * 100))
                     s = "+" if p >= 0 else ""
-                    c = "#22c55e" if v >= 0.15 else ("#ef4444" if v <= -0.15 else "#9ca3af")
+                    c = "#22c55e" if v >= SENTIMENT_POS else ("#ef4444" if v <= SENTIMENT_NEG else "#9ca3af")
                     return "<span style='color:" + c + "; font-weight:700;'>" + s + str(p) + "%</span>"
+                _sw = _ws_detail["sig_weight"]
+                _sw_pct = round(_sw * 100)
+                _cw_pct = 100 - _sw_pct
+                _sig_diluted = _ws_detail["sig_count"] < SIG_FULL_COUNT
+                _sig_cov = (
+                    str(_ws_detail["sig_count"]) + " מתוך " + str(SIG_FULL_COUNT) + " סיג׳"
+                    if _sig_diluted else
+                    str(_ws_detail["sig_count"]) + " סיג׳"
+                )
                 st.markdown(
                     "<div dir='rtl' style='background:rgba(255,255,255,0.04); border-radius:8px; "
                     "padding:8px 14px; margin:8px 0; font-size:13px; display:flex; gap:20px; flex-wrap:wrap;'>"
                     "<span>ציון משולב: " + _fmt(_ws_detail["score"]) + "</span>"
                     "<span style='color:#9ca3af;'>│</span>"
-                    "<span>סנטימנט חברות (70%): " + _fmt(_ws_detail["comp_score"]) +
+                    "<span>סנטימנט חברות (" + str(_cw_pct) + "%): " + _fmt(_ws_detail["comp_score"]) +
                     " <span style='color:#6b7280; font-size:11px;'>(" +
                     str(_ws_detail["comp_reported"]) + "/" + str(_ws_detail["comp_total"]) + " חב׳)</span></span>"
                     "<span style='color:#9ca3af;'>│</span>"
-                    "<span>סיגנלים (30%): " + _fmt(_ws_detail["sig_score"]) +
-                    " <span style='color:#6b7280; font-size:11px;'>(" +
-                    str(_ws_detail["sig_count"]) + " סיג׳)</span></span>"
+                    "<span>סיגנלים (" + str(_sw_pct) + "%): " + _fmt(_ws_detail["sig_score"]) +
+                    " <span style='color:#6b7280; font-size:11px;'>(" + _sig_cov + ")</span></span>"
                     "</div>",
                     unsafe_allow_html=True,
                 )
+                st.markdown(
+                    "<div dir='rtl' style='font-size:11px; color:#6b7280; line-height:1.6; "
+                    "text-align:right; padding:0 2px; margin-bottom:4px;'>"
+                    "💡 <b style='color:#9ca3af;'>ציון משולב</b> = שקלול שני מקורות. "
+                    "<b style='color:#9ca3af;'>סנטימנט חברות</b> = ממוצע משוקלל של ציוני הדוחות לפי חשיפה × שכבה "
+                    "(רק מי שכבר דיווחה נספרת). "
+                    "<b style='color:#9ca3af;'>סיגנלים</b> = ממוצע התייחסויות ההנהלה לתחום בשיחות ועידה "
+                    "(🟢 +1 / ⚪ 0 / 🔴 -1), כולל מחברות שאינן בתחום. "
+                    "משקל הסיגנלים עולה עם מספרם "
+                    "(10% לסיגנל אחד · 20% לשניים · 30% משלושה ומעלה) — ראיה בודדת לא מזיזה כמו קונצנזוס. "
+                    "טווחים: 🟢 מ-+25% · ⚪ ביניים · 🔴 מ--25%."
+                    "</div>",
+                    unsafe_allow_html=True,
+                )
+                if _ws_detail["comp_reported"] == 1:
+                    st.markdown(
+                        "<div dir='rtl' style='font-size:11px; color:#fbbf24; line-height:1.5; "
+                        "text-align:right; "
+                        "background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.25); "
+                        "border-radius:6px; padding:5px 10px; margin-bottom:6px;'>"
+                        "⚠️ חברה אחת בלבד דיווחה בתחום — הציון נשען על מקור יחיד ועשוי להשתנות "
+                        "משמעותית כשיצטרפו דוחות נוספים."
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
 
         # רבעון קלנדרי קודם בדיוק (לא "האחרון שדיווח") — YYYYQN
         _td_prev_q = int(season[5]) - 1
@@ -2747,43 +2863,61 @@ with st.spinner("מחשב את הפילוח הטכנולוגי..."):
         for group_name, group_def in axis_groups.items():
             idx = compute_tech_group_index(group_def, period)
             if idx is not None:
-                axis_results.append((idx["weighted_return"], group_name, idx))
+                ws = weighted_tech_score(group_name, group_def, _tech_sent_season, _tech_sent_data)
+                axis_results.append((idx["weighted_return"], group_name, idx, ws))
 
-        # דירוג מהתשואה המשוקללת הגבוהה לנמוכה
+        # דירוג מהתשואה המשוקללת הגבוהה לנמוכה (תמיד — הגרף נשמר לפי תשואה)
         axis_results.sort(key=lambda x: x[0], reverse=True)
 
         if len(axis_results) == 0:
             st.caption("אין נתונים זמינים לציר זה כרגע")
             continue
 
-        # גרף עמודות אופקי לתצוגה לציר: כל תחום לפי תשואתו המשוקללת.
-        # הגרף הוא תצוגה בלבד; האינטראקציה בשורות שמתחתיו.
-        axis_items = [(group_name, wret) for wret, group_name, idx in axis_results]
+        # גרף עמודות תמיד לפי תשואה
+        axis_items = [(group_name, wret) for wret, group_name, idx, ws in axis_results]
         axis_chart_key = "tech_bar_" + sector_key(axis_name) + "_" + period
         with st.container(border=True):
             ranking_bar_chart(axis_items, axis_chart_key)
         st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
 
+        _tech_sort = st.radio(
+            "מיין לפי:",
+            ["📈 תשואה משוקללת", "🧠 ציון משולב"],
+            horizontal=True,
+            key="tech_sort_mode_" + sector_key(axis_name),
+        )
+        if _tech_sort == "🧠 ציון משולב":
+            st.caption(
+                "ℹ️ תחומים ללא דוחות מנותחים מוצגים בתחתית (—). "
+                "שים לב שהכיסוי חלקי: חלק מהתחומים כוללים חברות שאינן ב-CORE_COMPANIES ולעולם לא יקבלו ציון סנטימנט."
+            )
+            axis_results.sort(
+                key=lambda x: (x[3] is not None, x[3]["score"] if x[3] is not None else 0.0),
+                reverse=True,
+            )
+
         # טבלת התחומים של הציר — במסגרת, עם כפתור "פתח" אפור קטן
         with st.container(border=True):
             th1, th2 = st.columns([9, 1.3])
             with th1:
+                _t_wret_active = (_tech_sort == "📈 תשואה משוקללת")
+                _t_ws_active = (_tech_sort == "🧠 ציון משולב")
                 st.markdown(
                     "<div dir='rtl' style='display:flex; align-items:center; padding:4px 10px; "
                     "font-size:12px; color:#9ca3af; font-weight:600;'>"
                     "<span style='width:32px; text-align:right;'>#</span>"
-                    "<span style='flex:1; text-align:right;'>תחום</span>"
-                    "<span style='width:90px; text-align:center;'>תשואה</span>"
-                    "<span style='width:190px; text-align:center;'>ליבה / מעטפת</span>"
-                    "<span style='width:140px; text-align:center;'>ציון משולב</span>"
-                    "</div>",
+                    + col_header("תחום", flex=True)
+                    + col_header("תשואה", active=_t_wret_active, width="90px")
+                    + col_header("ליבה / מעטפת", width="190px")
+                    + col_header("ציון משולב", active=_t_ws_active, width="140px")
+                    + "</div>",
                     unsafe_allow_html=True,
                 )
             with th2:
                 st.markdown("<div style='height:1px;'></div>", unsafe_allow_html=True)
 
             rankn = 1
-            for wret, group_name, idx in axis_results:
+            for wret, group_name, idx, _ws in axis_results:
                 n_core = len(idx["core"])
                 n_env = len(idx["env"])
                 core_weight_pct = str(round(idx["core_weight"] * 100)) + "%"
@@ -2793,7 +2927,6 @@ with st.spinner("מחשב את הפילוח הטכנולוגי..."):
                 is_open = st.session_state.get(open_key, False)
                 row_bg = "rgba(96,165,250,0.12)" if is_open else "transparent"
 
-                _ws = weighted_tech_score(group_name, axis_groups[group_name], _tech_sent_season, _tech_sent_data)
                 _tech_sent_span = weighted_score_html(_ws, wrapper="span")
 
                 row_col, btn_col = st.columns([9, 1.3])
@@ -3451,8 +3584,8 @@ for _week in _weeks:
                         _sc_f = float(_sc)
                         _sc_pct = int(round(_sc_f * 100))
                         _sc_sign = "+" if _sc_pct >= 0 else ""
-                        _sc_emoji = "🟢" if _sc_f >= 0.15 else ("🔴" if _sc_f <= -0.15 else "⚪")
-                        _sc_col = "#22c55e" if _sc_f >= 0.15 else ("#ef4444" if _sc_f <= -0.15 else "#9ca3af")
+                        _sc_emoji = "🟢" if _sc_f >= SENTIMENT_POS else ("🔴" if _sc_f <= SENTIMENT_NEG else "⚪")
+                        _sc_col = "#22c55e" if _sc_f >= SENTIMENT_POS else ("#ef4444" if _sc_f <= SENTIMENT_NEG else "#9ca3af")
                         _a_tip.append(
                             _sc_emoji + " סנטימנט: <b style='color:" + _sc_col + ";'>"
                             + _sc_sign + str(_sc_pct) + "%</b>"
@@ -3727,8 +3860,8 @@ for _il_i, _il_sym in enumerate(_il_display):
                 _il_score = float(_il_rec["sentiment_score"])
                 _il_pct = int(round(_il_score * 100))
                 _il_sign = "+" if _il_pct >= 0 else ""
-                _il_emoji = "🟢" if _il_score >= 0.15 else ("🔴" if _il_score <= -0.15 else "⚪")
-                _il_col_c = "#22c55e" if _il_score >= 0.15 else ("#ef4444" if _il_score <= -0.15 else "#9ca3af")
+                _il_emoji = "🟢" if _il_score >= SENTIMENT_POS else ("🔴" if _il_score <= SENTIMENT_NEG else "⚪")
+                _il_col_c = "#22c55e" if _il_score >= SENTIMENT_POS else ("#ef4444" if _il_score <= SENTIMENT_NEG else "#9ca3af")
                 st.markdown(
                     "<div dir='rtl' style='font-size:13px; margin:3px 0 10px;'>"
                     "🧠 <b>סנטימנט " + _il_season + ":</b> " + _il_emoji +
@@ -3751,11 +3884,12 @@ for _il_i, _il_sym in enumerate(_il_display):
                 _il_ctx_text, _il_ctx_syms = _build_il_ctx(_il_season_analyzed)
                 with st.spinner("מנתח השפעת הדוחות על " + _il_sym + "..."):
                     _il_txt, _il_srcs = gemini_israeli_impact(_il_sym, _il_season, _il_ctx_text)
-                st.session_state[_il_impact_key] = {
-                    "text": _il_txt, "sources": _il_srcs,
-                    "count": len(_il_ctx_syms), "companies": _il_ctx_syms,
-                }
-                st.rerun()
+                if _il_txt is not None:
+                    st.session_state[_il_impact_key] = {
+                        "text": _il_txt, "sources": _il_srcs,
+                        "count": len(_il_ctx_syms), "companies": _il_ctx_syms,
+                    }
+                    st.rerun()
 
             if _il_impact_res:
                 _il_saved_count = _il_impact_res.get("count", 0)
@@ -3791,11 +3925,12 @@ with st.expander("🔍 ניתוח השפעת עונת הדוחות — חברו�
         _ext_ctx_text, _ext_ctx_syms = _build_il_ctx(_il_season_analyzed)
         with st.spinner("מנתח השפעת הדוחות על " + _ext_chosen + "..."):
             _ext_txt, _ext_srcs = gemini_israeli_impact(_ext_chosen, _il_season, _ext_ctx_text)
-        st.session_state[_ext_impact_key] = {
-            "text": _ext_txt, "sources": _ext_srcs,
-            "count": len(_ext_ctx_syms), "companies": _ext_ctx_syms,
-        }
-        st.rerun()
+        if _ext_txt is not None:
+            st.session_state[_ext_impact_key] = {
+                "text": _ext_txt, "sources": _ext_srcs,
+                "count": len(_ext_ctx_syms), "companies": _ext_ctx_syms,
+            }
+            st.rerun()
 
     if _ext_impact_res:
         _ext_saved_count = _ext_impact_res.get("count", 0)
@@ -3833,8 +3968,9 @@ with st.expander("🎯 ניתוח השפעה ממוקדת — דוח של חבר
                 _foc_txt, _foc_srcs = gemini_focused_impact(
                     _foc_source, _foc_target, _il_season, _foc_record
                 )
-            st.session_state[_foc_key] = {"text": _foc_txt, "sources": _foc_srcs}
-            st.rerun()
+            if _foc_txt is not None:
+                st.session_state[_foc_key] = {"text": _foc_txt, "sources": _foc_srcs}
+                st.rerun()
         if _foc_res:
             st.markdown(
                 "<div dir='rtl' style='font-size:13px; color:#d1d5db; line-height:1.6; "
@@ -3855,9 +3991,10 @@ _z6_chosen = st.selectbox("בחרי חברה לניתוח הדוח:", CORE_COMPA
 
 _z6_default_season = latest_season_with_data(_z6_sent_data)
 if DEV_MODE:
-    # בחירה חופשית — כולל עונות שטרם נותחו; לשימוש מפתח בלבד
-    _now_z6 = datetime.now(timezone.utc)
-    _q, _y = (_now_z6.month - 1) // 3 + 1, _now_z6.year
+    # בחירה חופשית — כולל עונות שטרם נותחו; לשימוש מפתח בלבד.
+    # מתחיל מ-current_season() (שעצמה עוברת דרך season_from_date) ויורד 4 רבעונים אחורה.
+    _cur_s = current_season()
+    _q, _y = int(_cur_s[5]), int(_cur_s[:4])
     _season_opts: list[str] = []
     for _ in range(4):
         _season_opts.append(f"{_y}Q{_q}")
@@ -3899,8 +4036,8 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
     score = float(rec.get("sentiment_score") or 0)
     pct = int(round(score * 100))
     sign = "+" if pct >= 0 else ""
-    emoji = "🟢" if score >= 0.15 else ("🔴" if score <= -0.15 else "⚪")
-    col = "#22c55e" if score >= 0.15 else ("#ef4444" if score <= -0.15 else "#9ca3af")
+    emoji = "🟢" if score >= SENTIMENT_POS else ("🔴" if score <= SENTIMENT_NEG else "⚪")
+    col = "#22c55e" if score >= SENTIMENT_POS else ("#ef4444" if score <= SENTIMENT_NEG else "#9ca3af")
     res_map = {"beat": "🟢 הכה ציפיות", "meet": "⚪ עמד בציפיות", "miss": "🔴 פספס ציפיות"}
     guid_map = {"raised": "📈 הועלתה", "maintained": "➡️ נשמרה", "lowered": "📉 הורדה", "none": "—"}
     res_txt = res_map.get(rec.get("results_vs_expectations", ""), "—")
@@ -4103,13 +4240,9 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
                 if not _il_hits:
                     continue
                 _il_parts = [f"<b>{_il_sym}</b>"]
-                for _il_dom, _il_dir, _il_eff in _il_hits:
+                for _il_dom, _il_dir, _ in _il_hits:
                     _il_icon = _il_dir_map.get(_il_dir, "")
-                    _il_pct = int(round(_il_eff * 100))
-                    _il_parts.append(
-                        f"{_il_icon} {_il_dom} "
-                        f"<span style='color:#6b7280; font-size:11px;'>({_il_pct}%)</span>"
-                    )
+                    _il_parts.append(f"{_il_icon} {_il_dom}")
                 _il_rows_html.append(" · ".join(_il_parts))
             if _il_rows_html:
                 st.markdown(
@@ -4253,8 +4386,8 @@ with st.container(border=True):
                 sc = float(score)
                 pct = int(round(sc * 100))
                 sign = "+" if pct >= 0 else ""
-                col = "#22c55e" if sc >= 0.15 else ("#ef4444" if sc <= -0.15 else "#9ca3af")
-                emoji = "🟢" if sc >= 0.15 else ("🔴" if sc <= -0.15 else "⚪")
+                col = "#22c55e" if sc >= SENTIMENT_POS else ("#ef4444" if sc <= SENTIMENT_NEG else "#9ca3af")
+                emoji = "🟢" if sc >= SENTIMENT_POS else ("🔴" if sc <= SENTIMENT_NEG else "⚪")
                 return f"{emoji} <span style='color:{col}; font-weight:700;'>{sign}{pct}%</span>"
 
             _rev_hdr_txt = f"הכנסות ({_hist_ccy}, B)" if _h_has_rev else ""
