@@ -124,17 +124,72 @@ div[data-testid="stButton"] button[kind="tertiary"] p {
 
 # ---------- שרשרת הערך ----------
 value_chain = {
-    "0. Raw Materials & Wafers (חומרי גלם ופרוסות סיליקון)": ["SHECY", "SUOPY"],
-    "1. EDA & IP (תוכנות תכנון וקניין רוחני)": ["SNPS", "CDNS", "ARM"],
-    "2. Fabless - Compute & AI (מעבדים ומאיצי בינה מלאכותית)": ["NVDA", "AMD", "AAPL", "QCOM", "MRVL"],
-    "3. Fabless - Networking (תקשורת, סיבים וקישוריות)": ["AVGO", "ANET", "COHR", "LITE"],
-    "4. IDM - Logic, Analog & Power (יצרנים משולבים)": ["INTC", "TXN", "ADI", "NXPI", "STM", "ON", "IFNNY", "RNECY", "MCHP"],
-    "5. Memory & Storage (זיכרון ואחסון)": ["MU", "WDC", "STX", "005930.KS", "000660.KS"],
-    "6. WFE - Front-End Equipment (ציוד ייצור מרכזי)": ["ASML", "AMAT", "LRCX", "TOELY", "ASMIY"],
-    "7. Process Control & Metrology (בקרת תהליכים ומדידות)": ["KLAC", "ONTO", "NVMI", "CAMT"],
-    "8. Foundries (קבלני ייצור)": ["TSM", "GFS", "UMC", "TSEM", "005930.KS"],
-    "9. Back-End - OSAT, Advanced Packaging & Testing (הרכבה, מארזים ובדיקות)": ["AMKR", "TER", "ATEYY", "BESIY", "AEIS"],
-    "10. AI Physical Infra & Cooling (תשתיות AI וקירור)": ["SMCI", "DELL", "HPE", "VRT", "ETN"],
+    "0. חומרי גלם וּווייפרים (Raw Materials)": ["SHECY", "SUOPY", "ENTG"],
+    "1. תכנון ו-IP (EDA & IP)": ["SNPS", "CDNS", "ARM"],
+    "2. מעבדים ו-AI — Fabless (Compute & AI)": ["NVDA", "AMD", "AAPL", "QCOM", "MRVL", "MBLY"],
+    "3. תקשורת ואופטיקה — Fabless (Networking & Optics)": ["AVGO", "COHR", "LITE"],
+    "4. יצרנים משולבים (IDM)": ["INTC", "TXN", "ADI", "NXPI", "STM", "ON", "IFNNY", "RNECY", "MCHP"],
+    "5. זיכרון ואחסון (Memory & Storage)": ["MU", "WDC", "SNDK", "STX", "005930.KS", "000660.KS"],
+    "6. ציוד ייצור (Wafer Fab Equipment)": ["ASML", "AMAT", "LRCX", "TOELY", "ASMIY"],
+    "7. בקרת תהליכים ומדידה (Process Control)": ["KLAC", "ONTO", "NVMI", "CAMT"],
+    "8. קבלני ייצור (Foundries)": ["TSM", "GFS", "UMC", "TSEM", "005930.KS"],
+    "9. הרכבה, אריזה ובדיקות (Back-End / OSAT)": ["AMKR", "TER", "ATEYY", "BESIY", "AEIS"],
+    "10. תשתיות AI וקירור (AI Infrastructure)": ["SMCI", "DELL", "HPE", "VRT", "ETN", "ANET"],
+}
+
+ISRAELI_TICKERS = {"TSEM", "NVMI", "CAMT", "MBLY"}
+
+CHAIN_LOGO_DOMAINS = {
+    "NVDA": "nvidia.com", "AMD": "amd.com", "AAPL": "apple.com",
+    "QCOM": "qualcomm.com", "MRVL": "marvell.com", "MBLY": "mobileye.com",
+    "AVGO": "broadcom.com", "COHR": "coherent.com", "LITE": "lumentum.com",
+    "ANET": "arista.com",
+    "INTC": "intel.com", "TXN": "ti.com", "ADI": "analog.com",
+    "NXPI": "nxp.com", "STM": "st.com", "ON": "onsemi.com",
+    "IFNNY": "infineon.com", "RNECY": "renesas.com", "MCHP": "microchip.com",
+    "MU": "micron.com", "WDC": "westerndigital.com", "SNDK": "sandisk.com",
+    "STX": "seagate.com",
+    "005930.KS": "samsung.com", "000660.KS": "skhynix.com",
+    "ASML": "asml.com", "AMAT": "appliedmaterials.com", "LRCX": "lamresearch.com",
+    "TOELY": "tel.com", "ASMIY": "asm.com",
+    "KLAC": "kla.com", "ONTO": "ontoinnovation.com",
+    "NVMI": "novami.com", "CAMT": "camtek.com",
+    "TSM": "tsmc.com", "GFS": "gf.com", "UMC": "umc.com", "TSEM": "towersemi.com",
+    "AMKR": "amkor.com", "TER": "teradyne.com",
+    "ATEYY": "advantest.com", "BESIY": "besi.com", "AEIS": "aei.com",
+    "SMCI": "supermicro.com", "DELL": "dell.com", "HPE": "hpe.com",
+    "VRT": "vertiv.com", "ETN": "eaton.com",
+    "SNPS": "synopsys.com", "CDNS": "cadence.com", "ARM": "arm.com",
+    "SHECY": "shinetsu.co.jp", "SUOPY": "sumcosi.com", "ENTG": "entegris.com",
+}
+
+CHAIN_STAGE_COLORS = {
+    "design":     "#a78bfa",  # תכנון — סגול
+    "materials":  "#38bdf8",  # תשומות ייצור — כחול בהיר
+    "mfg":        "#f472b6",  # ייצור — ורוד
+    "downstream": "#facc15",  # מורד הזרם — צהוב
+}
+
+# CHAIN_LAYOUT defines the 3-row visual layout
+# Each entry: (chain_key_prefix, stage, short_subtitle)
+CHAIN_LAYOUT = {
+    "row_top": [
+        ("1", "design",    "כלי EDA, IP-blocks, ארכיטקטורות"),
+        ("6", "materials", "מכונות פוטוליתוגרפיה, אצ'ינג, הפקדה"),
+        ("7", "materials", "מדידה, יישור ובקרת תהליכים"),
+        ("0", "materials", "ווייפרים, גזים, נוזלי עיבוד"),
+    ],
+    "row_mid": [
+        ("2", "design", "מעצבות ללא מפעל — מעבדים ומאיצי AI"),
+        ("3", "design", "מעצבות ללא מפעל — תקשורת ואופטיקה"),
+        ("8", "mfg",    "קבלני ייצור — הופכים עיצוב לשבב"),
+        ("9", "mfg",    "אריזה, חיבורים ובדיקות אחרי ייצור"),
+    ],
+    "row_bot": [
+        ("4", "mfg",        "מתכנן ומייצר בעצמו — לוגיקה, אנלוגי, עוצמה"),
+        ("5", "downstream", "זיכרון DRAM, NAND ואחסון"),
+        ("10", "downstream", "שרתים, מדפי מחשוב, קירור נוזלי"),
+    ],
 }
 
 BENCHMARK = "SOXX"
@@ -1349,7 +1404,7 @@ def build_chart(stocks, period, intraday=False, skip_current_day=True):
     series_list = []
     for symbol in stocks:
         if intraday:
-            close, _ = _get_intraday_session(symbol, skip_current_day)
+            close, _prev = get_last_session_intraday(symbol, skip_current_day)
         else:
             close = get_history(symbol, period)
         if close is None:
@@ -1381,7 +1436,7 @@ def build_spread_chart(stocks, period, intraday=False, skip_current_day=True):
     if chart_data.empty:
         return None
     if intraday:
-        soxx_close, _ = _get_intraday_session(BENCHMARK, skip_current_day)
+        soxx_close, _ = get_last_session_intraday(BENCHMARK, skip_current_day)
     else:
         soxx_close = get_history(BENCHMARK, period)
     if soxx_close is None:
@@ -1463,15 +1518,15 @@ def ranking_bar_chart(items, chart_key, soxx_marker=None, debug=False):
     debug = אם True, מדפיס את מבנה אירוע הבחירה (לאבחון קליק).
     לחיצה על עמודה מחזירה את ה-label שלה (או None אם לא נלחץ כלום).
 
-    RTL: לא הופכים את ציר ה-X (שובר on_select). העמודות יוצאות שמאלה
-    מקו האפס הימני, ושמות התחומים בצד ימין. האורך = שורש הערך המוחלט.
+    RTL: לא הופכים את ציר ה-X (שובר on_select). עמודות חיוביות יוצאות
+    ימינה, שליליות שמאלה — קו אפס באמצע. שמות בצד ימין עם automargin.
     """
     if not items:
         return None
 
     def transform(v):
-        # אותה טרנספורמציה כמו העמודות: שורש עם שמירת כיוון-שמאל
-        return -math.sqrt(abs(v))
+        # שורש מוחלט לדחיסה ויזואלית, עם שמירת הסימן המקורי
+        return math.copysign(math.sqrt(abs(v)), v)
 
     labels = [lbl for lbl, val in items]
     values = [val for lbl, val in items]
@@ -1494,15 +1549,21 @@ def ranking_bar_chart(items, chart_key, soxx_marker=None, debug=False):
         hoverinfo="skip", hovertemplate=None,
         cliponaxis=False,
     ))
-    # קו אפס בצד ימין (x=0)
-    fig.add_vline(x=0, line_width=1.5, line_color="rgba(255,255,255,0.30)")
+    # קו אפס — מפריד אמיתי בין אזור חיובי לשלילי
+    fig.add_vline(x=0, line_width=2, line_color="rgba(255,255,255,0.45)")
 
-    max_w = max((abs(w) for w in widths_r), default=1.0)
+    # ריפוד נפרד לכל צד לפי הקצה האמיתי שלו —
+    # מונע ריק מוגזם כשצד חיובי קצר בהרבה מהשלילי (או להיפך)
+    max_pos = max((w for w in widths_r if w > 0), default=0.0)
+    max_neg = max((-w for w in widths_r if w < 0), default=0.0)
 
     # קו SOXX בולט: כתום עבה ומקווקו במיקום תשואת המדד, עם תווית מודגשת בתיבה
     if soxx_marker is not None:
         soxx_x = transform(soxx_marker)
-        max_w = max(max_w, abs(soxx_x))
+        if soxx_x >= 0:
+            max_pos = max(max_pos, soxx_x)
+        else:
+            max_neg = max(max_neg, -soxx_x)
         fig.add_vline(
             x=soxx_x, line_width=4, line_color="#f59e0b", line_dash="dash",
         )
@@ -1514,7 +1575,8 @@ def ranking_bar_chart(items, chart_key, soxx_marker=None, debug=False):
             xanchor="center", yshift=6,
         )
 
-    pad = max_w * 0.28
+    left_pad = max(max_neg, 0.5) * 0.38
+    right_pad = max(max_pos, 0.5) * 0.35
     row_h = 40
     top_margin = 34 if soxx_marker is not None else 8
     chart_h = max(len(labels) * row_h + 30 + top_margin, 120)
@@ -1525,7 +1587,7 @@ def ranking_bar_chart(items, chart_key, soxx_marker=None, debug=False):
         showlegend=False, bargap=0.42,
         hovermode=False,
         xaxis=dict(visible=False, showgrid=False, zeroline=False,
-                   range=[-max_w - pad, pad]),
+                   range=[-(max_neg + left_pad), max_pos + right_pad]),
         yaxis=dict(showgrid=False, side="right", automargin=True,
                    tickfont=dict(size=13, color="#d1d5db")),
     )
@@ -1597,6 +1659,271 @@ def section_banner(number, total, icon, title, color, subtitle="", period_depend
         + "</div>",
         unsafe_allow_html=True,
     )
+
+
+@st.cache_data(ttl=604800, show_spinner=False)
+def fetch_logo_b64(domain):
+    """מושך favicon דרך Google faviconV2 ומחזיר base64, או None בכישלון."""
+    import base64, urllib.request
+    url = (
+        "https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON"
+        "&fallback_opts=TYPE,SIZE,URL&url=https://" + domain + "&size=64"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        data = urllib.request.urlopen(req, timeout=4).read()
+        if not data or len(data) < 80:
+            return None
+        return base64.b64encode(data).decode()
+    except Exception:
+        return None
+
+
+@st.cache_data(ttl=604800, show_spinner=False)
+def warm_all_logos(domains_tuple):
+    """מחמם את כל הלוגואים במקביל; תוצאה ממוטמנת שבוע."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=12) as ex:
+        results = list(ex.map(fetch_logo_b64, domains_tuple))
+    return dict(zip(domains_tuple, results))
+
+
+def chain_logo_html(ticker, logo_cache):
+    """מחזיר <img> עם data-URI base64 או מונוגרמה — ללא JS, ללא בקשות חיצוניות."""
+    domain = CHAIN_LOGO_DOMAINS.get(ticker)
+    b64 = logo_cache.get(domain) if domain else None
+    if b64:
+        return (
+            "<img src='data:image/png;base64," + b64 + "'"
+            " style='width:18px;height:18px;border-radius:50%;"
+            "object-fit:contain;background:#fff;flex:none;' alt=''/>"
+        )
+    letter = ticker[0] if ticker and ticker[0].isalpha() else "?"
+    return (
+        "<span style='display:inline-flex;width:18px;height:18px;"
+        "border-radius:50%;background:#374151;color:#e5e7eb;"
+        "align-items:center;justify-content:center;font-size:11px;"
+        "font-weight:700;flex:none;'>" + letter + "</span>"
+    )
+
+
+def render_chain_map(period):
+    """מפת שרשרת הערך — 3 שורות + פסי חיבור, ביצועים חיים."""
+    # --- טען לוגואים (ממוטמן שבוע, מקבילי בטעינה ראשונה) ---
+    _logo_cache = warm_all_logos(tuple(sorted(set(CHAIN_LOGO_DOMAINS.values()))))
+
+    # --- חשב ביצועים לכל תחום ---
+    perf = {}  # prefix -> median change (float or None)
+    for key, tickers in value_chain.items():
+        prefix = key.split(".")[0]
+        pairs = get_changes(tickers, period)
+        if pairs:
+            perf[prefix] = statistics.median(v for _, v in pairs)
+        else:
+            perf[prefix] = None
+
+    # max abs for proportional intensity
+    vals = [abs(v) for v in perf.values() if v is not None]
+    max_abs = max(vals) if vals else 1.0
+
+    def perf_tag(prefix):
+        v = perf.get(prefix)
+        if v is None:
+            return "<span style='font-size:11px; color:#6b7280; background:rgba(107,114,128,0.15); padding:1px 7px; border-radius:12px;'>—</span>"
+        pct = round(v, 1)
+        color = "#22c55e" if v >= 0 else "#ef4444"
+        bg = "rgba(34,197,94,0.15)" if v >= 0 else "rgba(239,68,68,0.15)"
+        sign = "+" if v > 0 else ""
+        return (
+            "<span style='font-size:11px; color:" + color + "; background:" + bg +
+            "; padding:1px 7px; border-radius:12px; font-weight:700;'>"
+            + sign + str(pct) + "%</span>"
+        )
+
+    def border_color(prefix):
+        v = perf.get(prefix)
+        if v is None:
+            return "rgba(255,255,255,0.06)"
+        intensity = min(abs(v) / max_abs, 1.0)
+        if v >= 0:
+            r, g, b = 34, 197, 94
+            alpha = 0.35 + intensity * 0.55
+        else:
+            r, g, b = 239, 68, 68
+            alpha = 0.38 + intensity * 0.52
+        return "rgba({},{},{},{:.2f})".format(r, g, b, alpha)
+
+    def card(prefix, stage, subtitle, extra_style=""):
+        key = next((k for k in value_chain if k.startswith(prefix + ".")), None)
+        if key is None:
+            return ""
+        name = clean_name(key)
+        stage_color = CHAIN_STAGE_COLORS.get(stage, "#6b7280")
+        tickers = value_chain[key]
+        bc = border_color(prefix)
+        pills = ""
+        for t in tickers:
+            logo = chain_logo_html(t, _logo_cache)
+            il_tag = ""
+            if t in ISRAELI_TICKERS:
+                il_tag = "<span style='font-size:8px; background:#1d4ed8; color:#bfdbfe; padding:1px 4px; border-radius:4px; margin-right:2px; font-weight:700;'>IL</span>"
+            pills += (
+                "<span style='display:inline-flex; align-items:center; gap:3px;"
+                " background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10);"
+                " border-radius:20px; padding:2px 7px 2px 4px; font-size:11px; color:#d1d5db;'>"
+                + logo + "&nbsp;" + il_tag + t + "</span>"
+            )
+        return (
+            "<div style='background:#141824; border:1px solid " + bc + ";"
+            " border-top:3px solid " + stage_color + "; border-radius:12px;"
+            " padding:12px 14px; " + extra_style + "'>"
+            "<div style='display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap;'>"
+            "<span style='font-size:13px; font-weight:700; color:#f3f4f6;'>" + name + "</span>"
+            + perf_tag(prefix) +
+            "</div>"
+            "<div style='font-size:11px; color:#6b7280; margin-bottom:8px;'>" + subtitle + "</div>"
+            "<div style='display:flex; flex-wrap:wrap; gap:4px;'>" + pills + "</div>"
+            "</div>"
+        )
+
+    def connector_v(label):
+        return (
+            "<div style='display:flex; flex-direction:column; align-items:center;"
+            " justify-content:center; color:#4b5563; font-size:11px; padding:4px 0; gap:2px;'>"
+            "<span style='border-right:2px dashed #374151; height:20px; width:0;'></span>"
+            "<span style='font-size:14px;'>▼</span>"
+            "<span style='text-align:center;'>" + label + "</span>"
+            "</div>"
+        )
+
+    def connector_h(label):
+        return (
+            "<div style='display:flex; flex-direction:column; align-items:center;"
+            " justify-content:center; color:#4b5563; font-size:10px; padding:0 2px; min-width:40px;'>"
+            "<span style='border-bottom:2px dashed #374151; width:100%; margin-bottom:4px;'></span>"
+            "<span style='font-size:13px;'>◀</span>"
+            "<span style='white-space:nowrap;'>" + label + "</span>"
+            "</div>"
+        )
+
+    # --- legend ---
+    legend = (
+        "<div dir='rtl' style='display:flex; flex-wrap:wrap; gap:12px; align-items:center;"
+        " font-size:11px; color:#9ca3af; margin-bottom:14px; padding:8px 12px;"
+        " background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.07);'>"
+        "<span style='font-weight:700; color:#d1d5db;'>מקרא:</span>"
+        + "".join(
+            "<span style='display:inline-flex; align-items:center; gap:5px;'>"
+            "<span style='width:12px; height:3px; background:" + CHAIN_STAGE_COLORS[s] + "; border-radius:2px; display:inline-block;'></span>"
+            + lbl + "</span>"
+            for s, lbl in [("design", "תכנון"), ("materials", "תשומות ייצור"), ("mfg", "ייצור"), ("downstream", "מורד הזרם")]
+        )
+        + "<span style='margin-right:8px;'>|</span>"
+        "<span style='display:inline-flex; align-items:center; gap:4px;'>"
+        "<span style='background:#1d4ed8; color:#bfdbfe; font-size:8px; padding:1px 4px; border-radius:4px; font-weight:700;'>IL</span>"
+        "חברה ישראלית</span>"
+        "<span>| מסגרת ירוקה = ביצועי יתר · אדומה = ביצועי חסר (עוצמה פרופורציונלית)</span>"
+        "</div>"
+    )
+
+    # --- row top ---
+    row_top = (
+        "<div style='display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:0;'>"
+        + card("1", "design",    "כלי EDA, IP-blocks, ארכיטקטורות")
+        + card("6", "materials", "מכונות פוטוליתוגרפיה, אצ'ינג, הפקדה")
+        + card("7", "materials", "מדידה, יישור ובקרת תהליכים")
+        + card("0", "materials", "ווייפרים, גזים, נוזלי עיבוד")
+        + "</div>"
+    )
+
+    # --- connector band 1 ---
+    conn1 = (
+        "<div style='display:grid; grid-template-columns:1fr 3fr; gap:10px; margin:8px 0;'>"
+        + connector_v("כלי תכנון ורישיונות IP למעצבות")
+        + connector_v("מכונות ייצור, מדידה ייעודית, ווייפרים גולמיים — אל קווי הייצור")
+        + "</div>"
+    )
+
+    # --- row middle (fabless×2, foundry, osat) ---
+    # card for both fabless sub-groups side-by-side inside one wide cell
+    fab2_card = (
+        "<div style='background:#141824; border:1px solid " + border_color("2") + ";"
+        " border-top:3px solid " + CHAIN_STAGE_COLORS["design"] + "; border-radius:12px;"
+        " padding:12px 14px;'>"
+        "<div style='font-size:12px; font-weight:700; color:#9ca3af; margin-bottom:8px;'>מעצבות Fabless</div>"
+        "<div style='display:grid; grid-template-columns:1fr 1fr; gap:8px;'>"
+    )
+    for pfx in ["2", "3"]:
+        key = next((k for k in value_chain if k.startswith(pfx + ".")), None)
+        if key:
+            name = clean_name(key)
+            stage_color = CHAIN_STAGE_COLORS["design"]
+            bc = border_color(pfx)
+            tickers = value_chain[key]
+            pills = ""
+            for t in tickers:
+                logo = chain_logo_html(t, _logo_cache)
+                il_tag = ""
+                if t in ISRAELI_TICKERS:
+                    il_tag = "<span style='font-size:8px; background:#1d4ed8; color:#bfdbfe; padding:1px 4px; border-radius:4px; margin-right:2px; font-weight:700;'>IL</span>"
+                pills += (
+                    "<span style='display:inline-flex; align-items:center; gap:3px;"
+                    " background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10);"
+                    " border-radius:20px; padding:2px 7px 2px 4px; font-size:11px; color:#d1d5db;'>"
+                    + logo + "&nbsp;" + il_tag + t + "</span>"
+                )
+            sub = "מעבדים ומאיצי AI" if pfx == "2" else "תקשורת ואופטיקה"
+            fab2_card += (
+                "<div style='background:rgba(255,255,255,0.03); border:1px solid " + bc + ";"
+                " border-right:3px solid " + stage_color + "; border-radius:8px; padding:8px 10px;'>"
+                "<div style='display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;'>"
+                "<span style='font-size:12px; font-weight:700; color:#f3f4f6;'>" + name + "</span>"
+                + perf_tag(pfx) +
+                "</div>"
+                "<div style='font-size:10px; color:#6b7280; margin-bottom:6px;'>" + sub + "</div>"
+                "<div style='display:flex; flex-wrap:wrap; gap:3px;'>" + pills + "</div>"
+                "</div>"
+            )
+    fab2_card += "</div></div>"
+
+    row_mid = (
+        "<div style='display:grid; grid-template-columns:2.05fr 56px 1.1fr 56px 1.25fr; gap:6px; align-items:center; margin-bottom:0;'>"
+        + fab2_card
+        + connector_h("tape-out")
+        + card("8", "mfg", "קבלני ייצור — הופכים עיצוב לשבב")
+        + connector_h("ווייפרים גמורים")
+        + card("9", "mfg", "אריזה, חיבורים ובדיקות אחרי ייצור")
+        + "</div>"
+    )
+
+    # --- connector band 2 ---
+    conn2 = (
+        "<div style='display:grid; grid-template-columns:2fr 1fr; gap:10px; margin:8px 0;'>"
+        + connector_v("IDM וזיכרון מתכננות ומייצרות בעצמן — קונות EDA, ציוד וחומרים ישירות מהשורה העליונה")
+        + connector_v("שבבים ארוזים אל השרתים")
+        + "</div>"
+    )
+
+    # --- row bottom ---
+    row_bot = (
+        "<div style='display:grid; grid-template-columns:1.3fr 0.85fr 0.85fr; gap:10px;'>"
+        + card("4", "mfg",        "מתכנן ומייצר בעצמו — לוגיקה, אנלוגי, עוצמה")
+        + card("5", "downstream", "זיכרון DRAM, NAND ואחסון")
+        + card("10", "downstream", "שרתים, מדפי מחשוב, קירור נוזלי")
+        + "</div>"
+    )
+
+    full_html = (
+        "<div dir='rtl' style='text-align:right; margin-bottom:24px;'>"
+        + legend
+        + row_top
+        + conn1
+        + row_mid
+        + conn2
+        + row_bot
+        + "</div>"
+    )
+    st.markdown(full_html, unsafe_allow_html=True)
 
 
 def section_header(title, accent):
@@ -1683,7 +2010,7 @@ def returns_table_html(pairs, descending=True, sentiment_data=None, season=None,
         if is_outlier:
             rel = outlier_map[symbol]
             rel_col = "#22c55e" if rel >= 0 else "#ef4444"
-            rel_label = ("מכה " if rel >= 0 else "מפגר ") + str(round(abs(rel), 1)) + " נק'"
+            rel_label = ("ביצועי יתר " if rel >= 0 else "ביצועי חסר ") + str(round(abs(rel), 1)) + " נק'"
             sym_html = (
                 "🎯 " + symbol +
                 " <span style='font-size:11px; color:" + rel_col + ";'>" + rel_label + "</span>"
@@ -1946,11 +2273,12 @@ st.sidebar.markdown(
     "📑 ניווט מהיר</div>"
     "<div style='display:flex; flex-direction:column; gap:4px;'>"
     "<a href='#zone-1' style='color:#f59e0b; text-decoration:none; font-size:13px;'>🏆 SOXX — מדד השבבים</a>"
-    "<a href='#zone-2' style='color:#3b82f6; text-decoration:none; font-size:13px;'>🗺️ מפת חום — שרשרת הערך</a>"
-    "<a href='#zone-3' style='color:#22c55e; text-decoration:none; font-size:13px;'>🔍 צלילה לתחום</a>"
-    "<a href='#zone-4' style='color:#a78bfa; text-decoration:none; font-size:13px;'>🧬 פילוח טכנולוגי</a>"
-    "<a href='#zone-5' style='color:#22d3ee; text-decoration:none; font-size:13px;'>🏗️ CapEx — ענקיות הענן</a>"
-    "<a href='#zone-6' style='color:#f59e0b; text-decoration:none; font-size:13px;'>📋 דוחות — עונת הדוחות</a>"
+    "<a href='#zone-2' style='color:#8b5cf6; text-decoration:none; font-size:13px;'>🗺️ מפת שרשרת הערך</a>"
+    "<a href='#zone-3' style='color:#3b82f6; text-decoration:none; font-size:13px;'>🗺️ מפת חום — דירוג שרשרת הערך</a>"
+    "<a href='#zone-4' style='color:#22c55e; text-decoration:none; font-size:13px;'>🔍 צלילה לתחום</a>"
+    "<a href='#zone-5' style='color:#a78bfa; text-decoration:none; font-size:13px;'>🧬 פילוח טכנולוגי</a>"
+    "<a href='#zone-6' style='color:#22d3ee; text-decoration:none; font-size:13px;'>🏗️ CapEx — ענקיות הענן</a>"
+    "<a href='#zone-7' style='color:#f59e0b; text-decoration:none; font-size:13px;'>📋 דוחות — עונת הדוחות</a>"
     "</div></div>",
     unsafe_allow_html=True,
 )
@@ -1958,12 +2286,12 @@ st.sidebar.divider()
 
 period_label = st.sidebar.selectbox("Period:", list(PERIOD_OPTIONS.keys()), index=3)
 period = PERIOD_OPTIONS[period_label]
-st.sidebar.caption("משפיע על אזורים 1–4 בלבד")
+st.sidebar.caption("משפיע על אזורים 1–5 בלבד")
 
 # ======================================================
-# אזור SOXX
+# אזור 1 — SOXX
 # ======================================================
-section_banner(1, 6, "🏆", "מדד סקטור השבבים — SOXX", "#f59e0b",
+section_banner(1, 7, "🏆", "מדד סקטור השבבים — SOXX", "#f59e0b",
                subtitle="התנהגות המדד הכללי, עם התראות AI על תנועות חריגות",
                period_dependent=True, period_label=period_label)
 soxx_close = get_history(BENCHMARK, period)
@@ -2171,7 +2499,7 @@ def render_domain_detail(sector, pairs, period):
                                       skip_current_day=(period == "lastclose"))
     if spread_chart is not None:
         st.altair_chart(spread_chart, use_container_width=True)
-        st.caption("🟢 מעל הקו = התחום מכה את SOXX · 🔴 מתחת = מפגר · הנקודה האחרונה = הפער הנוכחי")
+        st.caption("🟢 מעל הקו = ביצועי יתר מול SOXX · 🔴 מתחת = ביצועי חסר · בתקופות יומיות הגרף נמדד מסגירת היום הקודם — כולל פער הפתיחה · הנקודה האחרונה תואמת את המספר בכותרת")
     else:
         st.caption("אין מספיק נתונים לגרף המגמה")
 
@@ -2278,10 +2606,24 @@ st.markdown(
     "position:relative;'></div>",
     unsafe_allow_html=True,
 )
-section_banner(2, 6, "🗺️", "מפת חום — דירוג שרשרת הערך", "#3b82f6",
+
+# ======================================================
+# אזור 2 — מפת שרשרת הערך
+# ======================================================
+section_banner(2, 7, "🗺️", "מפת שרשרת הערך", "#8b5cf6",
+               subtitle="מי יושב איפה בשרשרת, מה זורם בין השלבים, ומי חם עכשיו",
+               period_dependent=True, period_label=period_label)
+render_chain_map(period)
+
+st.markdown(
+    "<div style='margin:48px 0 32px; border-top:2px solid rgba(255,255,255,0.10); "
+    "position:relative;'></div>",
+    unsafe_allow_html=True,
+)
+section_banner(3, 7, "🗺️", "מפת חום — דירוג שרשרת הערך", "#3b82f6",
                subtitle="11 חוליות שרשרת הערך, מדורגות לפי המרחק מ-SOXX",
                period_dependent=True, period_label=period_label)
-st.caption("מדורג לפי המרחק מ-SOXX — מי מכה את המדד הכי הרבה. הגרף מציג את התמונה; לחצי על שורה בטבלה למטה כדי לפתוח פרטים.")
+st.caption("מדורג לפי המרחק מ-SOXX — מי בביצועי יתר הגבוהים ביותר מול המדד. הגרף מציג את התמונה; לחצי על שורה בטבלה למטה כדי לפתוח פרטים.")
 
 # גרף עמודות אופקי לתצוגה: כל תחום לפי החציון שלו, ממוין מהגבוה לנמוך,
 # עם קו SOXX בולט. הגרף הוא תצוגה בלבד; האינטראקציה בטבלה שמתחתיו.
@@ -2359,10 +2701,10 @@ with st.container(border=True):
             rel = median - soxx_change
             if rel >= 0:
                 vs_color = "#22c55e"
-                vs_txt = "▲ מכה ב-" + str(round(rel, 1)) + " נק'"
+                vs_txt = "▲ ביצועי יתר ב-" + str(round(rel, 1)) + " נק'"
             else:
                 vs_color = "#ef4444"
-                vs_txt = "▼ מפגר ב-" + str(round(abs(rel), 1)) + " נק'"
+                vs_txt = "▼ ביצועי חסר ב-" + str(round(abs(rel), 1)) + " נק'"
         else:
             vs_color = "#9ca3af"
             vs_txt = "—"
@@ -2409,7 +2751,7 @@ st.markdown(
     "position:relative;'></div>",
     unsafe_allow_html=True,
 )
-section_banner(3, 6, "🔍", "צלילה לתחום — השוואת מניות", "#22c55e",
+section_banner(4, 7, "🔍", "צלילה לתחום — השוואת מניות", "#22c55e",
                subtitle="בחרי תחום כדי להשוות בין המניות שבו, מול חציון התחום ומול SOXX",
                period_dependent=True, period_label=period_label)
 
@@ -2434,12 +2776,12 @@ else:
     _z3_tab_perf, _z3_tab_sent = st.tabs(["📈 ביצועי מניות", "🧠 סנטימנט התחום"])
 
     with _z3_tab_perf:
-        st.caption("ביצועי המניות מול חציון התחום ומול מדד SOXX — הכל מנורמל ל-100 בתחילת התקופה. לחצי על מניה במקרא כדי להסתיר/להציג אותה.")
+        st.caption("ביצועי המניות מול חציון התחום ומול מדד SOXX — מנורמל ל-100 — בתקופות יומיות מול סגירת היום הקודם, בשאר התקופות מנקודת הפתיחה של התקופה. לחצי על מניה במקרא כדי להסתיר/להציג אותה.")
 
         date_index = chart_data.index
         median_series = chart_data.median(axis=1)
         if _z3_intraday:
-            soxx_close2, _ = _get_intraday_session(BENCHMARK, _z3_skip)
+            soxx_close2, _ = get_last_session_intraday(BENCHMARK, _z3_skip)
         else:
             soxx_close2 = get_history(BENCHMARK, period)
 
@@ -2475,6 +2817,18 @@ else:
                           "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
         ))
 
+        soxx_holdings_chart = build_chart(SOXX_HOLDINGS, period, intraday=_z3_intraday, skip_current_day=_z3_skip)
+        if not soxx_holdings_chart.empty:
+            soxx_median_series = soxx_holdings_chart.median(axis=1)
+            soxx_median_ret = soxx_median_series - 100
+            fig.add_trace(go.Scatter(
+                x=soxx_median_series.index, y=soxx_median_series, name="חציון SOXX", mode="lines",
+                line=dict(color="#ef4444", width=4, dash="dot"),
+                customdata=ret_html(soxx_median_ret),
+                hovertemplate="<b>חציון SOXX</b><br>%{x|" + _z3_xfmt + "}<br>"
+                              "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
+            ))
+
         if soxx_close2 is not None:
             soxx_norm2 = soxx_close2 / soxx_close2.iloc[0] * 100
             soxx_ret = soxx_norm2 - 100
@@ -2482,6 +2836,7 @@ else:
                 x=soxx_norm2.index, y=soxx_norm2, name="SOXX", mode="lines",
                 line=dict(color="#f59e0b", width=4, dash="dash"),
                 customdata=ret_html(soxx_ret),
+                visible="legendonly",
                 hovertemplate="<b>SOXX</b><br>%{x|" + _z3_xfmt + "}<br>"
                               "ערך: %{y:.1f}<br>תשואה: %{customdata}<extra></extra>",
             ))
@@ -2512,7 +2867,7 @@ else:
         if soxx_change2 is not None and len(chosen_pairs) > 0:
             sector_median = statistics.median([c for s, c in chosen_pairs])
             diff = sector_median - soxx_change2
-            better = "📈 התחום מכה את המדד" if diff >= 0 else "📉 התחום מפגר אחרי המדד"
+            better = "📈 התחום בביצועי יתר מול המדד" if diff >= 0 else "📉 התחום בביצועי חסר מול המדד"
             st.info("חציון התחום: " + str(round(sector_median, 1)) + "%  |  SOXX: " +
                     str(round(soxx_change2, 1)) + "%  →  " + better + " (" + str(round(diff, 1)) + " נק')")
 
@@ -2610,7 +2965,7 @@ st.markdown(
     "position:relative;'></div>",
     unsafe_allow_html=True,
 )
-section_banner(4, 6, "🧬", "פילוח טכנולוגי — ליבה ומעטפת", "#a78bfa", period_dependent=True, period_label=period_label)
+section_banner(5, 7, "🧬", "פילוח טכנולוגי — ליבה ומעטפת", "#a78bfa", period_dependent=True, period_label=period_label)
 st.caption("כל תחום מדורג לפי תשואה משוקללת: ליבה (חשיפה × 1.0) ומעטפת (חשיפה × 0.4). "
            "שני צירים חופפים בכוונה — טכנולוגיה (מה מוכרים) ושוקי קצה (למי מוכרים) — אין להשוות ביניהם כסכום.")
 
@@ -2965,7 +3320,7 @@ st.markdown(
     "position:relative;'></div>",
     unsafe_allow_html=True,
 )
-section_banner(5, 6, "🏗️", "CapEx — השקעות ענקיות הענן", "#22d3ee",
+section_banner(6, 7, "🏗️", "CapEx — השקעות ענקיות הענן", "#22d3ee",
                subtitle="ההשקעות ההוניות של מיקרוסופט, גוגל, אמזון ומטא — מנוע הביקוש של הסקטור",
                period_dependent=False)
 st.caption("נתוני CapEx בפועל מדוחות תזרים המזומנים (yfinance). "
@@ -3400,14 +3755,13 @@ CORE_COMPANIES = [
     "MSFT", "META", "GOOGL", "AMZN", "ORCL",
     "005930.KS", "000660.KS",
 ]
-ISRAELI_TICKERS = {"TSEM", "NVMI", "CAMT", "MBLY"}
 
 st.markdown(
     "<div style='margin:48px 0 32px; border-top:2px solid rgba(255,255,255,0.10); "
     "position:relative;'></div>",
     unsafe_allow_html=True,
 )
-section_banner(6, 6, "📋", "דוחות כספיים — ניתוח עונת הדוחות", "#f59e0b",
+section_banner(7, 7, "📋", "דוחות כספיים — ניתוח עונת הדוחות", "#f59e0b",
                subtitle="ניתוח דוחות ושיחות ועידה עם AI · סנטימנט מצטבר לפי תחום",
                period_dependent=False)
 
