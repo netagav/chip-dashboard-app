@@ -192,6 +192,16 @@ CHAIN_LAYOUT = {
     ],
 }
 
+
+def _photonics_tickers():
+    """סט חברות הפוטוניקה — נגזר ישירות מ-TECH_GROUPS, מקור אמת יחיד."""
+    try:
+        grp = TECH_GROUPS["ציר טכנולוגיה"]["פוטוניקה ואופטיקה"]
+        return set(grp.get("core", {})) | set(grp.get("env", {}))
+    except (KeyError, TypeError):
+        return set()
+
+
 BENCHMARK = "SOXX"
 
 SOXX_HOLDINGS = ["NVDA", "AVGO", "AMD", "TXN", "QCOM", "INTC", "MU", "ADI",
@@ -311,6 +321,8 @@ TECH_GROUPS = {
         },
     },
 }
+
+PHOTONICS_TICKERS = _photonics_tickers()
 
 # ======================================================
 # CapEx — ענקיות הענן
@@ -527,21 +539,63 @@ def _get_intraday_session(symbol, skip_current_day=True):
 @st.cache_data(ttl=300)
 def get_last_session_intraday(symbol, skip_current_day=True):
     """יום המסחר תוך-יומי (5 דק'), עם נקודת עוגן אלכסונית לפני הפתיחה.
+    מוגבל לשעות המסחר הרגילות של ארה"ב (09:30–16:00 America/New_York) בלבד.
     מחזיר (session_series, prev_close) או (None, None).
 
     skip_current_day=True  (ברירת מחדל / lastclose):
         אם היום האחרון הוא היום הנוכחי והשוק פתוח (לפני 16:00 NY) — מדלג עליו.
     skip_current_day=False (online):
         תמיד לוקח את היום האחרון הזמין, גם אם חלקי."""
-    from datetime import timedelta
-    session, prev_close = _get_intraday_session(symbol, skip_current_day)
-    if session is None:
+    from zoneinfo import ZoneInfo
+    from datetime import time as dt_time
+
+    NY_TZ = ZoneInfo("America/New_York")
+    OPEN = dt_time(9, 30)
+    CLOSE = dt_time(16, 0)
+
+    try:
+        data = yf.Ticker(symbol).history(period="7d", interval="5m", prepost=False)
+        close = data["Close"].dropna()
+        if len(close) < 2:
+            return None, None
+
+        # המר index ל-America/New_York
+        idx = close.index
+        if idx.tz is None:
+            close.index = idx.tz_localize("UTC").tz_convert("America/New_York")
+        else:
+            close.index = idx.tz_convert("America/New_York")
+
+        # סנן לחלון המסחר הרגיל 09:30–16:00 NY בלבד
+        close = close[(close.index.time >= OPEN) & (close.index.time <= CLOSE)]
+        if len(close) < 2:
+            return None, None
+
+        idx = close.index
+        dates = sorted({ts.date() for ts in idx})
+        if not dates:
+            return None, None
+
+        now_ny = datetime.now(NY_TZ)
+        last_date = dates[-1]
+        if skip_current_day and last_date == now_ny.date() and now_ny.time() < CLOSE and len(dates) >= 2:
+            last_date = dates[-2]
+
+        session = close[[ts.date() == last_date for ts in idx]]
+        if len(session) < 2:
+            return None, None
+
+        before = close[[ts.date() < last_date for ts in idx]]
+        prev_close = float(before.iloc[-1]) if len(before) >= 1 else None
+
+        if prev_close is not None:
+            anchor_ts = session.index[0] - timedelta(minutes=15)
+            anchor = pd.Series([prev_close], index=pd.DatetimeIndex([anchor_ts], tz="America/New_York"))
+            session = pd.concat([anchor, session])
+
+        return session, prev_close
+    except Exception:
         return None, None
-    if prev_close is not None:
-        anchor_ts = session.index[0] - timedelta(minutes=15)
-        anchor = pd.Series([prev_close], index=[anchor_ts])
-        session = pd.concat([anchor, session])
-    return session, prev_close
 
 
 def get_change(symbol, period):
@@ -879,6 +933,25 @@ def get_financial_currency(symbol):
         return "USD"
 
 
+CURRENCY_SYMBOLS = {
+    "USD": "$", "EUR": "€", "KRW": "₩", "TWD": "NT$",
+    "JPY": "¥", "GBP": "£", "ILS": "₪",
+}
+
+
+def currency_symbol(code):
+    """מחזיר סמל מטבע ($, €, ₩ וכו'). לקוד לא-מוכר — הקוד עצמו + רווח."""
+    return CURRENCY_SYMBOLS.get(code, (code or "USD") + " ")
+
+
+def record_currency(symbol, record):
+    """קוד המטבע של רשומה: מהשדה השמור אם קיים, אחרת fallback ל-yfinance."""
+    ccy = (record or {}).get("currency")
+    if ccy:
+        return ccy
+    return get_financial_currency(symbol)
+
+
 @st.cache_data(ttl=86400)
 def get_forward_estimates(symbol):
     """תחזיות אנליסטים לרבעון הקרוב: eps_est, revenue_est_b, revenue_growth_pct."""
@@ -1068,6 +1141,7 @@ def gemini_analyze_earnings(symbol, season):
         '  "revenue_estimate_b": <קונצנזוס האנליסטים להכנסות לפני הדוח, במיליארדי דולרים, או null>,\n'
         '  "eps_actual": <EPS בפועל, מספר עשרוני, או null>,\n'
         '  "eps_estimate": <קונצנזוס האנליסטים ל-EPS לפני הדוח, מספר עשרוני, או null>,\n'
+        '  "currency": "<קוד המטבע שבו מדווחים ה-EPS וההכנסות בדוח זה: USD/EUR/KRW/TWD/JPY/GBP/ILS — ברירת מחדל USD>",\n'
         '  "next_q_guidance": {\n'
         '    "revenue_b": <אמצע טווח תחזית ההכנסות שהחברה נתנה לרבעון הבא, או null>,\n'
         '    "eps": <אמצע טווח תחזית ה-EPS של החברה לרבעון הבא, או null>,\n'
@@ -1767,10 +1841,14 @@ def render_chain_map(period):
             il_tag = ""
             if t in ISRAELI_TICKERS:
                 il_tag = "<span style='font-size:8px; background:#1d4ed8; color:#bfdbfe; padding:1px 4px; border-radius:4px; margin-right:2px; font-weight:700;'>IL</span>"
+            _ph_style = (
+                " box-shadow:0 0 0 2px #22d3ee, 0 0 6px 1px rgba(34,211,238,.55);"
+                " border-color:transparent;"
+            ) if t in PHOTONICS_TICKERS else ""
             pills += (
                 "<span style='display:inline-flex; align-items:center; gap:3px;"
                 " background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10);"
-                " border-radius:20px; padding:2px 7px 2px 4px; font-size:11px; color:#d1d5db;'>"
+                " border-radius:20px; padding:2px 7px 2px 4px; font-size:11px; color:#d1d5db;" + _ph_style + "'>"
                 + logo + "&nbsp;" + il_tag + t + "</span>"
             )
         return (
@@ -1789,20 +1867,20 @@ def render_chain_map(period):
     def connector_v(label):
         return (
             "<div style='display:flex; flex-direction:column; align-items:center;"
-            " justify-content:center; color:#4b5563; font-size:11px; padding:4px 0; gap:2px;'>"
-            "<span style='border-right:2px dashed #374151; height:20px; width:0;'></span>"
-            "<span style='font-size:14px;'>▼</span>"
-            "<span style='text-align:center;'>" + label + "</span>"
+            " justify-content:center; color:#9ca3af; font-size:12px; padding:4px 0; gap:2px;'>"
+            "<span style='border-right:2px dashed #4b5563; height:20px; width:0;'></span>"
+            "<span style='font-size:15px; color:#6b7280;'>▼</span>"
+            "<span style='text-align:center; color:#d1d5db; font-size:12px;'>" + label + "</span>"
             "</div>"
         )
 
     def connector_h(label):
         return (
             "<div style='display:flex; flex-direction:column; align-items:center;"
-            " justify-content:center; color:#4b5563; font-size:10px; padding:0 2px; min-width:40px;'>"
-            "<span style='border-bottom:2px dashed #374151; width:100%; margin-bottom:4px;'></span>"
-            "<span style='font-size:13px;'>◀</span>"
-            "<span style='white-space:nowrap;'>" + label + "</span>"
+            " justify-content:center; color:#9ca3af; font-size:11px; padding:0 2px; min-width:40px;'>"
+            "<span style='border-bottom:2px dashed #4b5563; width:100%; margin-bottom:4px;'></span>"
+            "<span style='font-size:14px; color:#6b7280;'>◀</span>"
+            "<span style='white-space:nowrap; color:#d1d5db;'>" + label + "</span>"
             "</div>"
         )
 
@@ -1822,6 +1900,10 @@ def render_chain_map(period):
         "<span style='display:inline-flex; align-items:center; gap:4px;'>"
         "<span style='background:#1d4ed8; color:#bfdbfe; font-size:8px; padding:1px 4px; border-radius:4px; font-weight:700;'>IL</span>"
         "חברה ישראלית</span>"
+        "<span style='display:inline-flex; align-items:center; gap:5px;'>"
+        "<span style='display:inline-flex; width:13px; height:13px; border-radius:50%; flex-shrink:0;"
+        " box-shadow:0 0 0 2px #22d3ee, 0 0 6px 1px rgba(34,211,238,.55);'></span>"
+        "נוגע בציר הפוטוניקה</span>"
         "<span>| מסגרת ירוקה = ביצועי יתר · אדומה = ביצועי חסר (עוצמה פרופורציונלית)</span>"
         "</div>"
     )
@@ -1866,10 +1948,14 @@ def render_chain_map(period):
                 il_tag = ""
                 if t in ISRAELI_TICKERS:
                     il_tag = "<span style='font-size:8px; background:#1d4ed8; color:#bfdbfe; padding:1px 4px; border-radius:4px; margin-right:2px; font-weight:700;'>IL</span>"
+                _ph_style = (
+                    " box-shadow:0 0 0 2px #22d3ee, 0 0 6px 1px rgba(34,211,238,.55);"
+                    " border-color:transparent;"
+                ) if t in PHOTONICS_TICKERS else ""
                 pills += (
                     "<span style='display:inline-flex; align-items:center; gap:3px;"
                     " background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10);"
-                    " border-radius:20px; padding:2px 7px 2px 4px; font-size:11px; color:#d1d5db;'>"
+                    " border-radius:20px; padding:2px 7px 2px 4px; font-size:11px; color:#d1d5db;" + _ph_style + "'>"
                     + logo + "&nbsp;" + il_tag + t + "</span>"
                 )
             sub = "מעבדים ומאיצי AI" if pfx == "2" else "תקשורת ואופטיקה"
@@ -1924,6 +2010,7 @@ def render_chain_map(period):
         + "</div>"
     )
     st.markdown(full_html, unsafe_allow_html=True)
+    st.caption("◆ ציר הפוטוניקה מודגש בטבעת טורקיז — חברות שאינן מופיעות במפה (כמו FN) נכללות בציר במלואו באזור הפילוח הטכנולוגי.")
 
 
 def section_header(title, accent):
@@ -3528,7 +3615,7 @@ else:
             # תווית עמודת התחזית (אם חלק מהחברות חסרות — מציינים)
             n_have = len(latest_guidance)
             n_total = len(CAPEX_COMPANIES)
-            forecast_label = "תחזית לשנה הבאה"
+            forecast_label = "תחזית 2026"
             if 0 < n_have < n_total:
                 forecast_label = "תחזית (" + str(n_have) + "/" + str(n_total) + " חברות)"
 
@@ -3748,13 +3835,13 @@ else:
 # ======================================================
 # אזור 6 — דוחות כספיים וסנטימנט עונת הדוחות
 # ======================================================
-CORE_COMPANIES = [
+CORE_COMPANIES = sorted([
     "ASML", "AMAT", "LRCX", "KLAC", "NVDA", "AMD", "TSM", "INTC", "MU",
     "TXN", "ADI", "AVGO", "QCOM", "MRVL", "ARM",
     "TSEM", "NVMI", "CAMT", "MBLY",
     "MSFT", "META", "GOOGL", "AMZN", "ORCL",
     "005930.KS", "000660.KS",
-]
+])
 
 st.markdown(
     "<div style='margin:48px 0 32px; border-top:2px solid rgba(255,255,255,0.10); "
@@ -3822,6 +3909,12 @@ with _nav_next:
 # טעינת נתוני הלוח (cached, ±120 יום)
 with st.spinner("טוען תאריכי דוחות..."):
     _z6_all_entries = get_earnings_calendar(tuple(CORE_COMPANIES))
+
+if not _z6_all_entries:
+    st.warning("⚠️ לא הצלחנו למשוך תאריכי דוחות ממקור הנתונים (Yahoo). ייתכן תקלה זמנית או גרסת yfinance ישנה. נסי לרענן.")
+    if st.button("🔄 רענן תאריכי דוחות"):
+        get_earnings_calendar.clear()
+        st.rerun()
 
 # המרה ל-dict {date_str: [entries]}
 _z6_cal_dict = {}
@@ -3932,6 +4025,7 @@ for _week in _weeks:
                     )
                 else:
                     _a_tip = []
+                    _tip_ccy = currency_symbol(record_currency(_sym, _rec))
                     # סנטימנט
                     _sc = _rec.get("sentiment_score")
                     if _sc is not None:
@@ -3950,7 +4044,7 @@ for _week in _weeks:
                     if _ea is not None and _ee is not None:
                         try:
                             _ea_f = float(_ea); _ee_f = float(_ee)
-                            _eps_str = f"EPS: ${_ea_f:.2f} / ${_ee_f:.2f} צפי"
+                            _eps_str = f"EPS: {_tip_ccy}{_ea_f:.2f} / {_tip_ccy}{_ee_f:.2f} צפי"
                             if _ee_f != 0:
                                 _es = _ea_f / _ee_f * 100 - 100
                                 _es_sign = "+" if _es > 0 else ""
@@ -3965,7 +4059,7 @@ for _week in _weeks:
                     if _ra is not None and _re is not None:
                         try:
                             _ra_f = float(_ra); _re_f = float(_re)
-                            _rev_str = f"הכנסות: ${_ra_f:.2f}B / ${_re_f:.2f}B צפי"
+                            _rev_str = f"הכנסות: {_tip_ccy}{_ra_f:.2f}B / {_tip_ccy}{_re_f:.2f}B צפי"
                             if _re_f != 0:
                                 _rs = _ra_f / _re_f * 100 - 100
                                 _rs_sign = "+" if _rs > 0 else ""
@@ -3982,12 +4076,12 @@ for _week in _weeks:
                         _nq_parts = []
                         if _nq_rev is not None:
                             try:
-                                _nq_parts.append("הכנסות $" + f"{float(_nq_rev):.2f}B")
+                                _nq_parts.append("הכנסות " + _tip_ccy + f"{float(_nq_rev):.2f}B")
                             except (TypeError, ValueError):
                                 pass
                         if _nq_eps is not None:
                             try:
-                                _nq_parts.append("EPS $" + f"{float(_nq_eps):.2f}")
+                                _nq_parts.append("EPS " + _tip_ccy + f"{float(_nq_eps):.2f}")
                             except (TypeError, ValueError):
                                 pass
                         if _nq_parts:
@@ -3999,8 +4093,8 @@ for _week in _weeks:
                         if _nq_arv is not None:
                             try:
                                 _cons_parts.append(
-                                    "<span style='color:#9ca3af; font-size:10px;'>קונצנזוס: $"
-                                    + f"{float(_nq_arv):.2f}B</span>"
+                                    "<span style='color:#9ca3af; font-size:10px;'>קונצנזוס: "
+                                    + _tip_ccy + f"{float(_nq_arv):.2f}B</span>"
                                 )
                             except (TypeError, ValueError):
                                 pass
@@ -4385,8 +4479,9 @@ def israeli_exposure_to_signals(domain_signals):
     return result
 
 
-def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=None):
+def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=None, symbol=""):
     """מרנדר רשומת ניתוח (מה-JSON או מ-session_state)."""
+    _ccy_sym = currency_symbol(record_currency(symbol, rec))
     score = float(rec.get("sentiment_score") or 0)
     pct = int(round(score * 100))
     sign = "+" if pct >= 0 else ""
@@ -4451,8 +4546,8 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
             _ea_f = float(_eps_act)
             _ee_f = float(_eps_est)
             _eps_parts = [
-                f"EPS: <b>${_ea_f:.2f}</b> בפועל",
-                f"<span style='color:#9ca3af;'>${_ee_f:.2f} צפי</span>",
+                f"EPS: <b>{_ccy_sym}{_ea_f:.2f}</b> בפועל",
+                f"<span style='color:#9ca3af;'>{_ccy_sym}{_ee_f:.2f} צפי</span>",
             ]
             if _ee_f != 0:
                 _es = _ea_f / _ee_f * 100 - 100
@@ -4473,8 +4568,8 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
             _rev_act_f = float(_rev_act)
             _rev_est_f = float(_rev_est)
             _rev_parts = [
-                f"הכנסות: <b>${_rev_act_f:.2f}B</b> בפועל",
-                f"<span style='color:#9ca3af;'>${_rev_est_f:.2f}B צפי</span>",
+                f"הכנסות: <b>{_ccy_sym}{_rev_act_f:.2f}B</b> בפועל",
+                f"<span style='color:#9ca3af;'>{_ccy_sym}{_rev_est_f:.2f}B צפי</span>",
             ]
             if _rev_est_f != 0:
                 _rs = _rev_act_f / _rev_est_f * 100 - 100
@@ -4506,18 +4601,18 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
         _nq_vs = _nqg.get("vs_consensus", "none")
         if _nq_rev is not None:
             try:
-                _nq_parts.append(f"צפי הכנסות רבעון הבא: <b>${float(_nq_rev):.2f}B</b>")
+                _nq_parts.append(f"צפי הכנסות רבעון הבא: <b>{_ccy_sym}{float(_nq_rev):.2f}B</b>")
             except (TypeError, ValueError):
                 pass
         if _nq_eps is not None:
             try:
-                _nq_parts.append(f"EPS: <b>${float(_nq_eps):.2f}</b>")
+                _nq_parts.append(f"EPS: <b>{_ccy_sym}{float(_nq_eps):.2f}</b>")
             except (TypeError, ValueError):
                 pass
         if _nq_arv is not None:
             try:
                 _nq_parts.append(
-                    f"<span style='color:#9ca3af;'>קונצנזוס: ${float(_nq_arv):.2f}B</span>"
+                    f"<span style='color:#9ca3af;'>קונצנזוס: {_ccy_sym}{float(_nq_arv):.2f}B</span>"
                 )
             except (TypeError, ValueError):
                 pass
@@ -4623,29 +4718,222 @@ with st.container(border=True):
             st.warning(_z6_pending["error"])
         else:
             st.info("ניתוח חדש ממתין לאישור שמירה:")
+
+            # --- helper: parse optional float field (text → float or None) ---
+            def _parse_opt_float(raw, field_label):
+                """מחרוזת ריקה → None; מספר תקין → float; אחרת → מחזיר None ומציג אזהרה."""
+                s = raw.strip()
+                if s == "":
+                    return None, True
+                try:
+                    return float(s), True
+                except ValueError:
+                    st.warning("⚠️ שדה " + field_label + " — ערך לא חוקי: " + s + ". יישמר ללא שינוי.")
+                    return None, False
+
+            # --- list of all domain names from TECH_GROUPS (for signals selectbox) ---
+            _all_domains = sorted({
+                grp
+                for axis in TECH_GROUPS.values()
+                for grp in axis.keys()
+            })
+
+            _edit_key = "z6_edit_mode_" + _z6_chosen
+            _edit_mode = st.toggle("✏️ ערוך ערכים לפני שמירה", key=_edit_key, value=False)
+
             with st.container(border=True):
-                _render_analysis_record(_z6_pending)
+                if not _edit_mode:
+                    # ───── מצב צפייה (ברירת מחדל) ─────
+                    _render_analysis_record(_z6_pending, symbol=_z6_chosen)
+                else:
+                    # ───── מצב עריכה ─────
+                    st.markdown("<div dir='rtl' style='font-size:13px; color:#9ca3af; margin-bottom:10px;'>עורכת רשומה — שינויים ייכנסו רק אחרי לחיצה על שמור.</div>", unsafe_allow_html=True)
+
+                    # שלב 1 — שדות סקלריים ובחירה
+                    _ec1, _ec2 = st.columns(2)
+                    with _ec1:
+                        _ed_date = st.text_input("תאריך דוח (YYYY-MM-DD)",
+                            value=_z6_pending.get("report_date", "") or "",
+                            key="z6_ed_date_" + _z6_chosen)
+                        _RESULTS_OPTS = ["beat", "meet", "miss"]
+                        _cur_res = _z6_pending.get("results_vs_expectations", "beat") or "beat"
+                        _ed_results = st.selectbox("תוצאות מול ציפיות",
+                            options=_RESULTS_OPTS,
+                            index=_RESULTS_OPTS.index(_cur_res) if _cur_res in _RESULTS_OPTS else 0,
+                            key="z6_ed_results_" + _z6_chosen)
+                        _GUID_OPTS = ["raised", "maintained", "lowered", "none"]
+                        _cur_guid = _z6_pending.get("guidance_direction", "maintained") or "maintained"
+                        _ed_guid = st.selectbox("כיוון תחזית (guidance)",
+                            options=_GUID_OPTS,
+                            index=_GUID_OPTS.index(_cur_guid) if _cur_guid in _GUID_OPTS else 1,
+                            key="z6_ed_guid_" + _z6_chosen)
+                    with _ec2:
+                        _ed_score = st.number_input("ציון סנטימנט (−1 עד +1)",
+                            min_value=-1.0, max_value=1.0, step=0.05,
+                            value=float(_z6_pending.get("sentiment_score") or 0.0),
+                            key="z6_ed_score_" + _z6_chosen)
+                        st.caption("💡 תיקון מספרים לא משנה את הציון אוטומטית — אם התיקון הופך את התמונה (miss↔beat), עדכני גם את הציון והתוצאות ידנית.")
+                    _ed_summary = st.text_area("סיכום",
+                        value=_z6_pending.get("summary", "") or "",
+                        height=100,
+                        key="z6_ed_summary_" + _z6_chosen)
+
+                    # שלב 2 — שדות מספריים אופציונליים (text → float/None)
+                    st.markdown("**מספרים (ריק = לא ידוע)**")
+                    _nf1, _nf2, _nf3, _nf4 = st.columns(4)
+                    def _fstr(v):
+                        return "" if v is None else str(v)
+                    with _nf1:
+                        _ed_eps_act = st.text_input("EPS בפועל",
+                            value=_fstr(_z6_pending.get("eps_actual")),
+                            key="z6_ed_epsact_" + _z6_chosen)
+                    with _nf2:
+                        _ed_eps_est = st.text_input("EPS תחזית",
+                            value=_fstr(_z6_pending.get("eps_estimate")),
+                            key="z6_ed_epsest_" + _z6_chosen)
+                    with _nf3:
+                        _ed_rev_act = st.text_input("הכנסות בפועל (B$)",
+                            value=_fstr(_z6_pending.get("revenue_actual_b")),
+                            key="z6_ed_revact_" + _z6_chosen)
+                    with _nf4:
+                        _ed_rev_est = st.text_input("הכנסות תחזית (B$)",
+                            value=_fstr(_z6_pending.get("revenue_estimate_b")),
+                            key="z6_ed_revest_" + _z6_chosen)
+
+                    # שלב 3 — next_q_guidance
+                    _nqg = _z6_pending.get("next_q_guidance") or {}
+                    st.markdown("**תחזית רבעון הבא**")
+                    _nq1, _nq2, _nq3, _nq4 = st.columns(4)
+                    with _nq1:
+                        _ed_nq_rev = st.text_input("הכנסות Q הבא (B$)",
+                            value=_fstr(_nqg.get("revenue_b")),
+                            key="z6_ed_nqrev_" + _z6_chosen)
+                    with _nq2:
+                        _ed_nq_eps = st.text_input("EPS Q הבא",
+                            value=_fstr(_nqg.get("eps")),
+                            key="z6_ed_nqeps_" + _z6_chosen)
+                    with _nq3:
+                        _ed_nq_arev = st.text_input("הכנסות אנליסטים (B$)",
+                            value=_fstr(_nqg.get("analyst_revenue_b")),
+                            key="z6_ed_nqarev_" + _z6_chosen)
+                    with _nq4:
+                        _CONS_OPTS = ["above", "inline", "below", "none"]
+                        _cur_cons = _nqg.get("vs_consensus", "none") or "none"
+                        _ed_nq_cons = st.selectbox("מול קונצנזוס",
+                            options=_CONS_OPTS,
+                            index=_CONS_OPTS.index(_cur_cons) if _cur_cons in _CONS_OPTS else 3,
+                            key="z6_ed_nqcons_" + _z6_chosen)
+
+                    # שלב 4 — domain_signals
+                    _DIR_OPTS = ["improving", "stable", "deteriorating"]
+                    _existing_sigs = list(_z6_pending.get("domain_signals") or [])
+                    st.markdown("**סיגנלים תחומיים**")
+                    _sig_rows = []
+                    _delete_flags = []
+                    for _si, _sig in enumerate(_existing_sigs):
+                        _sc0, _sc1, _sc2, _sc3 = st.columns([0.3, 2, 1.5, 3])
+                        with _sc0:
+                            _del = st.checkbox("מחק", key="z6_sigdel_" + str(_si) + "_" + _z6_chosen, label_visibility="collapsed")
+                            _delete_flags.append(_del)
+                        with _sc1:
+                            _cur_dom = _sig.get("domain", _all_domains[0])
+                            _dom_i = _all_domains.index(_cur_dom) if _cur_dom in _all_domains else 0
+                            _ed_dom = st.selectbox("תחום", options=_all_domains, index=_dom_i,
+                                key="z6_sigdom_" + str(_si) + "_" + _z6_chosen,
+                                label_visibility="collapsed")
+                        with _sc2:
+                            _cur_dir = _sig.get("direction", "stable")
+                            _ed_dir = st.selectbox("כיוון", options=_DIR_OPTS,
+                                index=_DIR_OPTS.index(_cur_dir) if _cur_dir in _DIR_OPTS else 1,
+                                key="z6_sigdir_" + str(_si) + "_" + _z6_chosen,
+                                label_visibility="collapsed")
+                        with _sc3:
+                            _ed_note = st.text_input("הערה", value=_sig.get("note", "") or "",
+                                key="z6_signote_" + str(_si) + "_" + _z6_chosen,
+                                label_visibility="collapsed")
+                        _sig_rows.append({"domain": _ed_dom, "direction": _ed_dir, "note": _ed_note})
+
+                    # שורת הוספה
+                    st.markdown("*➕ סיגנל חדש (אופציונלי)*")
+                    _an1, _an2, _an3 = st.columns([2, 1.5, 3])
+                    with _an1:
+                        _new_dom = st.selectbox("תחום חדש", options=[""] + _all_domains,
+                            key="z6_newdom_" + _z6_chosen, label_visibility="collapsed")
+                    with _an2:
+                        _new_dir = st.selectbox("כיוון חדש", options=_DIR_OPTS,
+                            key="z6_newdir_" + _z6_chosen, label_visibility="collapsed")
+                    with _an3:
+                        _new_note = st.text_input("הערה חדשה", value="",
+                            key="z6_newnote_" + _z6_chosen, label_visibility="collapsed")
+
+                # ─── כפתורים (משותפים לשני המצבים) ───
                 _sc, _dc = st.columns(2)
                 with _sc:
                     if st.button("✅ שמור לקובץ", key="z6_savebtn_" + _z6_chosen,
                                  use_container_width=True, type="primary"):
-                        save_sentiment_record(_z6_chosen, _z6_season, {
-                            "report_date": _z6_pending.get("report_date", ""),
-                            "sentiment_score": _z6_pending.get("sentiment_score"),
-                            "results_vs_expectations": _z6_pending.get("results_vs_expectations", ""),
-                            "guidance_direction": _z6_pending.get("guidance_direction", ""),
-                            "summary": _z6_pending.get("summary", ""),
-                            "domain_signals": _z6_pending.get("domain_signals", []),
-                            "revenue_actual_b": _z6_pending.get("revenue_actual_b"),
-                            "revenue_estimate_b": _z6_pending.get("revenue_estimate_b"),
-                            "eps_actual": _z6_pending.get("eps_actual"),
-                            "eps_estimate": _z6_pending.get("eps_estimate"),
-                            "next_q_guidance": _z6_pending.get("next_q_guidance"),
-                            "analyzed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
-                        })
-                        del st.session_state[_z6_result_key]
-                        st.success("נשמר: " + _z6_chosen + " / " + _z6_season)
-                        st.rerun()
+                        _save_ok = True
+                        if _edit_mode:
+                            # --- בנה record מהשדות הערוכים ---
+                            _v_eps_act, _ok1 = _parse_opt_float(_ed_eps_act, "EPS בפועל")
+                            _v_eps_est, _ok2 = _parse_opt_float(_ed_eps_est, "EPS תחזית")
+                            _v_rev_act, _ok3 = _parse_opt_float(_ed_rev_act, "הכנסות בפועל")
+                            _v_rev_est, _ok4 = _parse_opt_float(_ed_rev_est, "הכנסות תחזית")
+                            _v_nq_rev,  _ok5 = _parse_opt_float(_ed_nq_rev, "הכנסות Q הבא")
+                            _v_nq_eps,  _ok6 = _parse_opt_float(_ed_nq_eps, "EPS Q הבא")
+                            _v_nq_arev, _ok7 = _parse_opt_float(_ed_nq_arev, "הכנסות אנליסטים")
+                            _save_ok = all([_ok1, _ok2, _ok3, _ok4, _ok5, _ok6, _ok7])
+
+                            _final_sigs = [
+                                _sig_rows[i]
+                                for i in range(len(_sig_rows))
+                                if not _delete_flags[i]
+                            ]
+                            if _new_dom:
+                                _final_sigs.append({"domain": _new_dom, "direction": _new_dir, "note": _new_note})
+
+                            _record = {
+                                "report_date": _ed_date.strip(),
+                                "sentiment_score": round(_ed_score, 4),
+                                "results_vs_expectations": _ed_results,
+                                "guidance_direction": _ed_guid,
+                                "summary": _ed_summary.strip(),
+                                "domain_signals": _final_sigs,
+                                "revenue_actual_b": _v_rev_act,
+                                "revenue_estimate_b": _v_rev_est,
+                                "eps_actual": _v_eps_act,
+                                "eps_estimate": _v_eps_est,
+                                "next_q_guidance": {
+                                    "revenue_b": _v_nq_rev,
+                                    "eps": _v_nq_eps,
+                                    "analyst_revenue_b": _v_nq_arev,
+                                    "vs_consensus": _ed_nq_cons,
+                                },
+                                "currency": _z6_pending.get("currency") or record_currency(_z6_chosen, _z6_pending),
+                                "analyzed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                            }
+                        else:
+                            # --- ללא עריכה: שמור כמו שהוא ---
+                            _record = {
+                                "report_date": _z6_pending.get("report_date", ""),
+                                "sentiment_score": _z6_pending.get("sentiment_score"),
+                                "results_vs_expectations": _z6_pending.get("results_vs_expectations", ""),
+                                "guidance_direction": _z6_pending.get("guidance_direction", ""),
+                                "summary": _z6_pending.get("summary", ""),
+                                "domain_signals": _z6_pending.get("domain_signals", []),
+                                "revenue_actual_b": _z6_pending.get("revenue_actual_b"),
+                                "revenue_estimate_b": _z6_pending.get("revenue_estimate_b"),
+                                "eps_actual": _z6_pending.get("eps_actual"),
+                                "eps_estimate": _z6_pending.get("eps_estimate"),
+                                "next_q_guidance": _z6_pending.get("next_q_guidance"),
+                                "currency": _z6_pending.get("currency") or record_currency(_z6_chosen, _z6_pending),
+                                "analyzed_at": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                            }
+
+                        if _save_ok:
+                            save_sentiment_record(_z6_chosen, _z6_season, _record)
+                            del st.session_state[_z6_result_key]
+                            st.success("נשמר: " + _z6_chosen + " / " + _z6_season)
+                            st.rerun()
                 with _dc:
                     if st.button("🗑️ בטל", key="z6_discardbtn_" + _z6_chosen, use_container_width=True):
                         del st.session_state[_z6_result_key]
@@ -4664,7 +4952,8 @@ with st.container(border=True):
             _z6_react, _ = get_stock_reaction(_z6_chosen, _z6_rd)
         with st.container(border=True):
             _render_analysis_record(_z6_saved_rec, label="שמור",
-                                    eps_surprise=_z6_eps_surp, stock_reaction=_z6_react)
+                                    eps_surprise=_z6_eps_surp, stock_reaction=_z6_react,
+                                    symbol=_z6_chosen)
         if DEV_MODE:
             if st.button("🔄 עדכן ניתוח עם Gemini", key="z6_analyzebtn_" + _z6_chosen):
                 with st.spinner("מחפש דוח ושיחת ועידה עם Gemini..."):
@@ -4754,7 +5043,7 @@ with st.container(border=True):
                 "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הפתעה %</th>"
                 + (f"<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>{_rev_hdr_txt}</th>"
                    if _h_has_rev else "")
-                + "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הכנסות צפי 🔮 ($B)</th>"
+                + "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הכנסות צפי 🔮 (" + currency_symbol(_hist_ccy) + "B)</th>"
                 "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הפתעת הכנסות 🔮</th>"
                 "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>סנטימנט</th>"
                 "</tr>"
@@ -4781,7 +5070,7 @@ with st.container(border=True):
                 _gem_est_cell = _h_td_dash
                 if _h_rev_est_gem is not None:
                     try:
-                        _gem_est_cell = f"<td style='text-align:center; padding:6px 10px;'>${float(_h_rev_est_gem):.2f}B</td>"
+                        _gem_est_cell = f"<td style='text-align:center; padding:6px 10px;'>{currency_symbol(_hist_ccy)}{float(_h_rev_est_gem):.2f}B</td>"
                     except (TypeError, ValueError):
                         pass
 
