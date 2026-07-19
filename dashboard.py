@@ -126,7 +126,7 @@ div[data-testid="stButton"] button[kind="tertiary"] p {
 value_chain = {
     "0. חומרי גלם וּווייפרים (Raw Materials)": ["SHECY", "SUOPY", "ENTG"],
     "1. תכנון ו-IP (EDA & IP)": ["SNPS", "CDNS", "ARM"],
-    "2. מעבדים ו-AI — Fabless (Compute & AI)": ["NVDA", "AMD", "AAPL", "QCOM", "MRVL", "MBLY"],
+    "2. מעבדים ו-AI — Fabless (Compute & AI)": ["NVDA", "AMD", "QCOM", "MRVL", "MBLY"],
     "3. תקשורת ואופטיקה — Fabless (Networking & Optics)": ["AVGO", "COHR", "LITE"],
     "4. יצרנים משולבים (IDM)": ["INTC", "TXN", "ADI", "NXPI", "STM", "ON", "IFNNY", "RNECY", "MCHP"],
     "5. זיכרון ואחסון (Memory & Storage)": ["MU", "WDC", "SNDK", "STX", "005930.KS", "000660.KS"],
@@ -140,7 +140,7 @@ value_chain = {
 ISRAELI_TICKERS = {"TSEM", "NVMI", "CAMT", "MBLY"}
 
 CHAIN_LOGO_DOMAINS = {
-    "NVDA": "nvidia.com", "AMD": "amd.com", "AAPL": "apple.com",
+    "NVDA": "nvidia.com", "AMD": "amd.com", 
     "QCOM": "qualcomm.com", "MRVL": "marvell.com", "MBLY": "mobileye.com",
     "AVGO": "broadcom.com", "COHR": "coherent.com", "LITE": "lumentum.com",
     "ANET": "arista.com",
@@ -190,6 +190,38 @@ CHAIN_LAYOUT = {
         ("5", "downstream", "זיכרון DRAM, NAND ואחסון"),
         ("10", "downstream", "שרתים, מדפי מחשוב, קירור נוזלי"),
     ],
+}
+
+SENSITIVITY_LEVELS = {
+    "vhigh": {"label": "גבוהה מאוד", "color": "#dc2626", "emoji": "🔴"},
+    "high":  {"label": "גבוהה",      "color": "#f97316", "emoji": "🟠"},
+    "med":   {"label": "בינונית",    "color": "#eab308", "emoji": "🟡"},
+    "low":   {"label": "נמוכה",      "color": "#22c55e", "emoji": "🟢"},
+}
+
+CAPEX_SENSITIVITY = {
+    "0":  {"level": "med",   "timing": "Q+1 עד Q+2",
+           "mechanism": "חומרים מתכלים צמודי-ייצור — הנפח יורד, אך ללא קריסת מחיר"},
+    "1":  {"level": "low",   "timing": "כמעט אף פעם",
+           "mechanism": 'מנויים רב-שנתיים; תכנון שבבים ומו"פ לא נעצרים גם במיתון'},
+    "2":  {"level": "high",  "timing": "Q+1 עד Q+2",
+           "mechanism": "החשיפה הגבוהה בשרשרת — ההכנסה היא ה-CAPEX; כוח תמחור ומרווח 70%+ סופגים; סיכון מלאי והתחייבויות ל-TSMC"},
+    "3":  {"level": "high",  "timing": "Q+1 עד Q+2",
+           "mechanism": "ממומן מאותו תקציב; פוטוניקה = הגנת mix-shift בתוך התקציב, לא הגנה מירידתו"},
+    "4":  {"level": "low",   "timing": "מחזור נפרד",
+           "mechanism": "פיזור לרכב, תעשייה ואנלוגי — תלות נמוכה ב-AI CAPEX"},
+    "5":  {"level": "vhigh", "timing": "ספוט: שבועות · HBM: Q+2",
+           "mechanism": "קומודיטי + מנוף תפעולי עצום; ספוט מגיב מיידית, חוזי LTA של HBM דוחים אך לא מבטלים"},
+    "6":  {"level": "high",  "timing": "הזמנות Q+2 · הכנסות Q+4",
+           "mechanism": "רגישות לנגזרת (קצב השינוי); צבר וזמני אספקה ארוכים "},
+    "7":  {"level": "med",   "timing": "Q+2 עד Q+4",
+           "mechanism": "אינטנסיביות הבדיקה עולה עם מורכבות השבב — הגנה מבנית חלקית"},
+    "8":  {"level": "med",   "timing": "Q+2 עד Q+4",
+           "mechanism": "מקדמות וחוזי take-or-pay מגלגלים סיכון ללקוח; בוגר (UMC/TSEM) — מחזור נפרד"},
+    "9":  {"level": "vhigh", "timing": "Q+1",
+           "mechanism": "עסקי ניצולת ללא צבר, מרווח דק; חריג: אריזה מתקדמת (CoWoS) — צוואר בקבוק מבני"},
+    "10": {"level": "med",   "timing": "שרתים Q+1 · קירור Q+4",
+           "mechanism": "מפוצל: הרכבת שרתים מגיבה תוך רבעון, קירור ותשתית מוגנים בצבר שנה+"},
 }
 
 
@@ -1004,13 +1036,15 @@ def get_stock_reaction(symbol, report_date_str):
 
 def get_symbol_cal_status(sym, d, has_report, sentiment_data):
     """מחזיר 'future' / 'analyzed' / 'unanalyzed' לצביעת לוח השנה.
-    has_report=True אם yfinance מדווח EPS בפועל (הדוח יצא)."""
+    רשומה שמורה עם sentiment_score גוברת על is_future של yfinance."""
     today = datetime.now(timezone.utc).date()
-    if not has_report or d > today:
+    if d > today:
         return "future"
     rec = get_record(sentiment_data, sym, season_from_date(d))
     if rec and rec.get("sentiment_score") is not None:
         return "analyzed"
+    if not has_report:
+        return "future"
     return "unanalyzed"
 
 
@@ -1781,86 +1815,131 @@ def chain_logo_html(ticker, logo_cache):
     )
 
 
-def render_chain_map(period):
+def capex_guidance_delta():
+    """מחשב שינוי מצרפי בתחזית CAPEX: (prev, last, pct, n) או None."""
+    pairs = []
+    for sym, data in CAPEX_GUIDANCE.items():
+        vals = [v for _, v in data.get("updates", []) if v is not None]
+        if len(vals) >= 2:
+            pairs.append((vals[-2], vals[-1]))
+    if not pairs:
+        return None
+    total_prev = sum(p for p, _ in pairs)
+    total_last = sum(l for _, l in pairs)
+    if total_prev == 0:
+        return None
+    pct = (total_last - total_prev) / total_prev * 100
+    return (total_prev, total_last, pct, len(pairs))
+
+
+def render_chain_map(period, mode="perf"):
     """מפת שרשרת הערך — 3 שורות + פסי חיבור, ביצועים חיים."""
-    # --- טען לוגואים (ממוטמן שבוע, מקבילי בטעינה ראשונה) ---
     _logo_cache = warm_all_logos(tuple(sorted(set(CHAIN_LOGO_DOMAINS.values()))))
 
-    # --- חשב ביצועים לכל תחום ---
-    perf = {}  # prefix -> median change (float or None)
+    # --- ביצועים לכל תחום ---
+    perf = {}
     for key, tickers in value_chain.items():
         prefix = key.split(".")[0]
         pairs = get_changes(tickers, period)
-        if pairs:
-            perf[prefix] = statistics.median(v for _, v in pairs)
-        else:
-            perf[prefix] = None
+        perf[prefix] = statistics.median(v for _, v in pairs) if pairs else None
 
-    # max abs for proportional intensity
-    vals = [abs(v) for v in perf.values() if v is not None]
-    max_abs = max(vals) if vals else 1.0
+    _is_sens = (mode == "sensitivity")
+    _delta = capex_guidance_delta()
+    _warn_capex = bool(_delta and _delta[2] < 0)
 
     def perf_tag(prefix):
         v = perf.get(prefix)
         if v is None:
             return "<span style='font-size:11px; color:#6b7280; background:rgba(107,114,128,0.15); padding:1px 7px; border-radius:12px;'>—</span>"
-        pct = round(v, 1)
         color = "#22c55e" if v >= 0 else "#ef4444"
-        bg = "rgba(34,197,94,0.15)" if v >= 0 else "rgba(239,68,68,0.15)"
-        sign = "+" if v > 0 else ""
-        return (
-            "<span style='font-size:11px; color:" + color + "; background:" + bg +
-            "; padding:1px 7px; border-radius:12px; font-weight:700;'>"
-            + sign + str(pct) + "%</span>"
-        )
+        bg    = "rgba(34,197,94,0.15)" if v >= 0 else "rgba(239,68,68,0.15)"
+        sign  = "+" if v > 0 else ""
+        return ("<span style='font-size:11px; color:" + color + "; background:" + bg +
+                "; padding:1px 7px; border-radius:12px; font-weight:700;'>"
+                + sign + str(round(v, 1)) + "%</span>")
 
-    def border_color(prefix):
+    def card_border(prefix):
+        if _is_sens:
+            lvl = CAPEX_SENSITIVITY.get(prefix, {}).get("level", "med")
+            color = SENSITIVITY_LEVELS[lvl]["color"]
+            return "2px solid " + color
         v = perf.get(prefix)
         if v is None:
-            return "rgba(255,255,255,0.06)"
-        intensity = min(abs(v) / max_abs, 1.0)
-        if v >= 0:
-            r, g, b = 34, 197, 94
-            alpha = 0.35 + intensity * 0.55
-        else:
-            r, g, b = 239, 68, 68
-            alpha = 0.38 + intensity * 0.52
-        return "rgba({},{},{},{:.2f})".format(r, g, b, alpha)
+            return "1px solid rgba(255,255,255,0.08)"
+        return ("2.5px solid #22c55e" if v >= 0 else "2.5px solid #ef4444")
 
-    def card(prefix, stage, subtitle, extra_style=""):
+    def sens_tag(prefix):
+        s = CAPEX_SENSITIVITY.get(prefix, {})
+        lvl = s.get("level", "med")
+        info = SENSITIVITY_LEVELS[lvl]
+        timing = s.get("timing", "")
+        mech = s.get("mechanism", "")
+        warn_badge = " ⚠️" if (_warn_capex and lvl in ("vhigh", "high")) else ""
+        tip = (
+            "<div class='sens-tip' dir='rtl'>"
+            "<span style='font-weight:700; color:" + info["color"] + ";'>רגישות: " + info["label"] + "</span><br>"
+            "⏱ עיתוי פגיעת הרווח: " + timing + "<br>"
+            "<span style='color:#9ca3af;'>" + mech + "</span>"
+            "</div>"
+        )
+        return (
+            "<span class='sens-tag'>"
+            "<span style='font-size:11px; color:" + info["color"] + "; background:rgba(255,255,255,0.08);"
+            " padding:1px 7px; border-radius:12px; font-weight:700; cursor:default;'>"
+            + info["emoji"] + " " + info["label"] + warn_badge +
+            "</span>"
+            + tip +
+            "</span>"
+        )
+
+    def pill_ring(t):
+        is_il = t in ISRAELI_TICKERS
+        is_ph = t in PHOTONICS_TICKERS
+        if is_il and is_ph:
+            return " box-shadow:0 0 0 2px #3b82f6, 0 0 0 4px #eab308; border-color:transparent;"
+        if is_il:
+            return " box-shadow:0 0 0 2px #3b82f6, 0 0 5px 1px rgba(59,130,246,.55); border-color:transparent;"
+        if is_ph:
+            return " box-shadow:0 0 0 2px #eab308, 0 0 5px 1px rgba(234,179,8,.6); border-color:transparent;"
+        return ""
+
+    def build_pills(tickers):
+        pills = ""
+        for t in tickers:
+            logo = chain_logo_html(t, _logo_cache)
+            ring = pill_ring(t)
+            pills += (
+                "<span style='display:inline-flex; align-items:center; gap:3px;"
+                " background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10);"
+                " border-radius:20px; padding:2px 7px 2px 4px; font-size:11px; color:#d1d5db;" + ring + "'>"
+                + logo + "&nbsp;" + t + "</span>"
+            )
+        return pills
+
+    def _card_tag(prefix):
+        if _is_sens:
+            return sens_tag(prefix)
+        lvl = CAPEX_SENSITIVITY.get(prefix, {}).get("level", "med")
+        warn = ("<span style='font-size:10px;'> ⚠️</span>"
+                if (_warn_capex and lvl in ("vhigh", "high")) else "")
+        return perf_tag(prefix) + warn
+
+    def card(prefix, subtitle, extra_style=""):
         key = next((k for k in value_chain if k.startswith(prefix + ".")), None)
         if key is None:
             return ""
         name = clean_name(key)
-        stage_color = CHAIN_STAGE_COLORS.get(stage, "#6b7280")
-        tickers = value_chain[key]
-        bc = border_color(prefix)
-        pills = ""
-        for t in tickers:
-            logo = chain_logo_html(t, _logo_cache)
-            il_tag = ""
-            if t in ISRAELI_TICKERS:
-                il_tag = "<span style='font-size:8px; background:#1d4ed8; color:#bfdbfe; padding:1px 4px; border-radius:4px; margin-right:2px; font-weight:700;'>IL</span>"
-            _ph_style = (
-                " box-shadow:0 0 0 2px #22d3ee, 0 0 6px 1px rgba(34,211,238,.55);"
-                " border-color:transparent;"
-            ) if t in PHOTONICS_TICKERS else ""
-            pills += (
-                "<span style='display:inline-flex; align-items:center; gap:3px;"
-                " background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10);"
-                " border-radius:20px; padding:2px 7px 2px 4px; font-size:11px; color:#d1d5db;" + _ph_style + "'>"
-                + logo + "&nbsp;" + il_tag + t + "</span>"
-            )
+        bc = card_border(prefix)
+        pills = build_pills(value_chain[key])
         return (
-            "<div style='background:#141824; border:1px solid " + bc + ";"
-            " border-top:3px solid " + stage_color + "; border-radius:12px;"
-            " padding:12px 14px; " + extra_style + "'>"
-            "<div style='display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap;'>"
+            "<div style='background:#141824; border:" + bc + "; border-radius:12px;"
+            " padding:12px 14px; overflow:visible; " + extra_style + "'>"
+            "<div style='display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap; overflow:visible;'>"
             "<span style='font-size:13px; font-weight:700; color:#f3f4f6;'>" + name + "</span>"
-            + perf_tag(prefix) +
+            + _card_tag(prefix) +
             "</div>"
             "<div style='font-size:11px; color:#6b7280; margin-bottom:8px;'>" + subtitle + "</div>"
-            "<div style='display:flex; flex-wrap:wrap; gap:4px;'>" + pills + "</div>"
+            "<div style='display:flex; flex-wrap:wrap; gap:4px; overflow:visible;'>" + pills + "</div>"
             "</div>"
         )
 
@@ -1884,41 +1963,68 @@ def render_chain_map(period):
             "</div>"
         )
 
-    # --- legend ---
-    legend = (
-        "<div dir='rtl' style='display:flex; flex-wrap:wrap; gap:12px; align-items:center;"
-        " font-size:11px; color:#9ca3af; margin-bottom:14px; padding:8px 12px;"
-        " background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.07);'>"
-        "<span style='font-weight:700; color:#d1d5db;'>מקרא:</span>"
-        + "".join(
-            "<span style='display:inline-flex; align-items:center; gap:5px;'>"
-            "<span style='width:12px; height:3px; background:" + CHAIN_STAGE_COLORS[s] + "; border-radius:2px; display:inline-block;'></span>"
-            + lbl + "</span>"
-            for s, lbl in [("design", "תכנון"), ("materials", "תשומות ייצור"), ("mfg", "ייצור"), ("downstream", "מורד הזרם")]
+    # --- מקרא (מותנה במצב) ---
+    if _is_sens:
+        legend = (
+            "<div dir='rtl' style='display:flex; flex-wrap:wrap; gap:14px; align-items:center;"
+            " font-size:11px; color:#9ca3af; margin-bottom:14px; padding:8px 12px;"
+            " background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.07);'>"
+            "<span style='font-weight:700; color:#d1d5db;'>רגישות CAPEX:</span>"
         )
-        + "<span style='margin-right:8px;'>|</span>"
-        "<span style='display:inline-flex; align-items:center; gap:4px;'>"
-        "<span style='background:#1d4ed8; color:#bfdbfe; font-size:8px; padding:1px 4px; border-radius:4px; font-weight:700;'>IL</span>"
-        "חברה ישראלית</span>"
-        "<span style='display:inline-flex; align-items:center; gap:5px;'>"
-        "<span style='display:inline-flex; width:13px; height:13px; border-radius:50%; flex-shrink:0;"
-        " box-shadow:0 0 0 2px #22d3ee, 0 0 6px 1px rgba(34,211,238,.55);'></span>"
-        "נוגע בציר הפוטוניקה</span>"
-        "<span>| מסגרת ירוקה = ביצועי יתר · אדומה = ביצועי חסר (עוצמה פרופורציונלית)</span>"
-        "</div>"
-    )
+        for lvl_key in ("vhigh", "high", "med", "low"):
+            info = SENSITIVITY_LEVELS[lvl_key]
+            legend += (
+                "<span style='display:inline-flex; align-items:center; gap:4px;'>"
+                "<span style='font-size:13px;'>" + info["emoji"] + "</span>"
+                "<span style='color:" + info["color"] + "; font-weight:700;'>" + info["label"] + "</span>"
+                "</span>"
+            )
+        legend += (
+            "<span style='color:#6b7280;'>| ריחוף על הכרטיס לפרטים</span>"
+            "<span style='display:block; width:100%; color:#6b7280; margin-top:4px;'>"
+            "המניות מגיבות מיד בכל החוליות — העיתוי מתייחס לפגיעה בדוחות</span>"
+            "</div>"
+        )
+    else:
+        legend = (
+            "<div dir='rtl' style='display:flex; flex-wrap:wrap; gap:14px; align-items:center;"
+            " font-size:11px; color:#9ca3af; margin-bottom:14px; padding:8px 12px;"
+            " background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid rgba(255,255,255,0.07);'>"
+            "<span style='font-weight:700; color:#d1d5db;'>מקרא:</span>"
+            "<span style='display:inline-flex; align-items:center; gap:6px;'>"
+            "<span style='display:inline-flex; width:14px; height:14px; border-radius:50%; flex-shrink:0;"
+            " box-shadow:0 0 0 2px #eab308, 0 0 5px 1px rgba(234,179,8,.6);'></span>"
+            "נוגע בציר הפוטוניקה</span>"
+            "<span style='display:inline-flex; align-items:center; gap:6px;'>"
+            "<span style='display:inline-flex; width:14px; height:14px; border-radius:50%; flex-shrink:0;"
+            " box-shadow:0 0 0 2px #3b82f6, 0 0 5px 1px rgba(59,130,246,.55);'></span>"
+            "חברה ישראלית</span>"
+            "<span>| מסגרת ירוקה = ביצועי יתר · אדומה = ביצועי חסר</span>"
+            "</div>"
+        )
 
-    # --- row top ---
+    warn_banner = ""
+    if _delta and _delta[2] < 0:
+        x_pct = abs(round(_delta[2], 1))
+        n_cos = _delta[3]
+        warn_banner = (
+            "<div dir='rtl' style='background:rgba(239,68,68,0.10); border:1px solid rgba(239,68,68,0.40);"
+            " border-radius:8px; padding:10px 14px; margin-bottom:10px; font-size:12px; color:#fca5a5;'>"
+            "⚠️ תחזית ה-CAPEX המצרפית ירדה ב-" + str(x_pct) + "% בעדכון האחרון (" + str(n_cos) + " חברות)"
+            " — החוליות בדרגת רגישות גבוהה ומעלה מסומנות"
+            "</div>"
+        )
+
+    # --- שורה עליונה ---
     row_top = (
         "<div style='display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:0;'>"
-        + card("1", "design",    "כלי EDA, IP-blocks, ארכיטקטורות")
-        + card("6", "materials", "מכונות פוטוליתוגרפיה, אצ'ינג, הפקדה")
-        + card("7", "materials", "מדידה, יישור ובקרת תהליכים")
-        + card("0", "materials", "ווייפרים, גזים, נוזלי עיבוד")
+        + card("1", "כלי EDA, IP-blocks, ארכיטקטורות")
+        + card("6", "מכונות פוטוליתוגרפיה, אצ'ינג, הפקדה")
+        + card("7", "מדידה, יישור ובקרת תהליכים")
+        + card("0", "ווייפרים, גזים, נוזלי עיבוד")
         + "</div>"
     )
 
-    # --- connector band 1 ---
     conn1 = (
         "<div style='display:grid; grid-template-columns:1fr 3fr; gap:10px; margin:8px 0;'>"
         + connector_v("כלי תכנון ורישיונות IP למעצבות")
@@ -1926,11 +2032,9 @@ def render_chain_map(period):
         + "</div>"
     )
 
-    # --- row middle (fabless×2, foundry, osat) ---
-    # card for both fabless sub-groups side-by-side inside one wide cell
+    # --- שורה אמצעית: מעצבות Fabless (2+3) + foundry + osat ---
     fab2_card = (
-        "<div style='background:#141824; border:1px solid " + border_color("2") + ";"
-        " border-top:3px solid " + CHAIN_STAGE_COLORS["design"] + "; border-radius:12px;"
+        "<div style='background:#141824; border:1px solid rgba(255,255,255,0.08); border-radius:12px;"
         " padding:12px 14px;'>"
         "<div style='font-size:12px; font-weight:700; color:#9ca3af; margin-bottom:8px;'>מעצבות Fabless</div>"
         "<div style='display:grid; grid-template-columns:1fr 1fr; gap:8px;'>"
@@ -1939,35 +2043,18 @@ def render_chain_map(period):
         key = next((k for k in value_chain if k.startswith(pfx + ".")), None)
         if key:
             name = clean_name(key)
-            stage_color = CHAIN_STAGE_COLORS["design"]
-            bc = border_color(pfx)
-            tickers = value_chain[key]
-            pills = ""
-            for t in tickers:
-                logo = chain_logo_html(t, _logo_cache)
-                il_tag = ""
-                if t in ISRAELI_TICKERS:
-                    il_tag = "<span style='font-size:8px; background:#1d4ed8; color:#bfdbfe; padding:1px 4px; border-radius:4px; margin-right:2px; font-weight:700;'>IL</span>"
-                _ph_style = (
-                    " box-shadow:0 0 0 2px #22d3ee, 0 0 6px 1px rgba(34,211,238,.55);"
-                    " border-color:transparent;"
-                ) if t in PHOTONICS_TICKERS else ""
-                pills += (
-                    "<span style='display:inline-flex; align-items:center; gap:3px;"
-                    " background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10);"
-                    " border-radius:20px; padding:2px 7px 2px 4px; font-size:11px; color:#d1d5db;" + _ph_style + "'>"
-                    + logo + "&nbsp;" + il_tag + t + "</span>"
-                )
-            sub = "מעבדים ומאיצי AI" if pfx == "2" else "תקשורת ואופטיקה"
+            bc   = card_border(pfx)
+            sub  = "מעבדים ומאיצי AI" if pfx == "2" else "תקשורת ואופטיקה"
+            pills = build_pills(value_chain[key])
             fab2_card += (
-                "<div style='background:rgba(255,255,255,0.03); border:1px solid " + bc + ";"
-                " border-right:3px solid " + stage_color + "; border-radius:8px; padding:8px 10px;'>"
-                "<div style='display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px;'>"
+                "<div style='background:rgba(255,255,255,0.03); border:" + bc + ";"
+                " border-radius:8px; padding:8px 10px; overflow:visible;'>"
+                "<div style='display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:4px; overflow:visible;'>"
                 "<span style='font-size:12px; font-weight:700; color:#f3f4f6;'>" + name + "</span>"
-                + perf_tag(pfx) +
+                + _card_tag(pfx) +
                 "</div>"
                 "<div style='font-size:10px; color:#6b7280; margin-bottom:6px;'>" + sub + "</div>"
-                "<div style='display:flex; flex-wrap:wrap; gap:3px;'>" + pills + "</div>"
+                "<div style='display:flex; flex-wrap:wrap; gap:3px; overflow:visible;'>" + pills + "</div>"
                 "</div>"
             )
     fab2_card += "</div></div>"
@@ -1976,13 +2063,12 @@ def render_chain_map(period):
         "<div style='display:grid; grid-template-columns:2.05fr 56px 1.1fr 56px 1.25fr; gap:6px; align-items:center; margin-bottom:0;'>"
         + fab2_card
         + connector_h("tape-out")
-        + card("8", "mfg", "קבלני ייצור — הופכים עיצוב לשבב")
+        + card("8", "קבלני ייצור — הופכים עיצוב לשבב")
         + connector_h("ווייפרים גמורים")
-        + card("9", "mfg", "אריזה, חיבורים ובדיקות אחרי ייצור")
+        + card("9", "אריזה, חיבורים ובדיקות אחרי ייצור")
         + "</div>"
     )
 
-    # --- connector band 2 ---
     conn2 = (
         "<div style='display:grid; grid-template-columns:2fr 1fr; gap:10px; margin:8px 0;'>"
         + connector_v("IDM וזיכרון מתכננות ומייצרות בעצמן — קונות EDA, ציוד וחומרים ישירות מהשורה העליונה")
@@ -1990,27 +2076,66 @@ def render_chain_map(period):
         + "</div>"
     )
 
-    # --- row bottom ---
     row_bot = (
         "<div style='display:grid; grid-template-columns:1.3fr 0.85fr 0.85fr; gap:10px;'>"
-        + card("4", "mfg",        "מתכנן ומייצר בעצמו — לוגיקה, אנלוגי, עוצמה")
-        + card("5", "downstream", "זיכרון DRAM, NAND ואחסון")
-        + card("10", "downstream", "שרתים, מדפי מחשוב, קירור נוזלי")
+        + card("4",  "מתכנן ומייצר בעצמו — לוגיקה, אנלוגי, עוצמה")
+        + card("5",  "זיכרון DRAM, NAND ואחסון")
+        + card("10", "שרתים, מדפי מחשוב, קירור נוזלי")
         + "</div>"
     )
 
+    _map_css = (
+        "<style>"
+        ".sens-tag { position: relative; display: inline-flex; align-items: center; overflow: visible; }"
+        ".sens-tip {"
+        "  display: none;"
+        "  position: absolute;"
+        "  top: calc(100% + 4px);"
+        "  right: 0;"
+        "  background: #1e2533;"
+        "  color: #e5e7eb;"
+        "  font-size: 11px;"
+        "  font-weight: 400;"
+        "  line-height: 1.7;"
+        "  padding: 8px 12px;"
+        "  border-radius: 6px;"
+        "  border: 1px solid #374151;"
+        "  white-space: normal;"
+        "  min-width: 220px;"
+        "  max-width: 320px;"
+        "  z-index: 9999;"
+        "  text-align: right;"
+        "  direction: rtl;"
+        "  pointer-events: none;"
+        "  box-shadow: 0 4px 12px rgba(0,0,0,0.5);"
+        "}"
+        ".sens-tag:hover > .sens-tip { display: block; }"
+        "</style>"
+    )
     full_html = (
-        "<div dir='rtl' style='text-align:right; margin-bottom:24px;'>"
-        + legend
-        + row_top
-        + conn1
-        + row_mid
-        + conn2
-        + row_bot
+        _map_css
+        + "<div dir='rtl' style='text-align:right; margin-bottom:24px;'>"
+        + warn_banner + legend + row_top + conn1 + row_mid + conn2 + row_bot
         + "</div>"
     )
     st.markdown(full_html, unsafe_allow_html=True)
-    st.caption("◆ ציר הפוטוניקה מודגש בטבעת טורקיז — חברות שאינן מופיעות במפה (כמו FN) נכללות בציר במלואו באזור הפילוח הטכנולוגי.")
+    if _delta:
+        _pct_str = str(abs(round(_delta[2], 1)))
+        if _delta[2] >= 0:
+            st.markdown(
+                "<div dir='rtl' style='font-size:13px; color:#22c55e; text-align:right; margin:2px 0 6px;'>"
+                "✓ התחזית המצרפית עלתה ב-" + _pct_str + "% בעדכון האחרון — אין טריגר רגישות"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                "<div dir='rtl' style='font-size:13px; color:#ef4444; text-align:right; margin:2px 0 6px;'>"
+                "⚠️ התחזית המצרפית ירדה ב-" + _pct_str + "% בעדכון האחרון — החוליות הרגישות מסומנות"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+    st.caption("◆ ציר הפוטוניקה מודגש בטבעת צהובה — חברות שאינן מופיעות במפה (כמו FN) נכללות בציר במלואו באזור הפילוח הטכנולוגי.")
 
 
 def section_header(title, accent):
@@ -2034,38 +2159,58 @@ def col_header(label, active=False, width=None, flex=False):
             + label + arrow + "</span>")
 
 
-def render_sentiment_trend(seasons, scores, chart_key):
-    """גרף קו של סנטימנט לאורך עונות. seasons/scores = רשימות מסונכרנות, לפחות 2 פריטים."""
+def render_sentiment_trend(seasons, scores, chart_key, second_series=None):
+    """גרף קו של סנטימנט לאורך עונות.
+    second_series (אופציונלי): tuple של (seasons2, scores2, label2, color2) לקו שני מקווקו."""
     colors = ["#22c55e" if s >= SENTIMENT_POS else ("#ef4444" if s <= SENTIMENT_NEG else "#9ca3af") for s in scores]
     labels = [("+" if int(round(s * 100)) >= 0 else "") + str(int(round(s * 100))) + "%" for s in scores]
 
-    # ציר Y דינמי: ריפוד פרופורציונלי עם רצפה מינימלית, מוגבל לתחום [-1, 1]
-    _s_min = min(scores)
-    _s_max = max(scores)
+    # ציר Y דינמי: טווח מכסה את שתי הסדרות אם קיימת שנייה
+    _all_scores = list(scores)
+    if second_series:
+        _all_scores += list(second_series[1])
+    _s_min = min(_all_scores)
+    _s_max = max(_all_scores)
     _pad = max((_s_max - _s_min) * 0.18, 0.15)
     _y_low  = max(_s_min - _pad, -1.0)
-    _y_high = min(_s_max + _pad + 0.08, 1.0)  # +0.08 מרווח לתוויות מעל הנקודות
+    _y_high = min(_s_max + _pad + 0.08, 1.0)
 
-    # tickvals מתוך רשת קבועה של 25%; מסננים לטווח הגלוי בלבד
     _candidates = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0]
     _tick_vals  = [t for t in _candidates if _y_low - 0.01 <= t <= _y_high + 0.01]
     _tick_text  = [("+" if t > 0 else "") + str(int(round(t * 100))) + "%" for t in _tick_vals]
 
+    _has_second = bool(second_series)
+    _first_label = "סנטימנט חברות" if _has_second else None
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=seasons, y=scores, mode="lines+markers+text",
+        name=_first_label,
         line=dict(color="#60a5fa", width=2.5),
         marker=dict(size=14, color=colors, line=dict(color="#1e2533", width=2)),
         text=labels, textposition="top center",
         textfont=dict(size=13, color="#e5e7eb"),
         hovertemplate="<b>%{x}</b><br>ציון: %{y:.2f}<extra></extra>",
+        showlegend=_has_second,
     ))
+
+    if _has_second:
+        _s2, _sc2, _lbl2, _col2 = second_series
+        fig.add_trace(go.Scatter(
+            x=_s2, y=_sc2, mode="lines+markers",
+            name=_lbl2,
+            line=dict(color=_col2, width=2, dash="dash"),
+            marker=dict(size=9, color=_col2, line=dict(color="#1e2533", width=1.5)),
+            hovertemplate="<b>%{x}</b><br>" + _lbl2 + ": %{y:.2f}<extra></extra>",
+            showlegend=True,
+        ))
+
     if _y_low <= 0 <= _y_high:
         fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1)
     fig.update_layout(
         height=240, template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(14,18,30,0.7)",
-        margin=dict(t=28, b=36, l=60, r=70),
+        margin=dict(t=28 if not _has_second else 40, b=36, l=60, r=70),
         yaxis=dict(
             range=[_y_low, _y_high],
             gridcolor="rgba(255,255,255,0.08)",
@@ -2080,7 +2225,9 @@ def render_sentiment_trend(seasons, scores, chart_key):
             showline=True, linecolor="rgba(255,255,255,0.18)", linewidth=1,
             ticks="outside", ticklen=4, tickcolor="rgba(255,255,255,0.18)",
         ),
-        showlegend=False,
+        showlegend=_has_second,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
+                    font=dict(size=11)) if _has_second else {},
     )
     st.plotly_chart(fig, use_container_width=True, key=chart_key)
 
@@ -2359,13 +2506,14 @@ st.sidebar.markdown(
     "margin-bottom:8px; padding-bottom:4px; border-bottom:1px solid rgba(255,255,255,0.1);'>"
     "📑 ניווט מהיר</div>"
     "<div style='display:flex; flex-direction:column; gap:4px;'>"
-    "<a href='#zone-1' style='color:#f59e0b; text-decoration:none; font-size:13px;'>🏆 SOXX — מדד השבבים</a>"
+    "<a href='#zone-1' style='color:#f59e0b; text-decoration:none; font-size:13px;'>⚡ SOXX — מדד השבבים</a>"
     "<a href='#zone-2' style='color:#8b5cf6; text-decoration:none; font-size:13px;'>🗺️ מפת שרשרת הערך</a>"
     "<a href='#zone-3' style='color:#3b82f6; text-decoration:none; font-size:13px;'>🗺️ מפת חום — דירוג שרשרת הערך</a>"
     "<a href='#zone-4' style='color:#22c55e; text-decoration:none; font-size:13px;'>🔍 צלילה לתחום</a>"
     "<a href='#zone-5' style='color:#a78bfa; text-decoration:none; font-size:13px;'>🧬 פילוח טכנולוגי</a>"
     "<a href='#zone-6' style='color:#22d3ee; text-decoration:none; font-size:13px;'>🏗️ CapEx — ענקיות הענן</a>"
     "<a href='#zone-7' style='color:#f59e0b; text-decoration:none; font-size:13px;'>📋 דוחות — עונת הדוחות</a>"
+    "<a href='#zone-il' style='color:#3b82f6; text-decoration:none; font-size:12px; padding-right:16px;'>↳ 🇮🇱 חברות ישראליות</a>"
     "</div></div>",
     unsafe_allow_html=True,
 )
@@ -2378,7 +2526,7 @@ st.sidebar.caption("משפיע על אזורים 1–5 בלבד")
 # ======================================================
 # אזור 1 — SOXX
 # ======================================================
-section_banner(1, 7, "🏆", "מדד סקטור השבבים — SOXX", "#f59e0b",
+section_banner(1, 7, "⚡", "מדד סקטור השבבים — SOXX", "#f59e0b",
                subtitle="התנהגות המדד הכללי, עם התראות AI על תנועות חריגות",
                period_dependent=True, period_label=period_label)
 soxx_close = get_history(BENCHMARK, period)
@@ -2395,7 +2543,7 @@ else:
     sign = "+" if soxx_change >= 0 else ""
 
     st.markdown(
-        "<h3>🏆 SOXX — מדד סקטור השבבים "
+        "<h3>⚡ SOXX — מדד סקטור השבבים "
         "(<span style='color:" + soxx_color + ";'>" + sign + str(round(soxx_change, 1)) + "%</span>)</h3>",
         unsafe_allow_html=True,
     )
@@ -2698,9 +2846,16 @@ st.markdown(
 # אזור 2 — מפת שרשרת הערך
 # ======================================================
 section_banner(2, 7, "🗺️", "מפת שרשרת הערך", "#8b5cf6",
-               subtitle="מי יושב איפה בשרשרת, מה זורם בין השלבים, ומי חם עכשיו",
+               subtitle="מי יושב איפה בשרשרת ומה זורם בין השלבים ",
                period_dependent=True, period_label=period_label)
-render_chain_map(period)
+_chain_mode_choice = st.radio(
+    "תצוגת המפה:",
+    ["📈 צבע לפי ביצועים", "⚡ צבע לפי רגישות CAPEX"],
+    horizontal=True,
+    key="chain_map_mode",
+)
+_chain_mode = "sensitivity" if "רגישות" in _chain_mode_choice else "perf"
+render_chain_map(period, mode=_chain_mode)
 
 st.markdown(
     "<div style='margin:48px 0 32px; border-top:2px solid rgba(255,255,255,0.10); "
@@ -2848,10 +3003,17 @@ for r in results:
 
 chosen = st.selectbox("בחרי תחום:", sector_names, format_func=clean_name)
 
+# guard: מונע קריסה כשהתחום לא קיים ב-value_chain (שם ישן, session_state עמיד)
+_z3_tickers = value_chain.get(chosen) if (chosen and chosen in value_chain) else []
+if not sector_names:
+    st.warning("לא הצלחנו למשוך נתוני מניות כרגע — נסי לרענן בעוד דקה.")
+elif not _z3_tickers:
+    st.info("בחרי תחום מהרשימה.")
+
 _z3_intraday = period in DAILY_PERIODS
 _z3_skip = period == "lastclose"
 _z3_xfmt = "%H:%M" if _z3_intraday else "%d/%m/%Y"
-chart_data = build_chart(value_chain[chosen], period, intraday=_z3_intraday, skip_current_day=_z3_skip)
+chart_data = build_chart(_z3_tickers, period, intraday=_z3_intraday, skip_current_day=_z3_skip)
 if chart_data.empty:
     st.warning("אין מספיק נתונים לתחום הזה")
 else:
@@ -2947,7 +3109,7 @@ else:
             st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("טבלת תשואות")
-        chosen_pairs = get_changes(value_chain[chosen], period)
+        chosen_pairs = get_changes(_z3_tickers, period)
         st.markdown(returns_table_html(chosen_pairs), unsafe_allow_html=True)
 
         soxx_change2 = get_change(BENCHMARK, period)
@@ -2969,7 +3131,7 @@ else:
                 _z3_ty.append(_agg["score"])
 
         # קו לכל מניה בתחום עם ≥2 עונות מנותחות
-        _z3_syms = list(value_chain[chosen])
+        _z3_syms = list(_z3_tickers)
         _z3_sym_series: dict[str, tuple[list, list]] = {}
         for _sym in _z3_syms:
             _sx, _sy = [], []
@@ -3270,15 +3432,25 @@ def render_tech_detail(idx, sentiment_data=None, season=None, group_name=None):
                 break
         if _gd is not None:
             _all_s = sorted({s for sym_d in sentiment_data.values() for s in sym_d})
-            _tx, _ty = [], []
+            _tx, _ty = [], []   # סנטימנט חברות
+            _wx, _wy = [], []   # ציון משולב
             for _s in _all_s:
                 _agg = tech_group_sentiment(_gd, _s, sentiment_data)
                 if _agg is not None:
                     _tx.append(_s)
                     _ty.append(_agg["score"])
+                _ws = weighted_tech_score(group_name, _gd, _s, sentiment_data)
+                if _ws is not None:
+                    _wx.append(_s)
+                    _wy.append(_ws["score"])
             if len(_tx) >= 2:
                 st.markdown(section_header("📈 מגמת סנטימנט לאורך עונות", "#22d3ee"), unsafe_allow_html=True)
-                render_sentiment_trend(_tx, _ty, "trend_tech_" + sector_key(group_name))
+                _second = (_wx, _wy, "ציון משולב", "#f59e0b") if len(_wx) >= 2 else None
+                render_sentiment_trend(_tx, _ty, "trend_tech_" + sector_key(group_name),
+                                       second_series=_second)
+                if _second:
+                    st.caption("קו מלא = סנטימנט חברות (עקבי בין עונות) · קו מקווקו = ציון משולב "
+                               "(כולל סיגנלים; משקלם משתנה לפי מספרם, ולכן פחות יציב להשוואת מגמה).")
             elif len(_tx) == 1:
                 st.caption("עונה אחת שמורה לתחום זה — הגרף יופיע לאחר עונה נוספת.")
 
@@ -3916,10 +4088,62 @@ if not _z6_all_entries:
         get_earnings_calendar.clear()
         st.rerun()
 
-# המרה ל-dict {date_str: [entries]}
+# חלון הלוח (±120 יום, זהה ל-get_earnings_calendar)
+_z6_today = datetime.now(timezone.utc).date()
+_z6_win_lo = _z6_today - timedelta(days=120)
+_z6_win_hi = _z6_today + timedelta(days=120)
+
+# שלב א׳: בנה מפת עוגן מרשומות שמורות — (symbol, season) → report_date_str
+# משמשת לסינון entries של yfinance שהתאריך שלהם שונה מהתאריך השמור.
+_z6_pinned: dict = {}
+for _psym, _pss in _z6_sent_data.items():
+    for _pseason, _prec in _pss.items():
+        _pds = (_prec or {}).get("report_date", "")
+        if not _pds or _pds == "—":
+            continue
+        try:
+            datetime.strptime(_pds, "%Y-%m-%d")
+            _z6_pinned[(_psym, _pseason)] = _pds
+        except ValueError:
+            pass
+
+# שלב ב׳: המרה ל-dict {date_str: [entries]}, עם כלל ההעדפה
+# entry של yfinance שעבורו קיים עוגן שמור לאותה (symbol, season) אך בתאריך שונה — נדחה.
 _z6_cal_dict = {}
 for _e in _z6_all_entries:
+    _e_pinned = _z6_pinned.get((_e["symbol"], season_from_date(_e["date"])))
+    if _e_pinned is not None and _e_pinned != str(_e["date"]):
+        continue
     _z6_cal_dict.setdefault(str(_e["date"]), []).append(_e)
+
+# שלב ג׳: הזרק צ'יפים מרשומות שמורות שלא הגיעו כלל מ-yfinance
+_z6_present: set = set()
+for _pd_str, _pe_list in _z6_cal_dict.items():
+    for _pe in _pe_list:
+        _z6_present.add((_pe["symbol"], _pd_str))
+
+for _inj_sym, _inj_seasons in _z6_sent_data.items():
+    for _inj_season, _inj_rec in _inj_seasons.items():
+        _inj_date_str = (_inj_rec or {}).get("report_date", "")
+        if not _inj_date_str or _inj_date_str == "—":
+            continue
+        try:
+            _inj_d = datetime.strptime(_inj_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        if not (_z6_win_lo <= _inj_d <= _z6_win_hi):
+            continue
+        if (_inj_sym, str(_inj_d)) in _z6_present:
+            continue  # כבר קיים (yfinance הסכים על אותו תאריך)
+        _z6_cal_dict.setdefault(str(_inj_d), []).append({
+            "date":       _inj_d,
+            "symbol":     _inj_sym,
+            "eps_est":    (_inj_rec or {}).get("eps_estimate"),
+            "eps_actual": (_inj_rec or {}).get("eps_actual"),
+            "surprise":   None,
+            "is_future":  False,
+        })
+        _z6_present.add((_inj_sym, str(_inj_d)))
 
 # אוסף תחזיות לחברות עתידיות בחודש המוצג
 _z6_fwd_est: dict[str, dict] = {}
@@ -4184,8 +4408,9 @@ st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 # ======================================================
 # חברות ישראליות — מעקב צמוד
 # ======================================================
+st.markdown("<div id='zone-il'></div>", unsafe_allow_html=True)
 st.markdown(section_header("🇮🇱 חברות ישראליות — מעקב צמוד", "#3b82f6"), unsafe_allow_html=True)
-st.caption("מעקב קבוע אחר ארבע החברות הישראליות בסקטור — דוח אחרון, דוח הבא, וניתוח השפעת עונת הדוחות.")
+st.caption("מעקב קבוע אחר שלוש החברות הישראליות בסקטור — דוח אחרון, דוח הבא, וניתוח השפעת עונת הדוחות.")
 
 _il_season = latest_season_with_data(_z6_sent_data)
 
@@ -4349,7 +4574,7 @@ for _il_i, _il_sym in enumerate(_il_display):
                 if len(_il_season_analyzed) > _il_saved_count:
                     st.caption("💡 נותחו דוחות נוספים מאז — לחצי שוב לעדכון")
                 st.markdown(
-                    "<div dir='rtl' style='font-size:13px; color:#d1d5db; line-height:1.6; "
+                    "<div dir='rtl' style='font-size:13px; color:#d1d5db; line-height:1.6; text-align:right; "
                     "background:rgba(255,255,255,0.04); border-radius:6px; padding:8px 10px; margin-top:4px;'>"
                     + (_il_impact_res.get("text") or "") + "</div>",
                     unsafe_allow_html=True,
@@ -4390,7 +4615,7 @@ with st.expander("🔍 ניתוח השפעת עונת הדוחות — חברו�
         if len(_il_season_analyzed) > _ext_saved_count:
             st.caption("💡 נותחו דוחות נוספים מאז — לחצי שוב לעדכון")
         st.markdown(
-            "<div dir='rtl' style='font-size:13px; color:#d1d5db; line-height:1.6; "
+            "<div dir='rtl' style='font-size:13px; color:#d1d5db; line-height:1.6; text-align:right; "
             "background:rgba(255,255,255,0.04); border-radius:6px; padding:8px 10px; margin-top:4px;'>"
             + (_ext_impact_res.get("text") or "") + "</div>",
             unsafe_allow_html=True,
@@ -4421,7 +4646,7 @@ with st.expander("🎯 ניתוח השפעה ממוקדת — דוח של חבר
                 st.rerun()
         if _foc_res:
             st.markdown(
-                "<div dir='rtl' style='font-size:13px; color:#d1d5db; line-height:1.6; "
+                "<div dir='rtl' style='font-size:13px; color:#d1d5db; line-height:1.6; text-align:right; "
                 "background:rgba(255,255,255,0.04); border-radius:6px; padding:8px 10px; margin-top:4px;'>"
                 + (_foc_res.get("text") or "") + "</div>",
                 unsafe_allow_html=True,
@@ -5043,7 +5268,7 @@ with st.container(border=True):
                 "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הפתעה %</th>"
                 + (f"<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>{_rev_hdr_txt}</th>"
                    if _h_has_rev else "")
-                + "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הכנסות צפי 🔮 (" + currency_symbol(_hist_ccy) + "B)</th>"
+                + "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הכנסות צפי 🔮 (B)</th>"
                 "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>הפתעת הכנסות 🔮</th>"
                 "<th style='text-align:center; padding:6px 10px; color:#9ca3af;'>סנטימנט</th>"
                 "</tr>"
@@ -5053,28 +5278,81 @@ with st.container(border=True):
             for _hqk in _h_quarters:
                 _hq = _h_eps_by_q.get(_hqk) or {}
                 _h_srec = _h_sent_by_q.get(_hqk) or {}
+
+                # --- מצב פיצול: מטבע הרשומה שונה ממטבע yfinance ---
+                _row_ccy = record_currency(_z6_chosen, _h_srec) if _h_srec else _hist_ccy
+                _is_split = bool(_h_srec) and _row_ccy != _hist_ccy
+                _split_tip = (
+                    "<div class='chip-tip'>"
+                    f"מוצג מנתוני הניתוח (Gemini) ב-{_row_ccy} · yfinance מדווח ב-{_hist_ccy}"
+                    "</div>"
+                ) if _is_split else ""
+
+                # --- הכנסות בפועל ---
                 _rev_cell = ""
                 if _h_has_rev:
-                    _hrv = _h_rev_by_q.get(_hqk)
-                    if _hrv is not None and not (isinstance(_hrv, float) and math.isnan(_hrv)):
-                        _rev_cell = f"<td style='text-align:center; padding:6px 10px;'>{_hrv:.2f}B</td>"
+                    if _is_split:
+                        _rva = _h_srec.get("revenue_actual_b")
+                        if _rva is not None:
+                            try:
+                                _rva_html = f"{currency_symbol(_row_ccy)}{float(_rva):.2f}B"
+                                _rev_cell = (
+                                    "<td style='text-align:center; padding:6px 10px;'>"
+                                    f"<span class='chip-future' style='position:relative;'>{_rva_html}{_split_tip}</span></td>"
+                                )
+                            except (TypeError, ValueError):
+                                _rev_cell = _h_td_dash
+                        else:
+                            _rev_cell = _h_td_dash
                     else:
-                        _rev_cell = _h_td_dash
+                        _hrv = _h_rev_by_q.get(_hqk)
+                        if _hrv is not None and not (isinstance(_hrv, float) and math.isnan(_hrv)):
+                            _rev_cell = f"<td style='text-align:center; padding:6px 10px;'>{_hrv:.2f}B</td>"
+                        else:
+                            _rev_cell = _h_td_dash
+
+                # --- EPS בפועל, צפי, הפתעה ---
+                if _is_split:
+                    _eps_a = _h_srec.get("eps_actual")
+                    _eps_e = _h_srec.get("eps_estimate")
+                    _eps_act_cell = (
+                        "<td style='text-align:center; padding:6px 10px;'>"
+                        f"<span class='chip-future' style='position:relative;'>{_hfmt(_eps_a)}{_split_tip}</span></td>"
+                    )
+                    _eps_est_cell = (
+                        "<td style='text-align:center; padding:6px 10px; color:#9ca3af;'>"
+                        f"<span class='chip-future' style='position:relative;'>{_hfmt(_eps_e)}{_split_tip}</span></td>"
+                    )
+                    _eps_surp_inner = "<span style='color:#6b7280;'>—</span>"
+                    if _eps_a is not None and _eps_e is not None:
+                        try:
+                            _ge = float(_eps_e)
+                            _ga = float(_eps_a)
+                            if _ge != 0:
+                                _eps_surp_inner = _hfmt_surp(_ga / _ge * 100 - 100)
+                        except (TypeError, ValueError):
+                            pass
+                    _eps_surp_cell = (
+                        "<td style='text-align:center; padding:6px 10px;'>"
+                        f"<span class='chip-future' style='position:relative;'>{_eps_surp_inner}{_split_tip}</span></td>"
+                    )
+                else:
+                    _eps_act_cell  = f"<td style='text-align:center; padding:6px 10px;'>{_hfmt(_hq.get('actual'))}</td>"
+                    _eps_est_cell  = f"<td style='text-align:center; padding:6px 10px; color:#9ca3af;'>{_hfmt(_hq.get('est'))}</td>"
+                    _eps_surp_cell = f"<td style='text-align:center; padding:6px 10px;'>{_hfmt_surp(_hq.get('surp'))}</td>"
 
                 # --- תאי Gemini: הכנסות צפי / הפתעת הכנסות / סנטימנט ---
                 _h_rev_est_gem = _h_srec.get("revenue_estimate_b")
                 _h_rev_act_gem = _h_srec.get("revenue_actual_b")
                 _h_sent_score  = _h_srec.get("sentiment_score")
 
-                # עמודה 1: הכנסות צפי
                 _gem_est_cell = _h_td_dash
                 if _h_rev_est_gem is not None:
                     try:
-                        _gem_est_cell = f"<td style='text-align:center; padding:6px 10px;'>{currency_symbol(_hist_ccy)}{float(_h_rev_est_gem):.2f}B</td>"
+                        _gem_est_cell = f"<td style='text-align:center; padding:6px 10px;'>{currency_symbol(record_currency(_z6_chosen, _h_srec))}{float(_h_rev_est_gem):.2f}B</td>"
                     except (TypeError, ValueError):
                         pass
 
-                # עמודה 2: הפתעת הכנסות (מזוג Gemini בלבד, לא מול yfinance)
                 _gem_surp_cell = _h_td_dash
                 if _h_rev_act_gem is not None and _h_rev_est_gem is not None:
                     try:
@@ -5085,7 +5363,6 @@ with st.container(border=True):
                     except (TypeError, ValueError):
                         pass
 
-                # עמודה 3: סנטימנט
                 _gem_sent_cell = _h_td_dash
                 if _h_sent_score is not None:
                     try:
@@ -5098,9 +5375,7 @@ with st.container(border=True):
                     "<tr style='border-top:1px solid rgba(255,255,255,0.07);'>"
                     f"<td style='text-align:right; padding:6px 10px; font-weight:600;'>{_hqk}</td>"
                     f"<td style='text-align:center; padding:6px 10px; color:#9ca3af; font-size:11px;'>{_h_date_val}</td>"
-                    f"<td style='text-align:center; padding:6px 10px;'>{_hfmt(_hq.get('actual'))}</td>"
-                    f"<td style='text-align:center; padding:6px 10px; color:#9ca3af;'>{_hfmt(_hq.get('est'))}</td>"
-                    f"<td style='text-align:center; padding:6px 10px;'>{_hfmt_surp(_hq.get('surp'))}</td>"
+                    + _eps_act_cell + _eps_est_cell + _eps_surp_cell
                     + _rev_cell
                     + _gem_est_cell + _gem_surp_cell + _gem_sent_cell
                     + "</tr>"
@@ -5113,38 +5388,3 @@ with st.container(border=True):
             )
             if not _h_has_rev:
                 st.caption("אין נתוני הכנסות רבעוניים זמינים לחברה זו.")
-
-# ======================================================
-# גרף מגמת סנטימנט לפי חברה ספציפית
-# ======================================================
-st.markdown(section_header("📊 מגמת סנטימנט לפי חברה", "#60a5fa"), unsafe_allow_html=True)
-with st.container(border=True):
-    _z6_cmp_sym = st.selectbox("בחרי חברה למגמת הסנטימנט:", CORE_COMPANIES, key="z6_cmp_sym")
-    _z6_cmp_seasons = sorted(_z6_sent_data.get(_z6_cmp_sym, {}).keys())
-    if len(_z6_cmp_seasons) == 0:
-        st.markdown(
-            "<div dir='rtl' style='text-align:center; padding:20px 12px; "
-            "background:rgba(255,255,255,0.03); border-radius:8px; color:#9ca3af; font-size:14px;'>"
-            "ℹ️ אין ניתוחים שמורים לחברה " + _z6_cmp_sym + " עדיין."
-            "</div>",
-            unsafe_allow_html=True,
-        )
-    elif len(_z6_cmp_seasons) == 1:
-        _cmp_s0 = _z6_cmp_seasons[0]
-        _cmp_sc0 = float(_z6_sent_data[_z6_cmp_sym][_cmp_s0].get("sentiment_score", 0) or 0)
-        _cmp_pct0 = int(round(_cmp_sc0 * 100))
-        _cmp_sign0 = "+" if _cmp_pct0 >= 0 else ""
-        st.markdown(
-            "<div dir='rtl' style='text-align:center; padding:20px 12px; "
-            "background:rgba(255,255,255,0.03); border-radius:8px; color:#9ca3af; font-size:14px;'>"
-            "ℹ️ עונה אחת שמורה (" + _cmp_s0 + ": <b style='color:#e5e7eb;'>"
-            + _cmp_sign0 + str(_cmp_pct0) + "%</b>). הגרף יופיע לאחר ניתוח עונה נוספת."
-            "</div>",
-            unsafe_allow_html=True,
-        )
-    else:
-        _cmp_scores = [
-            float(_z6_sent_data[_z6_cmp_sym][_s].get("sentiment_score", 0) or 0)
-            for _s in _z6_cmp_seasons
-        ]
-        render_sentiment_trend(_z6_cmp_seasons, _cmp_scores, "trend_cmp_" + _z6_cmp_sym)
