@@ -3112,8 +3112,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 _rating_universe = tuple(sorted({t for lst in value_chain.values() for t in lst}))
-with st.spinner("סורק שינויי דירוג אנליסטים..."):
-    _rating_changes = scan_rating_changes(_rating_universe, days_back=14)
 
 section_banner(3, 8, "🗺️", "מפת חום — דירוג שרשרת הערך", "#3b82f6",
                subtitle="11 חוליות שרשרת הערך, מדורגות לפי המרחק מ-SOXX",
@@ -3181,7 +3179,6 @@ with st.container(border=True):
             + col_header("חציון", width="80px")
             + col_header("מול המדד " + soxx_hdr, active=_h_soxx_active, width="170px")
             + col_header("רוחב", width="90px")
-            + col_header("שינוי דירוג 14י׳", width="120px")
             + col_header("סנטימנט הדוח האחרון", active=_h_sent_active, width="110px")
             + "</div>",
             unsafe_allow_html=True,
@@ -3213,40 +3210,9 @@ with st.container(border=True):
         _agg = value_chain_sentiment(sector, _sent_season, _sentiment_data)
         _sent_span = sentiment_cell_html(_agg, wrapper="span")
 
-        # --- שינויי דירוג לתחום זה ---
-        _rc_up = sum(_rating_changes.get(t, {}).get("up", 0) for t in value_chain.get(sector, []))
-        _rc_down = sum(_rating_changes.get(t, {}).get("down", 0) for t in value_chain.get(sector, []))
-        has_rating_change = (_rc_up + _rc_down) > 0
-        _rc_title_parts = []
-        for _rct in value_chain.get(sector, []):
-            _rcd = _rating_changes.get(_rct)
-            if _rcd:
-                for _rcc in _rcd.get("changes", [])[:2]:
-                    _rdir = "⬆️" if _rcc["action"] == "up" else "⬇️"
-                    _rdays = ("היום" if _rcc["days_ago"] == 0
-                              else ("אתמול" if _rcc["days_ago"] == 1
-                                    else "לפני " + str(_rcc["days_ago"]) + " ימים"))
-                    _rc_title_parts.append(_rct + " " + _rdir + " " + _rcc.get("firm", "") + " " + _rdays)
-        _rc_title = "; ".join(_rc_title_parts[:6])
-        if _rc_up > 0 and _rc_down > 0:
-            _rc_inner = ("<span style='color:#22c55e;'>⬆️" + str(_rc_up) + "</span>"
-                         " · <span style='color:#ef4444;'>⬇️" + str(_rc_down) + "</span>")
-        elif _rc_up > 0:
-            _rc_inner = "<span style='color:#22c55e;'>⬆️ " + str(_rc_up) + "</span>"
-        elif _rc_down > 0:
-            _rc_inner = "<span style='color:#ef4444;'>⬇️ " + str(_rc_down) + "</span>"
-        else:
-            _rc_inner = "<span style='color:#6b7280;'>—</span>"
-        _rc_span = ("<span style='width:120px; text-align:center; display:inline-block;'"
-                    " title='" + _rc_title.replace("'", "&#39;") + "'>" + _rc_inner + "</span>")
-
-        # סגנון שורה: אם יש שינוי דירוג והשורה סגורה — רקע ורוד עדין עם מסגרת ימנית
         if is_open:
             _row_bg_val = row_bg
             _row_border_r = "none"
-        elif has_rating_change:
-            _row_bg_val = "rgba(236,72,153,0.07)"
-            _row_border_r = "3px solid #ec4899"
         else:
             _row_bg_val = "transparent"
             _row_border_r = "none"
@@ -3263,7 +3229,6 @@ with st.container(border=True):
                 "<span style='width:80px; text-align:center; color:" + med_color + "; font-weight:700;'>" + med_txt + "</span>"
                 "<span style='width:170px; text-align:center; color:" + vs_color + "; font-weight:600; font-size:14px;'>" + vs_txt + "</span>"
                 "<span style='width:90px; text-align:center; color:" + bcolor + "; font-size:14px;'>" + str(up) + "/" + str(total) + " עלו</span>"
-                + _rc_span
                 + _sent_span +
                 "</div>",
                 unsafe_allow_html=True,
@@ -3281,7 +3246,6 @@ with st.container(border=True):
 
         rank = rank + 1
 
-st.caption("◆ שורות עם מסגרת ורודה = היה שדרוג/הורדת דירוג אנליסט ב-14 הימים האחרונים")
 
 # ---------- צלילה לתחום ----------
 st.markdown(
@@ -5035,7 +4999,7 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
             if float(eps_surprise) > 0 and float(stock_reaction) < -1:
                 alert_html = (
                     "<div dir='rtl' style='background:rgba(234,179,8,0.15); border:1px solid #ca8a04; "
-                    "border-radius:6px; padding:5px 10px; font-size:12px; color:#fbbf24; margin-top:4px;'>"
+                    "border-radius:6px; padding:5px 10px; font-size:12px; color:#fbbf24; margin-top:4px; text-align:right;'>"
                     "⚠️ הפתעה חיובית אך המניה ירדה — כדאי לבדוק את ההנחיה</div>"
                 )
         except (TypeError, ValueError):
@@ -5807,10 +5771,14 @@ else:
     st.caption("אין נתוני התפלגות המלצות זמינים לחברה זו.")
 
 # --- ה) טבלת שדרוגים/הורדות ---
-_z8_ud = get_upgrades_downgrades(_z8_sym)
-if _z8_ud is not None and not _z8_ud.empty:
+_z8_ud = get_upgrades_downgrades(_z8_sym, limit=200)
+_z8_ud_tbl = (
+    _z8_ud[_z8_ud["date"] >= datetime(2026, 1, 1).date()].reset_index(drop=True)
+    if _z8_ud is not None and not _z8_ud.empty else None
+)
+if _z8_ud_tbl is not None and not _z8_ud_tbl.empty:
     _z8_rows = ""
-    for _, _row in _z8_ud.iterrows():
+    for _, _row in _z8_ud_tbl.iterrows():
         _act = str(_row.get("Action", _row.get("action", ""))).lower()
         _bg  = "rgba(34,197,94,0.10)" if _act == "up" else ("rgba(239,68,68,0.10)" if _act == "down" else "transparent")
         _dir = "⬆️ שדרוג" if _act == "up" else ("⬇️ הורדה" if _act == "down" else _act)
@@ -5833,7 +5801,7 @@ if _z8_ud is not None and not _z8_ud.empty:
         )
     st.markdown(
         "<div dir='rtl' style='overflow-x:auto; margin-top:12px; text-align:right;'>"
-        "<div style='font-size:13px; font-weight:700; margin-bottom:6px;'>שדרוגים / הורדות אחרונים</div>"
+        "<div style='font-size:13px; font-weight:700; margin-bottom:6px;'>שדרוגים / הורדות אחרונים (2026)</div>"
         "<table dir='rtl' style='width:100%; border-collapse:collapse; font-size:12px;'>"
         "<tr style='color:#6b7280; font-size:11px;'>"
         "<th style='padding:4px 10px; text-align:right;'>תאריך</th>"
