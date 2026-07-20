@@ -126,8 +126,8 @@ div[data-testid="stButton"] button[kind="tertiary"] p {
 value_chain = {
     "0. חומרי גלם וּווייפרים (Raw Materials)": ["SHECY", "SUOPY", "ENTG"],
     "1. תכנון ו-IP (EDA & IP)": ["SNPS", "CDNS", "ARM"],
-    "2. מעבדים ו-AI — Fabless (Compute & AI)": ["NVDA", "AMD", "QCOM", "MRVL", "MBLY"],
-    "3. תקשורת ואופטיקה — Fabless (Networking & Optics)": ["AVGO", "COHR", "LITE"],
+    "2. מעבדים ו-AI — Fabless (Compute & AI)": ["NVDA", "AMD", "QCOM"],
+    "3. תקשורת ואופטיקה — Fabless (Networking & Optics)": ["AVGO", "COHR", "LITE", "MRVL"],
     "4. יצרנים משולבים (IDM)": ["INTC", "TXN", "ADI", "NXPI", "STM", "ON", "IFNNY", "RNECY", "MCHP"],
     "5. זיכרון ואחסון (Memory & Storage)": ["MU", "WDC", "SNDK", "STX", "005930.KS", "000660.KS"],
     "6. ציוד ייצור (Wafer Fab Equipment)": ["ASML", "AMAT", "LRCX", "TOELY", "ASMIY"],
@@ -137,11 +137,11 @@ value_chain = {
     "10. תשתיות AI וקירור (AI Infrastructure)": ["SMCI", "DELL", "HPE", "VRT", "ETN", "ANET"],
 }
 
-ISRAELI_TICKERS = {"TSEM", "NVMI", "CAMT", "MBLY"}
+ISRAELI_TICKERS = {"TSEM", "NVMI", "CAMT"}
 
 CHAIN_LOGO_DOMAINS = {
     "NVDA": "nvidia.com", "AMD": "amd.com", 
-    "QCOM": "qualcomm.com", "MRVL": "marvell.com", "MBLY": "mobileye.com",
+    "QCOM": "qualcomm.com", "MRVL": "marvell.com",
     "AVGO": "broadcom.com", "COHR": "coherent.com", "LITE": "lumentum.com",
     "ANET": "arista.com",
     "INTC": "intel.com", "TXN": "ti.com", "ADI": "analog.com",
@@ -330,7 +330,7 @@ TECH_GROUPS = {
         },
         "Edge AI (בינה מלאכותית בקצה)": {
             # ליבה: מריצות AI על המכשיר עצמו — טלפון, רכב, מכשור קצה
-            "core": {"QCOM": 0.50, "2454.TW": 0.40, "ARM": 0.40, "MBLY": 0.40,
+            "core": {"QCOM": 0.50, "2454.TW": 0.40, "ARM": 0.40,
                      "NXPI": 0.25, "STM": 0.20},
             # מעטפת: AI PC ובקרי קצה — חשיפה חלקית ועקיפה למגמה
             "env": {"AMD": 0.15, "INTC": 0.15, "RNECY": 0.15, "MCHP": 0.15},
@@ -342,7 +342,7 @@ TECH_GROUPS = {
             "env": {"ARM": 0.50, "TSM": 0.30, "MU": 0.30, "SNDK": 0.30, "285A.T": 0.30},
         },
         "רכב": {
-            "core": {"MBLY": 0.90, "NXPI": 0.55, "ON": 0.50, "RNECY": 0.50,
+            "core": {"NXPI": 0.55, "ON": 0.50, "RNECY": 0.50,
                      "IFNNY": 0.45, "STM": 0.40, "TXN": 0.35, "ADI": 0.30, "MCHP": 0.20},
             "env": {"QCOM": 0.10},
         },
@@ -942,31 +942,55 @@ def get_capex_annual(symbol):
 
 @st.cache_data(ttl=86400)
 def get_earnings_history(symbol):
-    """היסטוריית EPS מ-earnings_dates: רק רבעונים שדווחו (Reported EPS לא ריק), עד 8 אחורה."""
+    """היסטוריית EPS: נסיון חי; fallback מ-earnings_calendar.json."""
     try:
         df = yf.Ticker(symbol).earnings_dates
-        if df is None or df.empty:
+        if df is not None and not df.empty:
+            reported = df[df["Reported EPS"].notna()].copy()
+            if not reported.empty:
+                return reported.sort_index(ascending=False).head(8)
+    except Exception:
+        pass
+    try:
+        _ecal = _load_ecal_data()
+        _recs = (_ecal or {}).get("earnings_history", {}).get(symbol, {}).get("eps_history", [])
+        _reps = sorted([r for r in _recs if r.get("reported_eps") is not None],
+                       key=lambda r: r["date"], reverse=True)[:8]
+        if not _reps:
             return None
-        reported = df[df["Reported EPS"].notna()].copy()
-        if reported.empty:
-            return None
-        return reported.sort_index(ascending=False).head(8)
+        return pd.DataFrame(
+            {"Reported EPS": [r["reported_eps"] for r in _reps],
+             "EPS Estimate": [r.get("eps_estimate") for r in _reps],
+             "Surprise(%)":  [r.get("surprise_pct") for r in _reps]},
+            index=pd.to_datetime([r["date"] for r in _reps]),
+        )
     except Exception:
         return None
 
 
 @st.cache_data(ttl=86400)
 def get_quarterly_revenue(symbol):
-    """הכנסות רבעוניות מ-quarterly_financials. מחזיר (Series ב-1e9, שם_שורה) או (None, None)."""
+    """הכנסות רבעוניות: נסיון חי; fallback מ-earnings_calendar.json. מחזיר (Series ב-1e9, שם) או (None, None)."""
     try:
         qf = yf.Ticker(symbol).quarterly_financials
-        if qf is None or qf.empty:
+        if qf is not None and not qf.empty:
+            for name in ("Total Revenue", "TotalRevenue", "Revenue"):
+                if name in qf.index:
+                    row = qf.loc[name].dropna() / 1e9
+                    return row.sort_index(), name
+    except Exception:
+        pass
+    try:
+        _ecal = _load_ecal_data()
+        _recs = (_ecal or {}).get("earnings_history", {}).get(symbol, {}).get("quarterly_revenue", [])
+        if not _recs:
             return None, None
-        for name in ("Total Revenue", "TotalRevenue", "Revenue"):
-            if name in qf.index:
-                row = qf.loc[name].dropna() / 1e9
-                return row.sort_index(), name
-        return None, None
+        _name = _recs[0].get("row_name", "Total Revenue")
+        _s = pd.Series(
+            [r.get("revenue_b") for r in _recs],
+            index=pd.to_datetime([r["date"] for r in _recs]),
+        ).sort_index()
+        return _s, _name
     except Exception:
         return None, None
 
@@ -1001,33 +1025,47 @@ def record_currency(symbol, record):
 
 @st.cache_data(ttl=21600)
 def get_upgrades_downgrades(symbol, limit=25):
-    """DataFrame שדרוגים/הורדות ממוין מהחדש לישן, עם עמודת date מנורמלת. None אם ריק."""
+    """DataFrame שדרוגים/הורדות: נסיון חי; fallback מ-earnings_calendar.json."""
     try:
         t = yf.Ticker(symbol)
         df = t.upgrades_downgrades
-        if df is None or df.empty:
+        if df is not None and not df.empty:
+            df = df.copy()
+            if "GradeDate" in df.columns:
+                df["date"] = pd.to_datetime(df["GradeDate"]).dt.date
+            elif df.index.name == "GradeDate" or "GradeDate" in str(df.index.name):
+                df = df.reset_index()
+                df["date"] = pd.to_datetime(df["GradeDate"]).dt.date
+            else:
+                df = df.reset_index()
+                date_col = df.columns[0]
+                df["date"] = pd.to_datetime(df[date_col]).dt.date
+            df = df.sort_values("date", ascending=False).head(limit).reset_index(drop=True)
+            return df
+    except Exception:
+        pass
+    try:
+        _ecal = _load_ecal_data()
+        _recs = (_ecal or {}).get("ratings", {}).get(symbol, {}).get("upgrades_downgrades", [])
+        if not _recs:
             return None
-        df = df.copy()
-        # שם עמודת התאריך משתנה בין גרסאות yfinance
-        if "GradeDate" in df.columns:
-            df["date"] = pd.to_datetime(df["GradeDate"]).dt.date
-        elif df.index.name == "GradeDate" or "GradeDate" in str(df.index.name):
-            df = df.reset_index()
-            df["date"] = pd.to_datetime(df["GradeDate"]).dt.date
-        else:
-            idx = df.index
-            df = df.reset_index()
-            date_col = df.columns[0]
-            df["date"] = pd.to_datetime(df[date_col]).dt.date
-        df = df.sort_values("date", ascending=False).head(limit).reset_index(drop=True)
-        return df
+        _df2 = pd.DataFrame({
+            "Action":    [r.get("action", "")     for r in _recs],
+            "Firm":      [r.get("firm", "")        for r in _recs],
+            "FromGrade": [r.get("from_grade", "")  for r in _recs],
+            "ToGrade":   [r.get("to_grade", "")    for r in _recs],
+            "date":      [r.get("date")             for r in _recs],
+        })
+        _df2["date"] = pd.to_datetime(_df2["date"]).dt.date
+        _df2 = _df2.sort_values("date", ascending=False).head(limit).reset_index(drop=True)
+        return _df2 if not _df2.empty else None
     except Exception:
         return None
 
 
 @st.cache_data(ttl=21600)
 def get_price_targets(symbol):
-    """dict עם current/low/mean/median/high/n_analysts/rec_key/currency. None אם חסרים."""
+    """dict price targets: נסיון חי; fallback מ-earnings_calendar.json."""
     try:
         t = yf.Ticker(symbol)
         result = {}
@@ -1048,33 +1086,43 @@ def get_price_targets(symbol):
             result["n_analysts"] = info.get("numberOfAnalystOpinions")
             result["rec_key"]    = info.get("recommendationKey")
             result["currency"]   = info.get("currency", "USD")
-        if not mean or not low or not high:
-            return None
-        result.update({"current": current, "low": low, "mean": mean,
-                        "median": median, "high": high})
-        if "currency" not in result:
-            result["currency"] = get_financial_currency(symbol)
-        return result
+        if mean and low and high:
+            result.update({"current": current, "low": low, "mean": mean,
+                            "median": median, "high": high})
+            if "currency" not in result:
+                result["currency"] = get_financial_currency(symbol)
+            return result
+    except Exception:
+        pass
+    try:
+        _ecal = _load_ecal_data()
+        _pt = (_ecal or {}).get("ratings", {}).get(symbol, {}).get("price_targets")
+        return _pt if _pt else None
     except Exception:
         return None
 
 
 @st.cache_data(ttl=21600)
 def get_recommendation_dist(symbol):
-    """התפלגות strongBuy/buy/hold/sell/strongSell מהשורה הראשונה של recommendations. None אם חסר."""
+    """התפלגות rec: נסיון חי; fallback מ-earnings_calendar.json."""
     try:
         t = yf.Ticker(symbol)
         rec = t.recommendations
-        if rec is None or rec.empty:
-            return None
-        row = rec.iloc[0]
-        return {
-            "strongBuy":  int(row.get("strongBuy",  0) or 0),
-            "buy":        int(row.get("buy",         0) or 0),
-            "hold":       int(row.get("hold",        0) or 0),
-            "sell":       int(row.get("sell",        0) or 0),
-            "strongSell": int(row.get("strongSell",  0) or 0),
-        }
+        if rec is not None and not rec.empty:
+            row = rec.iloc[0]
+            return {
+                "strongBuy":  int(row.get("strongBuy",  0) or 0),
+                "buy":        int(row.get("buy",         0) or 0),
+                "hold":       int(row.get("hold",        0) or 0),
+                "sell":       int(row.get("sell",        0) or 0),
+                "strongSell": int(row.get("strongSell",  0) or 0),
+            }
+    except Exception:
+        pass
+    try:
+        _ecal = _load_ecal_data()
+        _rd = (_ecal or {}).get("ratings", {}).get(symbol, {}).get("recommendation_dist")
+        return _rd if _rd else None
     except Exception:
         return None
 
@@ -1232,7 +1280,9 @@ def get_earnings_calendar(symbols, days_back=120, days_fwd=120):
     file_records: dict = {}
     try:
         with open(EARNINGS_CALENDAR_FILE, "r", encoding="utf-8") as _fh:
-            for _r in json.load(_fh):
+            _raw_json = json.load(_fh)
+            _cal_list = _raw_json.get("earnings_calendar", _raw_json) if isinstance(_raw_json, dict) else _raw_json
+            for _r in _cal_list:
                 _sym = _r.get("symbol")
                 _d = _parse_date(_r.get("date"))
                 if _sym and _d and lo <= _d <= hi:
@@ -1411,7 +1461,6 @@ _COMPANY_DESC = {
     "TSEM": "Tower Semiconductor — foundry ישראלי לשבבים אנלוגיים, RF ומיוחדים",
     "NVMI": "Nova — ציוד מדידה ובקרת תהליכים (process control & metrology)",
     "CAMT": "Camtek — ציוד בדיקה ומדידה לאריזה מתקדמת",
-    "MBLY": "Mobileye — מערכות ראייה ממוחשבת לרכב אוטונומי",
     "ASML": "ASML — מונופול ציוד הליתוגרפיה (EUV/DUV); שסתום צוואר הבקבוק של ייצור שבבים מתקדמים",
     "AMAT": "Applied Materials — ציוד הפקדה (deposition) ואיטום; מוביל שוק ה-CVD/PVD",
     "LRCX": "Lam Research — ציוד חריטה (etch) ועיבוד ווייפרים",
@@ -1494,6 +1543,18 @@ def gemini_focused_impact(source_sym, target_sym, season, source_record):
 # ======================================================
 SENTIMENT_FILE = "earnings_sentiment.json"
 EARNINGS_CALENDAR_FILE = "earnings_calendar.json"
+
+
+def _load_ecal_data():
+    """טוען earnings_calendar.json → dict עם מקטעים. תומך בפורמט ישן (רשימה). None בשגיאה."""
+    try:
+        with open(EARNINGS_CALENDAR_FILE, "r", encoding="utf-8") as _fh:
+            _raw = json.load(_fh)
+        if isinstance(_raw, list):
+            return {"earnings_calendar": _raw, "ratings": {}, "earnings_history": {}}
+        return _raw
+    except Exception:
+        return None
 
 
 def season_from_date(d):
@@ -4245,7 +4306,7 @@ else:
 CORE_COMPANIES = sorted([
     "ASML", "AMAT", "LRCX", "KLAC", "NVDA", "AMD", "TSM", "INTC", "MU",
     "TXN", "ADI", "AVGO", "QCOM", "MRVL", "ARM",
-    "TSEM", "NVMI", "CAMT", "MBLY",
+    "TSEM", "NVMI", "CAMT",
     "MSFT", "META", "GOOGL", "AMZN", "ORCL",
     "005930.KS", "000660.KS",
 ])
@@ -4699,10 +4760,9 @@ _il_descriptions = {
     "TSEM": "Tower Semi · Foundry אנלוגי",
     "NVMI": "Nova · Process Control",
     "CAMT": "Camtek · Inspection",
-    "MBLY": "Mobileye · Automotive AI",
 }
 
-_il_display = sorted(ISRAELI_TICKERS - {"MBLY"})
+_il_display = sorted(ISRAELI_TICKERS)
 _il_cols = st.columns(len(_il_display))
 for _il_i, _il_sym in enumerate(_il_display):
     with _il_cols[_il_i]:
