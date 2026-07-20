@@ -5000,7 +5000,7 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
                 alert_html = (
                     "<div dir='rtl' style='background:rgba(234,179,8,0.15); border:1px solid #ca8a04; "
                     "border-radius:6px; padding:5px 10px; font-size:12px; color:#fbbf24; margin-top:4px; text-align:right;'>"
-                    "⚠️ הפתעה חיובית אך המניה ירדה — כדאי לבדוק את ההנחיה</div>"
+                    "⚠️ הפתעה חיובית אך המניה ירדה</div>"
                 )
         except (TypeError, ValueError):
             pass
@@ -5658,7 +5658,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 section_banner(8, 8, "🎯", "דירוגי אנליסטים ומחירי יעד", "#ec4899",
-               subtitle="שדרוגים, הורדות ומחירי יעד לפי חברה — עם הסבר AI לשינוי האחרון",
+               subtitle="שדרוגים, הורדות ומחירי יעד לפי חברה",
                period_dependent=False)
 
 # --- ב) בורר חברה ---
