@@ -1,0 +1,39 @@
+name: Fetch Earnings Calendar
+
+on:
+  schedule:
+    - cron: "0 6 * * *"    # 06:00 UTC בכל יום
+  workflow_dispatch:         # הרצה ידנית מה-UI
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install yfinance==1.5.1 pandas==2.3.3
+
+      - name: Fetch earnings calendar
+        run: python fetch_earnings_calendar.py
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet earnings_calendar.json; then
+            echo "אין שינויים ב-earnings_calendar.json — דילוג על commit"
+          else
+            git add earnings_calendar.json
+            git commit -m "chore: update earnings_calendar.json [$(date -u +%Y-%m-%d)]"
+            git push
+          fi

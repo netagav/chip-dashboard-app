@@ -1,0 +1,434 @@
+[
+  {
+    "date": "2026-04-14",
+    "symbol": "ASML",
+    "eps_est": 6.62,
+    "eps_actual": 7.15,
+    "surprise": 7.99,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-15",
+    "symbol": "TSM",
+    "eps_est": 3.33,
+    "eps_actual": 3.49,
+    "surprise": 4.68,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-22",
+    "symbol": "000660.KS",
+    "eps_est": 40016.55,
+    "eps_actual": 56670.0,
+    "surprise": 41.62,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-22",
+    "symbol": "LRCX",
+    "eps_est": 1.36,
+    "eps_actual": 1.47,
+    "surprise": 7.87,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-22",
+    "symbol": "TXN",
+    "eps_est": 1.37,
+    "eps_actual": 1.68,
+    "surprise": 22.76,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-23",
+    "symbol": "INTC",
+    "eps_est": 0.01,
+    "eps_actual": 0.29,
+    "surprise": 2108.68,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-23",
+    "symbol": "MBLY",
+    "eps_est": 0.09,
+    "eps_actual": 0.12,
+    "surprise": 39.71,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-29",
+    "symbol": "005930.KS",
+    "eps_est": 5089.38,
+    "eps_actual": 7123.0,
+    "surprise": 39.96,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-29",
+    "symbol": "AMZN",
+    "eps_est": 1.64,
+    "eps_actual": 2.78,
+    "surprise": 69.02,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-29",
+    "symbol": "GOOGL",
+    "eps_est": 2.63,
+    "eps_actual": 5.11,
+    "surprise": 94.3,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-29",
+    "symbol": "KLAC",
+    "eps_est": 0.92,
+    "eps_actual": 0.94,
+    "surprise": 2.5,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-29",
+    "symbol": "META",
+    "eps_est": 6.82,
+    "eps_actual": 7.31,
+    "surprise": 7.2,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-29",
+    "symbol": "MSFT",
+    "eps_est": 4.07,
+    "eps_actual": 4.27,
+    "surprise": 4.9,
+    "is_future": false
+  },
+  {
+    "date": "2026-04-29",
+    "symbol": "QCOM",
+    "eps_est": 2.56,
+    "eps_actual": 2.65,
+    "surprise": 3.34,
+    "is_future": false
+  },
+  {
+    "date": "2026-05-05",
+    "symbol": "AMD",
+    "eps_est": 1.29,
+    "eps_actual": 1.37,
+    "surprise": 5.82,
+    "is_future": false
+  },
+  {
+    "date": "2026-05-05",
+    "symbol": "ARM",
+    "eps_est": 0.58,
+    "eps_actual": 0.6,
+    "surprise": 3.57,
+    "is_future": false
+  },
+  {
+    "date": "2026-05-12",
+    "symbol": "CAMT",
+    "eps_est": 0.68,
+    "eps_actual": 0.7,
+    "surprise": 2.24,
+    "is_future": false
+  },
+  {
+    "date": "2026-05-13",
+    "symbol": "TSEM",
+    "eps_est": 0.56,
+    "eps_actual": 0.65,
+    "surprise": 15.66,
+    "is_future": false
+  },
+  {
+    "date": "2026-05-14",
+    "symbol": "AMAT",
+    "eps_est": 2.69,
+    "eps_actual": 2.86,
+    "surprise": 6.5,
+    "is_future": false
+  },
+  {
+    "date": "2026-05-14",
+    "symbol": "NVMI",
+    "eps_est": 2.2,
+    "eps_actual": 2.33,
+    "surprise": 5.98,
+    "is_future": false
+  },
+  {
+    "date": "2026-05-20",
+    "symbol": "ADI",
+    "eps_est": 2.91,
+    "eps_actual": 3.09,
+    "surprise": 6.22,
+    "is_future": false
+  },
+  {
+    "date": "2026-05-20",
+    "symbol": "NVDA",
+    "eps_est": 1.77,
+    "eps_actual": 1.87,
+    "surprise": 5.54,
+    "is_future": false
+  },
+  {
+    "date": "2026-05-27",
+    "symbol": "MRVL",
+    "eps_est": 0.79,
+    "eps_actual": 0.8,
+    "surprise": 0.64,
+    "is_future": false
+  },
+  {
+    "date": "2026-06-03",
+    "symbol": "AVGO",
+    "eps_est": 2.4,
+    "eps_actual": 2.44,
+    "surprise": 1.74,
+    "is_future": false
+  },
+  {
+    "date": "2026-06-10",
+    "symbol": "ORCL",
+    "eps_est": 1.96,
+    "eps_actual": 2.11,
+    "surprise": 7.52,
+    "is_future": false
+  },
+  {
+    "date": "2026-06-24",
+    "symbol": "MU",
+    "eps_est": 20.71,
+    "eps_actual": 25.11,
+    "surprise": 21.25,
+    "is_future": false
+  },
+  {
+    "date": "2026-07-13",
+    "symbol": "ASML",
+    "eps_est": 6.9,
+    "eps_actual": 7.58,
+    "surprise": 9.93,
+    "is_future": false
+  },
+  {
+    "date": "2026-07-16",
+    "symbol": "TSM",
+    "eps_est": 3.89,
+    "eps_actual": 4.31,
+    "surprise": 10.89,
+    "is_future": false
+  },
+  {
+    "date": "2026-07-22",
+    "symbol": "GOOGL",
+    "eps_est": 2.89,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-22",
+    "symbol": "TXN",
+    "eps_est": 1.92,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-23",
+    "symbol": "INTC",
+    "eps_est": 0.22,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-23",
+    "symbol": "MBLY",
+    "eps_est": 0.06,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-28",
+    "symbol": "000660.KS",
+    "eps_est": 70975.39,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-28",
+    "symbol": "KLAC",
+    "eps_est": 1.0,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-29",
+    "symbol": "005930.KS",
+    "eps_est": 11032.47,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-29",
+    "symbol": "ARM",
+    "eps_est": 0.4,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-29",
+    "symbol": "LRCX",
+    "eps_est": 1.68,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-29",
+    "symbol": "META",
+    "eps_est": 7.23,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-29",
+    "symbol": "MSFT",
+    "eps_est": 4.24,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-29",
+    "symbol": "QCOM",
+    "eps_est": 2.23,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-07-30",
+    "symbol": "AMZN",
+    "eps_est": 1.82,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-08-04",
+    "symbol": "AMD",
+    "eps_est": 1.61,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-08-04",
+    "symbol": "TSEM",
+    "eps_est": 0.76,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-08-06",
+    "symbol": "NVMI",
+    "eps_est": 2.41,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-08-12",
+    "symbol": "CAMT",
+    "eps_est": 0.76,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-08-13",
+    "symbol": "AMAT",
+    "eps_est": 3.39,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-08-19",
+    "symbol": "ADI",
+    "eps_est": 3.32,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-08-26",
+    "symbol": "NVDA",
+    "eps_est": 2.09,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-08-27",
+    "symbol": "MRVL",
+    "eps_est": 0.93,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-09-03",
+    "symbol": "AVGO",
+    "eps_est": 3.24,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-09-09",
+    "symbol": "ORCL",
+    "eps_est": 1.74,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-09-23",
+    "symbol": "MU",
+    "eps_est": 31.33,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-10-14",
+    "symbol": "ASML",
+    "eps_est": 10.58,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  },
+  {
+    "date": "2026-10-15",
+    "symbol": "TSM",
+    "eps_est": 4.5,
+    "eps_actual": null,
+    "surprise": null,
+    "is_future": true
+  }
+]
