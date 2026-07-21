@@ -337,6 +337,14 @@
       "is_future": true
     },
     {
+      "date": "2026-08-10",
+      "symbol": "CAMT",
+      "eps_est": 0.76,
+      "eps_actual": null,
+      "surprise": null,
+      "is_future": true
+    },
+    {
       "date": "2026-08-12",
       "symbol": "CAMT",
       "eps_est": 0.76,
@@ -420,7 +428,7 @@
   "ratings": {
     "000660.KS": {
       "price_targets": {
-        "current": 1764000.0,
+        "current": 1836000.0,
         "low": 1200000.0,
         "mean": 3408502.2,
         "median": 3500000.0,
@@ -438,7 +446,7 @@
     },
     "005930.KS": {
       "price_targets": {
-        "current": 244000.0,
+        "current": 259000.0,
         "low": 210000.0,
         "mean": 492536.72,
         "median": 500000.0,
@@ -456,7 +464,7 @@
     },
     "ADI": {
       "price_targets": {
-        "current": 375.36,
+        "current": 372.46,
         "low": 365.0,
         "mean": 457.4,
         "median": 450.0,
@@ -3807,7 +3815,7 @@
     },
     "AEIS": {
       "price_targets": {
-        "current": 284.05,
+        "current": 280.67,
         "low": 350.0,
         "mean": 427.0,
         "median": 412.5,
@@ -5107,7 +5115,7 @@
     },
     "AMAT": {
       "price_targets": {
-        "current": 529.66,
+        "current": 525.7,
         "low": 358.0,
         "mean": 623.0571,
         "median": 647.0,
@@ -9627,7 +9635,7 @@
     },
     "AMD": {
       "price_targets": {
-        "current": 495.76,
+        "current": 503.57,
         "low": 320.0,
         "mean": 541.65955,
         "median": 540.0,
@@ -14819,7 +14827,7 @@
     },
     "AMKR": {
       "price_targets": {
-        "current": 62.94,
+        "current": 62.56,
         "low": 60.0,
         "mean": 78.0,
         "median": 82.5,
@@ -15433,7 +15441,7 @@
     },
     "AMZN": {
       "price_targets": {
-        "current": 247.23,
+        "current": 249.99,
         "low": 207.0,
         "mean": 312.87402,
         "median": 315.0,
@@ -22382,7 +22390,7 @@
     },
     "ANET": {
       "price_targets": {
-        "current": 168.61,
+        "current": 169.35,
         "low": 164.0,
         "mean": 191.75478,
         "median": 190.0,
@@ -25516,7 +25524,7 @@
     },
     "ARM": {
       "price_targets": {
-        "current": 267.19,
+        "current": 269.61,
         "low": 125.0,
         "mean": 304.78433,
         "median": 260.0,
@@ -25531,6 +25539,13 @@
         "strongSell": 1
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-20",
+          "firm": "UBS",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
         {
           "date": "2026-07-14",
           "firm": "Keybanc",
@@ -26949,7 +26964,7 @@
     },
     "ASMIY": {
       "price_targets": {
-        "current": 994.41,
+        "current": 970.5,
         "low": 1420.0,
         "mean": 1420.0,
         "median": 1420.0,
@@ -26967,11 +26982,11 @@
     },
     "ASML": {
       "price_targets": {
-        "current": 1778.59,
-        "low": 883.75604,
-        "mean": 2119.3657,
-        "median": 2296.0588,
-        "high": 2854.7544,
+        "current": 1739.02,
+        "low": 883.958,
+        "mean": 2119.85,
+        "median": 2296.5837,
+        "high": 2855.4067,
         "currency": "USD"
       },
       "recommendation_dist": {
@@ -28069,7 +28084,7 @@
     },
     "AVGO": {
       "price_targets": {
-        "current": 377.6,
+        "current": 378.16,
         "low": 215.88,
         "mean": 524.5067,
         "median": 525.0,
@@ -32391,7 +32406,7 @@
     },
     "CAMT": {
       "price_targets": {
-        "current": 149.97,
+        "current": 147.09,
         "low": 160.0,
         "mean": 187.58333,
         "median": 187.5,
@@ -33215,7 +33230,7 @@
     },
     "CDNS": {
       "price_targets": {
-        "current": 333.51,
+        "current": 329.93,
         "low": 275.0,
         "mean": 395.94193,
         "median": 400.0,
@@ -34823,7 +34838,7 @@
     },
     "COHR": {
       "price_targets": {
-        "current": 290.205,
+        "current": 285.4,
         "low": 230.0,
         "mean": 391.45267,
         "median": 400.0,
@@ -36186,7 +36201,7 @@
     },
     "DELL": {
       "price_targets": {
-        "current": 403.175,
+        "current": 381.88,
         "low": 360.0,
         "mean": 501.0435,
         "median": 500.0,
@@ -38550,7 +38565,7 @@
     },
     "ENTG": {
       "price_targets": {
-        "current": 141.42,
+        "current": 133.79,
         "low": 115.0,
         "mean": 166.0,
         "median": 166.0,
@@ -39731,7 +39746,7 @@
     },
     "ETN": {
       "price_targets": {
-        "current": 412.57,
+        "current": 401.41,
         "low": 321.0,
         "mean": 455.7916,
         "median": 475.0,
@@ -42522,7 +42537,7 @@
     },
     "GFS": {
       "price_targets": {
-        "current": 58.99,
+        "current": 56.81,
         "low": 60.0,
         "mean": 81.0,
         "median": 80.0,
@@ -43437,7 +43452,7 @@
     },
     "GOOGL": {
       "price_targets": {
-        "current": 353.714,
+        "current": 351.99,
         "low": 340.0,
         "mean": 433.51376,
         "median": 433.0,
@@ -50414,7 +50429,7 @@
     },
     "HPE": {
       "price_targets": {
-        "current": 45.79,
+        "current": 44.56,
         "low": 28.0,
         "mean": 64.12947,
         "median": 67.0,
@@ -52365,7 +52380,7 @@
     },
     "IFNNY": {
       "price_targets": {
-        "current": 73.27,
+        "current": 72.15,
         "low": 65.0,
         "mean": 105.75,
         "median": 116.5,
@@ -52426,7 +52441,7 @@
     },
     "INTC": {
       "price_targets": {
-        "current": 97.92,
+        "current": 97.06,
         "low": 45.0,
         "mean": 106.70244,
         "median": 100.0,
@@ -52441,6 +52456,13 @@
         "strongSell": 1
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-20",
+          "firm": "Morgan Stanley",
+          "action": "main",
+          "from_grade": "Equal-Weight",
+          "to_grade": "Equal-Weight"
+        },
         {
           "date": "2026-07-16",
           "firm": "Susquehanna",
@@ -57569,7 +57591,7 @@
     },
     "KLAC": {
       "price_targets": {
-        "current": 218.53,
+        "current": 207.6,
         "low": 150.0,
         "mean": 234.57143,
         "median": 227.5,
@@ -57584,6 +57606,13 @@
         "strongSell": 1
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-20",
+          "firm": "UBS",
+          "action": "main",
+          "from_grade": "Neutral",
+          "to_grade": "Neutral"
+        },
         {
           "date": "2026-07-16",
           "firm": "Oppenheimer",
@@ -60535,7 +60564,7 @@
     },
     "LITE": {
       "price_targets": {
-        "current": 780.11,
+        "current": 765.55,
         "low": 600.0,
         "mean": 1104.8906,
         "median": 1100.0,
@@ -60550,6 +60579,13 @@
         "strongSell": 0
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-20",
+          "firm": "Barclays",
+          "action": "up",
+          "from_grade": "Equal-Weight",
+          "to_grade": "Overweight"
+        },
         {
           "date": "2026-07-13",
           "firm": "TD Cowen",
@@ -62906,7 +62942,7 @@
     },
     "LRCX": {
       "price_targets": {
-        "current": 321.015,
+        "current": 306.76,
         "low": 220.0,
         "mean": 368.25806,
         "median": 380.0,
@@ -66628,7 +66664,7 @@
     },
     "MCHP": {
       "price_targets": {
-        "current": 82.22,
+        "current": 80.51,
         "low": 80.0,
         "mean": 113.375,
         "median": 118.5,
@@ -69573,7 +69609,7 @@
     },
     "META": {
       "price_targets": {
-        "current": 643.36,
+        "current": 645.85,
         "low": 664.46,
         "mean": 822.68585,
         "median": 821.16,
@@ -72483,7 +72519,7 @@
     },
     "MRVL": {
       "price_targets": {
-        "current": 192.63,
+        "current": 194.94,
         "low": 110.0,
         "mean": 253.68922,
         "median": 242.5,
@@ -75449,7 +75485,7 @@
     },
     "MSFT": {
       "price_targets": {
-        "current": 391.18,
+        "current": 402.29,
         "low": 400.0,
         "mean": 557.79144,
         "median": 550.0,
@@ -81789,7 +81825,7 @@
     },
     "MU": {
       "price_targets": {
-        "current": 885.4899,
+        "current": 865.46,
         "low": 361.0,
         "mean": 1491.9524,
         "median": 1550.0,
@@ -87933,7 +87969,7 @@
     },
     "NVDA": {
       "price_targets": {
-        "current": 205.525,
+        "current": 203.28,
         "low": 180.0,
         "mean": 302.31033,
         "median": 294.0,
@@ -94826,7 +94862,7 @@
     },
     "NVMI": {
       "price_targets": {
-        "current": 448.57,
+        "current": 433.17,
         "low": 540.0,
         "mean": 603.375,
         "median": 600.0,
@@ -95363,7 +95399,7 @@
     },
     "NXPI": {
       "price_targets": {
-        "current": 271.55,
+        "current": 267.18,
         "low": 200.0,
         "mean": 310.65518,
         "median": 310.0,
@@ -98294,7 +98330,7 @@
     },
     "ON": {
       "price_targets": {
-        "current": 89.84,
+        "current": 86.7,
         "low": 85.0,
         "mean": 113.52,
         "median": 110.0,
@@ -101344,7 +101380,7 @@
     },
     "ONTO": {
       "price_targets": {
-        "current": 288.0,
+        "current": 278.54,
         "low": 330.0,
         "mean": 369.6,
         "median": 357.5,
@@ -102119,7 +102155,7 @@
     },
     "ORCL": {
       "price_targets": {
-        "current": 124.89,
+        "current": 121.38,
         "low": 145.0,
         "mean": 249.24341,
         "median": 240.0,
@@ -106660,7 +106696,7 @@
     },
     "QCOM": {
       "price_targets": {
-        "current": 173.09,
+        "current": 170.32,
         "low": 100.0,
         "mean": 222.73334,
         "median": 225.0,
@@ -110518,7 +110554,7 @@
     },
     "SMCI": {
       "price_targets": {
-        "current": 24.43,
+        "current": 23.83,
         "low": 15.0,
         "mean": 37.375,
         "median": 35.5,
@@ -111202,7 +111238,7 @@
     },
     "SNDK": {
       "price_targets": {
-        "current": 1418.28,
+        "current": 1390.95,
         "low": 1000.0,
         "mean": 2144.1365,
         "median": 2250.0,
@@ -111851,7 +111887,7 @@
     },
     "SNPS": {
       "price_targets": {
-        "current": 380.335,
+        "current": 378.46,
         "low": 403.85,
         "mean": 563.994,
         "median": 575.0,
@@ -113760,7 +113796,7 @@
     },
     "STM": {
       "price_targets": {
-        "current": 62.62,
+        "current": 61.78,
         "low": 32.8,
         "mean": 72.20769,
         "median": 70.0,
@@ -114479,7 +114515,7 @@
     },
     "STX": {
       "price_targets": {
-        "current": 820.74,
+        "current": 802.45,
         "low": 680.0,
         "mean": 1008.6087,
         "median": 1000.0,
@@ -116582,7 +116618,7 @@
     },
     "TER": {
       "price_targets": {
-        "current": 342.85,
+        "current": 333.76,
         "low": 270.0,
         "mean": 426.35294,
         "median": 440.0,
@@ -116597,6 +116633,13 @@
         "strongSell": 0
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-20",
+          "firm": "UBS",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
         {
           "date": "2026-07-06",
           "firm": "Goldman Sachs",
@@ -119112,7 +119155,7 @@
     },
     "TSEM": {
       "price_targets": {
-        "current": 238.865,
+        "current": 227.21,
         "low": 277.0,
         "mean": 313.83334,
         "median": 320.5,
@@ -119530,7 +119573,7 @@
     },
     "TSM": {
       "price_targets": {
-        "current": 409.24,
+        "current": 402.3,
         "low": 354.0,
         "mean": 522.816,
         "median": 513.0,
@@ -120242,7 +120285,7 @@
     },
     "TXN": {
       "price_targets": {
-        "current": 289.875,
+        "current": 284.07,
         "low": 200.0,
         "mean": 303.59375,
         "median": 301.5,
@@ -120257,6 +120300,13 @@
         "strongSell": 0
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-20",
+          "firm": "Morgan Stanley",
+          "action": "main",
+          "from_grade": "Underweight",
+          "to_grade": "Underweight"
+        },
         {
           "date": "2026-07-14",
           "firm": "Keybanc",
@@ -124699,7 +124749,7 @@
     },
     "UMC": {
       "price_targets": {
-        "current": 21.07,
+        "current": 20.3,
         "low": 7.4,
         "mean": 16.24496,
         "median": 10.07972,
@@ -124935,9 +124985,9 @@
     },
     "VRT": {
       "price_targets": {
-        "current": 299.555,
+        "current": 291.67,
         "low": 236.0,
-        "mean": 380.0,
+        "mean": 379.2,
         "median": 380.0,
         "high": 500.0,
         "currency": "USD"
@@ -126137,7 +126187,7 @@
     },
     "WDC": {
       "price_targets": {
-        "current": 499.51,
+        "current": 487.42,
         "low": 415.0,
         "mean": 633.8333,
         "median": 615.0,
@@ -138966,5 +139016,5 @@
       ]
     }
   },
-  "generated_at": "2026-07-20"
+  "generated_at": "2026-07-21"
 }
