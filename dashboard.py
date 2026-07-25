@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import yfinance as yf
 import statistics
 import math
@@ -9,6 +9,11 @@ import pandas as pd
 import altair as alt
 import plotly.graph_objects as go
 from datetime import datetime, timezone, timedelta
+import logging
+for _name in ("yfinance", "peewee",
+              "streamlit.runtime.scriptrunner.script_run_context",
+              "streamlit.runtime.scriptrunner_utils.script_run_context"):
+    logging.getLogger(_name).setLevel(logging.CRITICAL)
 
 st.set_page_config(page_title="דשבורד שבבים", page_icon="💹", layout="wide")
 
@@ -135,6 +140,7 @@ value_chain = {
     "8. קבלני ייצור (Foundries)": ["TSM", "GFS", "UMC", "TSEM", "005930.KS"],
     "9. הרכבה, אריזה ובדיקות (Back-End / OSAT)": ["AMKR", "TER", "ATEYY", "BESIY", "AEIS"],
     "10. תשתיות AI וקירור (AI Infrastructure)": ["SMCI", "DELL", "HPE", "VRT", "ETN", "ANET"],
+    "11. חשמל ואנרגיה": ["GEV", "VST", "CEG", "TLN", "NRG", "PWR", "BE"],
 }
 
 ISRAELI_TICKERS = {"TSEM", "NVMI", "CAMT"}
@@ -161,6 +167,9 @@ CHAIN_LOGO_DOMAINS = {
     "VRT": "vertiv.com", "ETN": "eaton.com",
     "SNPS": "synopsys.com", "CDNS": "cadence.com", "ARM": "arm.com",
     "SHECY": "shinetsu.co.jp", "SUOPY": "sumcosi.com", "ENTG": "entegris.com",
+    "GEV": "gevernova.com", "VST": "vistracorp.com", "CEG": "constellationenergy.com",
+    "TLN": "talenenergy.com", "NRG": "nrg.com", "PWR": "quantaservices.com",
+    "BE": "bloomenergy.com",
 }
 
 CHAIN_STAGE_COLORS = {
@@ -189,6 +198,7 @@ CHAIN_LAYOUT = {
         ("4", "mfg",        "מתכנן ומייצר בעצמו — לוגיקה, אנלוגי, עוצמה"),
         ("5", "downstream", "זיכרון DRAM, NAND ואחסון"),
         ("10", "downstream", "שרתים, מדפי מחשוב, קירור נוזלי"),
+        ("11", "downstream", "חשמל, ציוד אנרגיה ותשתית לדאטה סנטרים"),
     ],
 }
 
@@ -222,6 +232,8 @@ CAPEX_SENSITIVITY = {
            "mechanism": "עסקי ניצולת ללא צבר, מרווח דק; חריג: אריזה מתקדמת (CoWoS) — צוואר בקבוק מבני"},
     "10": {"level": "med",   "timing": "שרתים Q+1 · קירור Q+4",
            "mechanism": "מפוצל: הרכבת שרתים מגיבה תוך רבעון, קירור ותשתית מוגנים בצבר שנה+"},
+    "11": {"level": "med",   "timing": "PPA: שנה+ · ציוד הקמה: Q+2 עד Q+4",
+           "mechanism": "הביקוש מדאטה סנטרים אמיתי וחזק, אך עם פיגור כפול: ציוד הקמה (GEV, PWR) מגיב תוך כמה רבעונים; חוזי PPA לייצרניות חשמל (VST, CEG) נסגרים שנה+ לפני שהקיבולת הופכת להכנסה"},
 }
 
 
@@ -357,6 +369,100 @@ TECH_GROUPS = {
 PHOTONICS_TICKERS = _photonics_tickers()
 
 # ======================================================
+# תיאורי תחומים טכנולוגיים
+# ======================================================
+# הסבר קצר לכל תחום, מוצג בריחוף על אייקון ⓘ בטבלת הפילוח הטכנולוגי.
+# המפתחות זהים תו-בתו לשמות התחומים ב-TECH_GROUPS.
+# הטקסט נכנס למאפיין title שעטוף בגרשיים בודדים — אין להשתמש ב-' או ב-".
+TECH_DESCRIPTIONS = {
+    # --- ציר טכנולוגיה ---
+    "GPU / מאיצי AI":
+        "מעבדים גרפיים ומאיצים ייעודיים שמריצים אימון והסקה של מודלי בינה מלאכותית "
+        "במרכזי נתונים. זהו היעד של רוב תקציבי ההשקעה של ענקיות הענן, ולכן התחום "
+        "הרגיש ביותר לשינוי בקצב ההשקעות ההוניות. השוק מרוכז סביב שחקן דומיננטי אחד, "
+        "עם מרווחים גבוהים חריגים ששומרים על עצמם כל עוד הביקוש עולה על ההיצע.",
+    "CPU / מחשוב":
+        "מעבדים לשימוש כללי — שרתים, מחשבים אישיים ותחנות עבודה. שוק בוגר עם צמיחה "
+        "מתונה, שנמצא בשנים האחרונות תחת לחץ תקציבי מצד מאיצי הבינה המלאכותית שתופסים "
+        "נתח גדל מתקציב מרכזי הנתונים. הדינמיקה המרכזית היא מאבק על נתח שוק בין "
+        "ארכיטקטורות מתחרות, ולא הרחבת השוק עצמו.",
+    "DRAM":
+        "זיכרון עבודה נדיף — הקומודיטי הקלאסי של הסקטור. המחירים נעים במחזורים חדים "
+        "של עודף ומחסור, ומנוף תפעולי גבוה הופך כל שינוי מחיר לתנודה מוגברת ברווח. "
+        "שלושה יצרנים בלבד שולטים כמעט בכל השוק העולמי, ולכן החלטות הרחבת כושר ייצור "
+        "של שחקן בודד משפיעות על התמחור של כולם.",
+    "HBM":
+        "זיכרון בפס רחב — שכבות DRAM מוערמות זו על זו וארוזות צמוד למאיץ. צוואר בקבוק "
+        "אמיתי בשרשרת האספקה של הבינה המלאכותית, ולכן נמכר בחוזי אספקה ארוכים ובמרווח "
+        "גבוה משמעותית מ-DRAM רגיל. הביקוש נגזר ישירות מכמות המאיצים שנשלחים, מה שהופך "
+        "אותו לפחות מחזורי מהזיכרון המסורתי אך תלוי בלקוח מרוכז.",
+    "NAND":
+        "זיכרון אחסון לא נדיף — כוננים לשרתים, למחשבים ולמכשירי קצה. מחזורי מחיר דומים "
+        "ל-DRAM, אך רגישות נמוכה יותר לביקושי בינה מלאכותית ותלות גבוהה יותר בשוק "
+        "הצרכני. ההתאוששות נשענת על שילוב של ריסון בהיצע ועל גידול באחסון במרכזי נתונים.",
+    "ייצור (Foundry)":
+        "קבלני ייצור שמייצרים שבבים עבור חברות שאין להן מפעל משלהן. עסק עתיר הון "
+        "שרווחיותו נשענת על ניצולת גבוהה של המפעלים ועל הובלה טכנולוגית בצמתי הייצור "
+        "המתקדמים. הצמתים המתקדמים רווחיים בהרבה מהבוגרים, ולכן המרווח נקבע בעיקר "
+        "בתמהיל ולא בנפח. מקדמות וחוזי התחייבות מגלגלים חלק מסיכון המחזור אל הלקוח.",
+    "ציוד ייצור (Semicap)":
+        "המכונות שמייצרות את השבבים — ליתוגרפיה, חריטה, הפקדה, ניקוי ובדיקה. המכירות "
+        "נגזרות מתקציבי ההשקעה של היצרנים, ולכן התחום רגיש לקצב השינוי בהשקעה ולא רק "
+        "לרמתה. זמני אספקה ארוכים וצבר הזמנות יוצרים פער של כמה רבעונים בין הזמנה "
+        "להכרה בהכנסה, מה שממתן את התנודתיות אך גם מעכב את ההתאוששות.",
+    "אריזה מתקדמת":
+        "השלב שאחרי ייצור הווייפר — חיבור מספר שבבים למארז אחד בפס רחב. הפך מצעד "
+        "טכני שולי לצוואר בקבוק מבני, כי ביצועי מאיצי הבינה המלאכותית תלויים בו לא "
+        "פחות מאשר בצומת הייצור עצמו. כושר הייצור מוגבל ומורחב לאט, ולכן הוא אחד "
+        "האילוצים האמיתיים על כמות המאיצים שניתן לספק.",
+    "פוטוניקה ואופטיקה":
+        "העברת נתונים באור במקום בחשמל — משדרים אופטיים, לייזרים ורכיבי חיבור. ככל "
+        "שמרכזי הנתונים גדלים, המרחק והצריכה של חיבורי נחושת הופכים למגבלה, והתעבורה "
+        "עוברת לאופטיקה. התחום נהנה משינוי תמהיל בתוך תקציב מרכזי הנתונים — הגנה מפני "
+        "שחיקת נתח, אך לא מפני ירידה בתקציב כולו.",
+    "אנלוגי וכוח":
+        "שבבים שמתממשקים לעולם הפיזי — חיישנים, ניהול מתח, בקרת הספק ורכיבי כוח. "
+        "מיוצרים בעיקר בצמתים בוגרים וזולים, עם מחזור חיי מוצר ארוך ופיזור לקוחות רחב "
+        "בתעשייה וברכב. התוצאה היא מחזור עסקי נפרד מזה של הבינה המלאכותית — מגן בזמן "
+        "האטה במרכזי נתונים, אך גם לא משתתף בגאות שלהם.",
+    "תקשורת ורשתות":
+        "הרכיבים שמזיזים נתונים בתוך מרכז הנתונים ובינו לבין העולם — מתגים, בקרי "
+        "ממשק ורכיבי תזמון ושחזור אות. ככל שאשכולות המאיצים גדלים, חלק גדל מהביצועים "
+        "נקבע ברשת שמחברת ביניהם ולא במאיץ הבודד. תחום שנהנה ישירות מגידול בקנה המידה "
+        "של האשכולות, גם בלי גידול במספר המאיצים הכולל.",
+    "EDA ו-IP":
+        "תוכנת התכנון שבה מעצבים שבבים, ובלוקי קניין רוחני מוכנים שנרכשים ברישוי. "
+        "המודל העסקי מבוסס מנויים רב-שנתיים ותמלוגים, ולכן ההכנסה יציבה וצפויה גם "
+        "כשההשקעות ההוניות בסקטור יורדות. פעילות התכנון ממשיכה גם במיתון, מה שהופך "
+        "את התחום להגנתי יחסית — במחיר של השתתפות מתונה בגאות.",
+
+    # --- ציר שוקי קצה ---
+    "Data Center (דאטה סנטר)":
+        "שוק הקצה שמניע כיום את רוב הצמיחה בסקטור. הביקוש נגזר ישירות מתקציבי ההשקעה "
+        "של ענקיות הענן ומפעילי תשתיות הבינה המלאכותית, ולכן זהו הציר שהכי כדאי לעקוב "
+        "אחריו בעונות הדוחות. הריכוזיות גבוהה — מספר קטן של לקוחות קובע את קצב הביקוש "
+        "של שרשרת שלמה.",
+    "Edge AI (בינה מלאכותית בקצה)":
+        "הרצת מודלים על המכשיר עצמו — טלפון, רכב, מצלמה או בקר תעשייתי — במקום בענן. "
+        "המניע הוא השהיה נמוכה, פרטיות ועלות תקשורת, והמגבלה היא צריכת חשמל ועלות "
+        "רכיב. מחזור החלפה ארוך יותר מזה של מרכזי הנתונים, ולכן ההשפעה על ההכנסות "
+        "מתפרשת על פני תקופה ארוכה יותר.",
+    "צרכני מסורתי (PC ומובייל)":
+        "מחשבים אישיים וסמארטפונים — השוק שהיה מנוע הצמיחה של הסקטור לפני עידן "
+        "מרכזי הנתונים. כיום שוק בוגר ורווי, שנע לפי מחזורי החלפה של מכשירים ולפי "
+        "הסנטימנט הצרכני. משמש בעיקר כאינדיקטור לבריאות הביקוש הרחב, לא כמנוע צמיחה.",
+    "רכב":
+        "שבבים לרכב — ניהול מתח, חיישנים, בקרים ומערכות עזר לנהג. תכולת השבבים לרכב "
+        "עולה בהתמדה, אך מספר כלי הרכב הנמכרים צומח לאט, ולכן הצמיחה מגיעה מהתוכן ולא "
+        "מהנפח. מחזורי הסמכה ארוכים יוצרים יציבות בהכנסות, אך גם התאוששות איטית אחרי "
+        "תקופת התאמת מלאי.",
+    "תעשייה":
+        "אוטומציה, ציוד ייצור, תשתיות אנרגיה ומכשור מדידה. שוק מפוזר מאוד עם אלפי "
+        "לקוחות ומחזורי חיי מוצר ארוכים, מה שיוצר יציבות בזמנים רגילים אך גם התאוששות "
+        "איטית אחרי מיתון. נחשב לאינדיקטור מקדים לבריאות הכלכלה הריאלית.",
+}
+
+# ======================================================
 # CapEx — ענקיות הענן
 # ======================================================
 # ההשקעות ההוניות של ענקיות הענן הן מנוע הביקוש של סקטור השבבים.
@@ -395,6 +501,7 @@ CAPEX_GUIDANCE = {
         "updates": [
             ("תחזית אחרי Q4 2025", 180),
             ("תחזית אחרי Q1 2026", 185),
+            ("תחזית אחרי Q2 2026", 200),
         ],
     },
     "AMZN": {
@@ -419,6 +526,18 @@ GAP_THRESHOLD = 15
 MOVE_ALERT = 2.0
 STOCK_VS_SOXX_ALERT = 3.0  # סף מרחק של מניה בודדת מ-SOXX (נקודות %) לחריגה
 
+# ציון אנליסטים — ממוצע משוקלל 1–5 לפי ANALYST_WEIGHTS
+# דוגמה: (5×36 + 4×0 + 3×18 + 2×0 + 1×4) / 58 = 4.10 (36 strongBuy, 18 hold, 4 strongSell)
+ANALYST_WEIGHTS = {"strongBuy": 5.0, "buy": 4.0, "hold": 3.0, "sell": 2.0, "strongSell": 1.0}
+ANALYST_MIN_N = 3      # מתחת לזה — אין ציון
+ANALYST_DELTA = 0.15   # מרחק מהחציון לצביעה ירוק/אדום
+
+BETA_WINDOW = "2y"
+BETA_MIN_POINTS = 30     # פחות נקודות חופפות — אין ציון
+BETA_HIGH = 1.15
+BETA_LOW = 0.85
+BETA_MIN_R2 = 0.10       # מתחת לזה הבטא רועשת ומסומנת בכוכבית
+
 # מספר הימים שבהם מדווחות מוקדמות (MU ביוני, AVGO בדצמבר) מקדימות
 # את תחילת הרבעון הקלנדרי הבא. מזיז את גבול העונה אחורה כדי שכל הגל
 # ייפול לאותו דלי. ניתן לכוונון.
@@ -429,6 +548,7 @@ SEASON_EARLY_DAYS = 21
 # בפרומפט, כדי שרבעון ניטרלי לא ייצבע ירוק. הסף השלילי סימטרי לו.
 SENTIMENT_POS = 0.25
 SENTIMENT_NEG = -0.25
+EARNINGS_TEMPERATURE = 0.2  # טמפרטורה נמוכה לניתוח מובנה של דוחות בלבד
 
 # סף מרחק מהמדד לכל תקופה — כמה החציון צריך להכות/לפגר אחרי SOXX
 # כדי שהתחום ייחשב "חם" או "חלש". מטפס עם אורך התקופה.
@@ -760,7 +880,7 @@ class GeminiError(Exception):
     pass
 
 
-def _gemini_call(prompt):
+def _gemini_call(prompt, temperature=None):
     key = get_gemini_key()
     if not key:
         return None, []
@@ -769,7 +889,10 @@ def _gemini_call(prompt):
         from google.genai import types
         client = genai.Client(api_key=key)
         tool = types.Tool(google_search=types.GoogleSearch())
-        config = types.GenerateContentConfig(tools=[tool])
+        if temperature is not None:
+            config = types.GenerateContentConfig(tools=[tool], temperature=temperature)
+        else:
+            config = types.GenerateContentConfig(tools=[tool])
         response = client.models.generate_content(
             model="gemini-2.5-flash", contents=prompt, config=config,
         )
@@ -1127,6 +1250,180 @@ def get_recommendation_dist(symbol):
         return None
 
 
+def _fetch_analyst_score_raw(symbol):
+    """חישוב ציון ללא קאש — נקראת מתוך threads בלבד."""
+    dist = get_recommendation_dist(symbol)
+    if dist is None:
+        return None
+    n = sum(dist.values())
+    if n < ANALYST_MIN_N:
+        return None
+    weighted = (
+        dist.get("strongBuy",  0) * ANALYST_WEIGHTS["strongBuy"]  +
+        dist.get("buy",        0) * ANALYST_WEIGHTS["buy"]         +
+        dist.get("hold",       0) * ANALYST_WEIGHTS["hold"]        +
+        dist.get("sell",       0) * ANALYST_WEIGHTS["sell"]        +
+        dist.get("strongSell", 0) * ANALYST_WEIGHTS["strongSell"]
+    )
+    return {
+        "score": weighted / n,
+        "n":     n,
+        "buy":   dist.get("strongBuy", 0) + dist.get("buy", 0),
+        "hold":  dist.get("hold", 0),
+        "sell":  dist.get("sell", 0) + dist.get("strongSell", 0),
+    }
+
+
+@st.cache_data(ttl=21600)
+def get_analyst_score(symbol):
+    """ממוצע משוקלל 1–5 לפי ANALYST_WEIGHTS. מחזיר dict{"score","n","buy","hold","sell"} או None."""
+    return _fetch_analyst_score_raw(symbol)
+
+
+@st.cache_data(ttl=21600, show_spinner=False)
+def scan_analyst_scores(symbols_tuple):
+    """סריקה מקבילה של ציוני אנליסטים. מחזיר {symbol: score_dict} רק למי שיש ציון."""
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        raw = list(ex.map(_fetch_analyst_score_raw, symbols_tuple))
+    return {sym: sc for sym, sc in zip(symbols_tuple, raw) if sc is not None}
+
+
+def analyst_median(scores_map):
+    """חציון כל הציונים ב-scores_map. מחזיר float או None."""
+    import statistics as _stat
+    vals = [v["score"] for v in scores_map.values()]
+    return _stat.median(vals) if vals else None
+
+
+def analyst_group_score(symbols, scores_map):
+    """ציון אנליסטים מצרפי לתחום — חציון, עמיד לחריגים ולכיסוי לא-אחיד.
+    מחזיר {"score","reported","total"} או None."""
+    vals = [scores_map[s]["score"] for s in symbols if s in scores_map]
+    if not vals:
+        return None
+    return {
+        "score": statistics.median(vals),
+        "reported": len(vals),
+        "total": len(symbols),
+    }
+
+
+# ── בטא מול SOXX ────────────────────────────────────────────────────────────
+
+def _weekly_returns_raw(symbol):
+    """תשואות שבועיות (W-FRI) ללא קאש — נקראת מתוך threads בלבד."""
+    try:
+        data = yf.Ticker(symbol).history(period=BETA_WINDOW)
+        close = data["Close"].dropna()
+        if close.index.tz is not None:
+            close.index = close.index.tz_localize(None)
+        weekly = close.resample("W-FRI").last().pct_change().dropna()
+        if len(weekly) < BETA_MIN_POINTS:
+            return None
+        return weekly
+    except Exception:
+        return None
+
+
+def _beta_from_bench(symbol, bench_rets):
+    """חישוב בטא מול bench_rets ללא קאש."""
+    if symbol == BENCHMARK:
+        return {"beta": 1.0, "n": len(bench_rets), "r2": 1.0}
+    sym_rets = _weekly_returns_raw(symbol)
+    if sym_rets is None:
+        return None
+    combined = pd.concat(
+        [sym_rets.rename("sym"), bench_rets.rename("bench")], axis=1
+    ).dropna()
+    n = len(combined)
+    if n < BETA_MIN_POINTS:
+        return None
+    var_bench = combined["bench"].var()
+    if var_bench == 0:
+        return None
+    beta = combined["sym"].cov(combined["bench"]) / var_bench
+    corr = combined["sym"].corr(combined["bench"])
+    import math as _math
+    r2 = corr ** 2 if not _math.isnan(corr) else 0.0
+    return {"beta": round(beta, 4), "n": n, "r2": round(r2, 4)}
+
+
+@st.cache_data(ttl=86400)
+def get_beta(symbol):
+    """בטא שבועית מול SOXX בחלון BETA_WINDOW. מחזיר dict{"beta","n","r2"} או None."""
+    bench_rets = _weekly_returns_raw(BENCHMARK)
+    if bench_rets is None:
+        return None
+    return _beta_from_bench(symbol, bench_rets)
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def scan_betas(symbols_tuple):
+    """סריקה מקבילה של בטא מול SOXX. מחזיר {symbol: dict} רק למי שיש ערך."""
+    import functools
+    from concurrent.futures import ThreadPoolExecutor
+    bench_rets = _weekly_returns_raw(BENCHMARK)
+    if bench_rets is None:
+        return {}
+    fn = functools.partial(_beta_from_bench, bench_rets=bench_rets)
+    with ThreadPoolExecutor(max_workers=10) as ex:
+        raw = list(ex.map(fn, symbols_tuple))
+    return {sym: b for sym, b in zip(symbols_tuple, raw) if b is not None}
+
+
+def beta_color(beta):
+    """צבע הבטא: מעל 1 = מגבירת תנועה (כתום), 0.6–1 = ממתנת (כחול), עד 0.6 = נמוכה (ירוק)."""
+    if beta is None:
+        return "#9ca3af"
+    if beta > 1.0:
+        return "#f97316"
+    if beta <= 0.6:
+        return "#22c55e"
+    return "#60a5fa"
+
+
+def beta_cell_html(agg, wrapper="span", width="95px"):
+    """תא HTML לבטא מול SOXX. חתימה זהה ל-analyst_cell_html.
+    agg = תוצאת beta_group_score (מפתח "beta","reported","total")
+          או get_beta (מפתח "beta","n","r2"), או None."""
+    empty_style = "text-align:center; padding:6px 8px; color:#6b7280; font-size:12px;"
+    if agg is None or agg.get("beta") is None:
+        if wrapper == "span":
+            return "<span style='width:" + width + "; " + empty_style + "'>—</span>"
+        return "<td style='" + empty_style + "'>—</td>"
+    beta = agg["beta"]
+    color = beta_color(beta)
+    beta_txt = str(round(beta, 2))
+    r2 = agg.get("r2", 1.0)
+    noisy_html = ""
+    if r2 < BETA_MIN_R2:
+        noisy_html = ("<span style='color:#6b7280; font-size:10px;' "
+                      "title='R² נמוך — הבטא רועשת'>*</span>")
+    inner = ("<span dir='ltr' style='unicode-bidi:isolate; display:inline-block;'>"
+             "<span style='color:" + color + "; font-weight:700;'>" + beta_txt + "</span>"
+             + noisy_html + "</span>")
+    if wrapper == "span":
+        return ("<span style='width:" + width + "; text-align:center; white-space:nowrap; "
+                "display:inline-block;'>" + inner + "</span>")
+    return "<td style='text-align:center; padding:6px 8px; white-space:nowrap;'>" + inner + "</td>"
+
+
+def beta_group_score(symbols, beta_map):
+    """חציון בטא לקבוצת מניות. מחזיר {"beta","reported","total"} או None."""
+    import statistics as _stat
+    total = len(symbols)
+    if total == 0:
+        return None
+    scored = [(sym, beta_map[sym]["beta"]) for sym in symbols
+              if sym in beta_map and beta_map[sym].get("beta") is not None]
+    reported = len(scored)
+    if reported == 0:
+        return {"beta": None, "reported": 0, "total": total}
+    beta = _stat.median(b for _, b in scored)
+    return {"beta": round(beta, 4), "reported": reported, "total": total}
+
+
 @st.cache_data(ttl=21600)
 def scan_rating_changes(symbols_tuple, days_back=14):
     """סורקת שינויי דירוג (up/down) לכל טיקר ב-symbols_tuple בחלון days_back ימים.
@@ -1320,8 +1617,28 @@ def get_earnings_calendar(symbols, days_back=120, days_fwd=120):
         except Exception:
             continue
 
-    # --- שלב 3: מיזוג (חי גובר) + עדכון is_future ---
-    merged = {**file_records, **live_records}
+    # --- שלב 3: מיזוג לפי סוג רשומה ---
+    def _cal_quarter(d):
+        # רבעון קלנדרי של תאריך (datetime.date) — משמש כמפתח dedup לרשומות עתידיות
+        return (d.year, (d.month - 1) // 3 + 1)
+
+    # עבר (is_future=False): עובדות היסטוריות — מיזוג לפי (symbol, date), חי גובר
+    file_hist = {k: v for k, v in file_records.items() if not v["is_future"]}
+    live_hist = {k: v for k, v in live_records.items() if not v["is_future"]}
+    merged_hist = {**file_hist, **live_hist}
+
+    # עתיד (is_future=True): Yahoo מעדכן תאריכים → מיזוג לפי (symbol, רבעון)
+    # רשומת קובץ נשמרת רק אם אין רשומה חיה לאותו (symbol, רבעון)
+    file_fut  = {k: v for k, v in file_records.items() if v["is_future"]}
+    live_fut  = {k: v for k, v in live_records.items() if v["is_future"]}
+    live_fut_q = {(sym, _cal_quarter(d)): rec for (sym, d), rec in live_fut.items()}
+    merged_fut: dict = {}
+    for (sym, d), rec in file_fut.items():
+        if (sym, _cal_quarter(d)) not in live_fut_q:
+            merged_fut[(sym, d)] = rec
+    merged_fut.update(live_fut)
+
+    merged = {**merged_hist, **merged_fut}
     out = []
     for r in merged.values():
         r["is_future"] = r.get("eps_actual") is None
@@ -1422,13 +1739,27 @@ def gemini_analyze_earnings(symbol, season):
         "חוקי חובה:\n"
         "1. sentiment_score: הציון משקף אך ורק את התוצאות מול הציפיות ואת כיוון ההנחיה — "
         "לא את תגובת המניה בשוק ולא את סנטימנט המשקיעים. "
-        "גם אם המניה ירדה אחרי דוח חזק (או עלתה אחרי דוח חלש), התעלם מכך בציון. "
-        "השתמש בסולם רציף: beat+raised = \u200F0.8 עד \u200F1.0, "
-        "beat+maintained = \u200F0.5 עד \u200F0.7, "
-        "meet+maintained = \u200F-0.1 עד \u200F0.2, "
-        "miss+lowered = \u200F-0.8 עד \u200F-1.0. "
-        "חששות או סיכונים שההנהלה עצמה ציינה (למשל אילוצי אספקה, הגבלות יצוא) "
-        "יכולים להוריד את הציון במעט בתוך הטווח, אך לא לשנות את המדרגה.\n"
+        "גם אם המניה ירדה אחרי דוח חזק (או עלתה אחרי דוח חלש), התעלם מכך בציון.\n"
+        "השתמש בטבלת 12 המדרגות (results_vs_expectations x guidance_direction) לקביעת הטווח:\n"
+        "beat+raised: 0.8 עד 1.0 | beat+maintained: 0.5 עד 0.7 | "
+        "beat+lowered: -0.2 עד 0.1 | beat+none: 0.4 עד 0.6\n"
+        "meet+raised: 0.3 עד 0.5 | meet+maintained: -0.1 עד 0.2 | "
+        "meet+lowered: -0.5 עד -0.3 | meet+none: -0.1 עד 0.1\n"
+        "miss+raised: 0.1 עד 0.24 | miss+maintained: -0.5 עד -0.3 | "
+        "miss+lowered: -1.0 עד -0.8 | miss+none: -0.6 עד -0.4\n"
+        "שני צירופים נגד-אינטואיטיביים: beat+lowered = תוצאות טובות בעבר אך הנהלה מזהירה על העתיד "
+        "-- ציון שלילי-קל בכוונה. miss+raised = רבעון חלש אך הנהלה מבטיחה שיפור "
+        "-- חיובי-זהיר בכוונה, מתחת לסף הירוק.\n"
+        "מיקום בתוך הטווח לפי גודל ההפתעה בהכנסות/EPS מול קונצנזוס: "
+        "הפתעה <2% -> תחתית הטווח; 2%-10% -> אמצע; >10% -> ראש הטווח. "
+        "חששות שההנהלה עצמה ציינה (אילוצי אספקה, רגולציה, הגבלות יצוא) "
+        "מורידים מעט בתוך הטווח, אך לעולם לא מעבירים מדרגה.\n"
+        "בנוסף, התחשב ב-vs_consensus (הנחיית הרבעון הבא מול קונצנזוס האנליסטים) "
+        "כמעדן נוסף בתוך אותה מדרגה: "
+        "above (הנחיה מעל הקונצנזוס) -> נטה לראש הטווח; "
+        "below (הנחיה מתחת לקונצנזוס) -> נטה לתחתית הטווח; "
+        "inline או none -> ללא השפעה. "
+        "גם עוגן זה אינו מעביר מדרגה — המדרגה נשלטת אך ורק על ידי results x guidance.\n"
         "2. domain: חובה לבחור אך ורק מהרשימה הסגורה הבאה. אין להמציא שמות:\n"
         + domains_list + "\n"
         "3. כלול ב-domain_signals רק תחומים שהוזכרו בצורה מפורשת בשיחה. אם אין — השאר רשימה ריקה.\n"
@@ -1438,7 +1769,7 @@ def gemini_analyze_earnings(symbol, season):
     )
 
     try:
-        text, _ = _gemini_call(prompt)
+        text, _ = _gemini_call(prompt, temperature=EARNINGS_TEMPERATURE)
     except GeminiError:
         return None
     if not text:
@@ -1858,6 +2189,13 @@ def clean_name(sector):
     return sector
 
 
+def rtl_text(s):
+    """עוטף מחרוזת בתווי כיווניות Unicode לתצוגה נכונה ב-SVG של Plotly.
+    Plotly מרנדר טקסט כ-SVG; CSS direction/unicode-bidi אינו נתמך שם.
+    U+202B פותח הטמעת RTL, U+202C סוגר אותה."""
+    return "\u202B" + s + "\u202C"
+
+
 def sector_key(sector_name):
     # מזהה יציב וקצר לכל תחום, לפי שמו (לא לפי מיקומו בדירוג).
     # משמש למפתחות widgets ו-session_state כדי שהמצב יישאר צמוד לתחום
@@ -1949,7 +2287,7 @@ def ranking_bar_chart(items, chart_key, soxx_marker=None, debug=False):
     )
 
     event = st.plotly_chart(
-        fig, use_container_width=True, key=chart_key,
+        fig, width='stretch', key=chart_key,
         on_select="rerun", selection_mode="points",
     )
 
@@ -2144,7 +2482,7 @@ def render_chain_map(period, mode="perf"):
         is_il = t in ISRAELI_TICKERS
         is_ph = t in PHOTONICS_TICKERS
         if is_il and is_ph:
-            return " box-shadow:0 0 0 2px #3b82f6, 0 0 0 4px #eab308; border-color:transparent;"
+            return " box-shadow:0 0 0 2px #3b82f6, 0 0 0 5px #eab308, 0 0 7px 2px rgba(234,179,8,0.6); border-color:transparent;"
         if is_il:
             return " box-shadow:0 0 0 2px #3b82f6, 0 0 5px 1px rgba(59,130,246,.55); border-color:transparent;"
         if is_ph:
@@ -2172,7 +2510,7 @@ def render_chain_map(period, mode="perf"):
                 if (_warn_capex and lvl in ("vhigh", "high")) else "")
         return perf_tag(prefix) + warn
 
-    def card(prefix, subtitle, extra_style=""):
+    def card(prefix, subtitle, extra_style="", badge=""):
         key = next((k for k in value_chain if k.startswith(prefix + ".")), None)
         if key is None:
             return ""
@@ -2184,6 +2522,7 @@ def render_chain_map(period, mode="perf"):
             " padding:12px 14px; overflow:visible; " + extra_style + "'>"
             "<div style='display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap; overflow:visible;'>"
             "<span style='font-size:13px; font-weight:700; color:#f3f4f6;'>" + name + "</span>"
+            + (badge if badge else "")
             + _card_tag(prefix) +
             "</div>"
             "<div style='font-size:11px; color:#6b7280; margin-bottom:8px;'>" + subtitle + "</div>"
@@ -2325,10 +2664,12 @@ def render_chain_map(period, mode="perf"):
     )
 
     row_bot = (
-        "<div style='display:grid; grid-template-columns:1.3fr 0.85fr 0.85fr; gap:10px;'>"
+        "<div style='display:grid; grid-template-columns:1.3fr 0.85fr 0.85fr 0.85fr; gap:10px;'>"
         + card("4",  "מתכנן ומייצר בעצמו — לוגיקה, אנלוגי, עוצמה")
         + card("5",  "זיכרון DRAM, NAND ואחסון")
         + card("10", "שרתים, מדפי מחשוב, קירור נוזלי")
+        + card("11", "חשמל, ציוד אנרגיה ותשתית לדאטה סנטרים",
+               extra_style="border-style:dashed;")
         + "</div>"
     )
 
@@ -2372,18 +2713,29 @@ def render_chain_map(period, mode="perf"):
         if _delta[2] >= 0:
             st.markdown(
                 "<div dir='rtl' style='font-size:13px; color:#22c55e; text-align:right; margin:2px 0 6px;'>"
-                "✓ התחזית המצרפית עלתה ב-" + _pct_str + "% בעדכון האחרון — אין טריגר רגישות"
+                "✓ תחזית ה-CAPEX המצרפית עלתה ב-" + _pct_str + "% בעדכון האחרון — אין טריגר רגישות"
                 "</div>",
                 unsafe_allow_html=True,
             )
         else:
             st.markdown(
                 "<div dir='rtl' style='font-size:13px; color:#ef4444; text-align:right; margin:2px 0 6px;'>"
-                "⚠️ התחזית המצרפית ירדה ב-" + _pct_str + "% בעדכון האחרון — החוליות הרגישות מסומנות"
+                "⚠️ תחזית ה-CAPEX המצרפית ירדה ב-" + _pct_str + "% בעדכון האחרון — החוליות הרגישות מסומנות"
                 "</div>",
                 unsafe_allow_html=True,
             )
     st.caption("◆ ציר הפוטוניקה מודגש בטבעת צהובה — חברות שאינן מופיעות במפה (כמו FN) נכללות בציר במלואו באזור הפילוח הטכנולוגי.")
+    st.markdown(
+        "<div dir='rtl' style='font-size:0.8rem; color:#9ca3af; text-align:right; margin:2px 0 0;'>"
+        "חוליה 11 — חשמל ואנרגיה — נוספה כחוליה תומכת: היא מזינה את השרשרת אך אינה חלק ממדד "
+        "<span dir='ltr' style='unicode-bidi:isolate; display:inline-block;'>SOXX</span>"
+        " ואינה מתואמת איתו. לכן דירוג המרחק מהמדד עלול להציב אותה בקצוות, והבטא שלה צפויה "
+        "להופיע נמוכה ומסומנת בכוכבית בשל "
+        "<span dir='ltr' style='unicode-bidi:isolate; display:inline-block;'>R²</span>"
+        " נמוך."
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 
 def section_header(title, accent):
@@ -2477,13 +2829,17 @@ def render_sentiment_trend(seasons, scores, chart_key, second_series=None):
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
                     font=dict(size=11)) if _has_second else {},
     )
-    st.plotly_chart(fig, use_container_width=True, key=chart_key)
+    st.plotly_chart(fig, width='stretch', key=chart_key)
 
 
-def returns_table_html(pairs, descending=True, sentiment_data=None, season=None, outlier_map=None):
+def returns_table_html(pairs, descending=True, sentiment_data=None, season=None,
+                       outlier_map=None, analyst_scores=None, analyst_med=None,
+                       beta_scores=None):
     sortable = [(change, symbol) for symbol, change in pairs]
     sortable.sort(reverse=descending)
     show_sent = sentiment_data is not None and season is not None
+    show_analyst = analyst_scores is not None
+    show_beta = beta_scores is not None
     rows = ""
     for change, symbol in sortable:
         c = "#22c55e" if change >= 0 else "#ef4444"
@@ -2525,6 +2881,11 @@ def returns_table_html(pairs, descending=True, sentiment_data=None, season=None,
                     + sent_html + "</td>"
                     "<td style='text-align:center; padding:4px 10px; color:#9ca3af; font-size:12px;'>"
                     + report_date + "</td>")
+        if show_analyst:
+            sc = analyst_scores.get(symbol)
+            row += analyst_cell_html(sc, analyst_med, wrapper="td")
+        if show_beta:
+            row += beta_cell_html(beta_scores.get(symbol), wrapper="td")
         rows += row + "</tr>"
     hdr = ("<table dir='rtl' style='width:100%; border-collapse:collapse; margin-top:8px;'>"
            "<tr>"
@@ -2533,6 +2894,10 @@ def returns_table_html(pairs, descending=True, sentiment_data=None, season=None,
     if show_sent:
         hdr += ("<th style='text-align:center; padding:4px 10px; border-bottom:1px solid #666;'>סנטימנט הדוח האחרון</th>"
                 "<th style='text-align:center; padding:4px 10px; border-bottom:1px solid #666;'>תאריך דוח</th>")
+    if show_analyst:
+        hdr += "<th style='text-align:center; padding:4px 10px; border-bottom:1px solid #666;'>ציון אנליסטים</th>"
+    if show_beta:
+        hdr += "<th style='text-align:center; padding:4px 10px; border-bottom:1px solid #666;'>בטא מול SOXX</th>"
     return hdr + "</tr>" + rows + "</table>"
 
 
@@ -2600,6 +2965,50 @@ def sentiment_cell_html(agg, wrapper="td", width="110px"):
         return (f"<span style='width:{width}; text-align:center; white-space:nowrap; display:inline-block;'>"
                 f"{inner}</span>")
     return f"<td style='text-align:center; padding:6px 8px; white-space:nowrap;'>{inner}</td>"
+
+
+def analyst_color(score, median):
+    """צבע לפי המרחק מהחציון. אם median=None → אפור."""
+    if median is None or score is None:
+        return "#9ca3af"
+    if score >= median + ANALYST_DELTA:
+        return "#22c55e"
+    if score <= median - ANALYST_DELTA:
+        return "#ef4444"
+    return "#9ca3af"
+
+
+def analyst_cell_html(agg, median, wrapper="span", width="105px"):
+    """תא HTML לציון אנליסטים.
+    agg = תוצאת analyst_group_score / get_analyst_score, או None.
+    wrapper='span' לשורות flex, wrapper='td' לטבלאות."""
+    empty_style = "text-align:center; padding:6px 8px; color:#6b7280; font-size:12px;"
+    if agg is None or agg.get("score") is None:
+        if wrapper == "span":
+            return "<span style='width:" + width + "; " + empty_style + "'>—</span>"
+        return "<td style='" + empty_style + "'>—</td>"
+    score = agg["score"]
+    if score > 4:
+        score_color = "#22c55e"
+    elif score < 3:
+        score_color = "#f97316"
+    else:
+        score_color = "#60a5fa"
+    score_txt = str(round(score, 2))
+    if "reported" in agg:
+        cov_txt = "(" + str(agg["reported"]) + "/" + str(agg["total"]) + ")"
+    elif "n" in agg:
+        cov_txt = "n=" + str(agg["n"])
+    else:
+        cov_txt = ""
+    cov_html = ("<span style='color:#6b7280; font-size:10px;'> " + cov_txt + "</span>"
+                if cov_txt else "")
+    inner = ("<span style='color:" + score_color + "; font-weight:700;'>" + score_txt + "</span>"
+             + cov_html)
+    if wrapper == "span":
+        return ("<span style='width:" + width + "; text-align:center; white-space:nowrap; "
+                "display:inline-block;'>" + inner + "</span>")
+    return "<td style='text-align:center; padding:6px 8px; white-space:nowrap;'>" + inner + "</td>"
 
 
 def weighted_score_html(ws, wrapper="span"):
@@ -2872,7 +3281,7 @@ else:
                    tickformat=("%H:%M" if period in DAILY_PERIODS else None)),
         showlegend=False,
     )
-    st.plotly_chart(mini, use_container_width=True)
+    st.plotly_chart(mini, width='stretch')
     st.markdown(
         "<div style='margin:8px 0 20px; border-top:1px solid rgba(255,255,255,0.08);'></div>",
         unsafe_allow_html=True,
@@ -2967,14 +3376,21 @@ with st.spinner("סורק את כל התחומים..."):
 
 
 # ---------- מפת חום ----------
-def render_domain_detail(sector, pairs, period):
+def render_domain_detail(sector, pairs, period, analyst_scores=None, analyst_med=None,
+                         beta_scores=None):
     """מרנדר את תוכן הפרטים של תחום: מניות, גרף מגמת הפער, וחדשות + ניתוח AI.
     משמש גם במפת החום (שרשרת ערך). נקרא רק כשהשורה של התחום פתוחה."""
     # --- אזור טבלת המניות ---
     st.markdown(section_header("📊 מניות בתחום", "#3b82f6"), unsafe_allow_html=True)
     _det_sent = load_sentiment()
     _det_season = latest_season_with_data(_det_sent)
-    st.markdown(returns_table_html(pairs, sentiment_data=_det_sent, season=_det_season), unsafe_allow_html=True)
+    st.markdown(returns_table_html(pairs, sentiment_data=_det_sent, season=_det_season,
+                                   analyst_scores=analyst_scores, analyst_med=analyst_med,
+                                   beta_scores=beta_scores),
+                unsafe_allow_html=True)
+    if beta_scores is not None:
+        st.caption("בטא מעל 1 = מניה מגבירה את תנועת המדד · מתחת ל-1 = ממתנת · "
+                   "מחושבת על תשואות שבועיות בחלון שנתיים ואינה מגיבה לבורר התקופה")
 
     # --- גרף מגמת הפער מ-SOXX לאורך התקופה ---
     st.markdown(section_header("📈 מגמת הפער מ-SOXX לאורך התקופה", "#22c55e"), unsafe_allow_html=True)
@@ -2982,7 +3398,7 @@ def render_domain_detail(sector, pairs, period):
                                       intraday=(period in DAILY_PERIODS),
                                       skip_current_day=(period == "lastclose"))
     if spread_chart is not None:
-        st.altair_chart(spread_chart, use_container_width=True)
+        st.altair_chart(spread_chart, width='stretch')
         st.caption("🟢 מעל הקו = ביצועי יתר מול SOXX · 🔴 מתחת = ביצועי חסר · בתקופות יומיות הגרף נמדד מסגירת היום הקודם — כולל פער הפתיחה · הנקודה האחרונה תואמת את המספר בכותרת")
     else:
         st.caption("אין מספיק נתונים לגרף המגמה")
@@ -3112,9 +3528,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 _rating_universe = tuple(sorted({t for lst in value_chain.values() for t in lst}))
+_analyst_scores  = scan_analyst_scores(_rating_universe)
+_analyst_med     = analyst_median(_analyst_scores)
+_beta_scores     = scan_betas(_rating_universe)
 
 section_banner(3, 8, "🗺️", "מפת חום — דירוג שרשרת הערך", "#3b82f6",
-               subtitle="11 חוליות שרשרת הערך, מדורגות לפי המרחק מ-SOXX",
+               subtitle="12 חוליות שרשרת הערך, מדורגות לפי המרחק מ-SOXX",
                period_dependent=True, period_label=period_label)
 st.caption("מדורג לפי המרחק מ-SOXX — מי בביצועי יתר הגבוהים ביותר מול המדד. הגרף מציג את התמונה; לחצי על שורה בטבלה למטה כדי לפתוח פרטים.")
 
@@ -3145,7 +3564,7 @@ else:
 
 _heat_sort = st.radio(
     "מיין לפי:",
-    ["📈 מרחק מ-SOXX", "🧠 סנטימנט דוחות"],
+    ["📈 מרחק מ-SOXX", "🧠 סנטימנט דוחות", "📊 ציון אנליסטים", "🎯 בטא"],
     horizontal=True,
     key="heat_sort_mode",
 )
@@ -3155,22 +3574,45 @@ if _heat_sort == "🧠 סנטימנט דוחות":
         "שים לב שהכיסוי חלקי: חלק מהתחומים כוללים חברות שאינן ב-CORE_COMPANIES ולעולם לא יקבלו ציון סנטימנט."
     )
     _heat_sent_cache = {
-        row[6]: value_chain_sentiment(row[6], _sent_season, _sentiment_data)
+        row[6]: (None if row[6].startswith("11.") else value_chain_sentiment(row[6], _sent_season, _sentiment_data))
         for row in results
     }
     def _heat_sent_key(row):
         agg = _heat_sent_cache[row[6]]
         return (agg is not None, agg["score"] if agg is not None else 0.0)
     _display_results = sorted(results, key=_heat_sent_key, reverse=True)
+elif _heat_sort == "📊 ציון אנליסטים":
+    def _heat_analyst_key(row):
+        agg = analyst_group_score(value_chain.get(row[6], []), _analyst_scores)
+        sc = agg["score"] if agg and agg["score"] is not None else None
+        return (sc is not None, sc if sc is not None else 0.0)
+    _display_results = sorted(results, key=_heat_analyst_key, reverse=True)
+elif _heat_sort == "🎯 בטא":
+    def _heat_beta_key(row):
+        agg = beta_group_score(value_chain.get(row[6], []), _beta_scores)
+        b = agg["beta"] if agg and agg["beta"] is not None else None
+        return (b is not None, b if b is not None else 0.0)
+    _display_results = sorted(results, key=_heat_beta_key, reverse=True)
 else:
     _display_results = results
+
+_chain11_sent_span = (
+    "<span style='width:110px; text-align:center; display:inline-block;'"
+    " title='חוליה תומכת. אינה נמנית עם מדד SOXX ואינה מתואמת איתו. "
+    "תוצאות הדוחות בתחום מונעות מרגולציה, מתמחור אנרגיה ומחוזי אספקה ארוכי טווח, "
+    "ולא ממחזור הזמנות השבבים, ולכן ניתוח הפתעות הדוח אינו רלוונטי עבורה ואינו מחושב.'>"
+    "<span style='font-size:11px; color:#6b7280;'>חוליה תומכת</span>"
+    "</span>"
+)
 
 with st.container(border=True):
     # כותרת עמודות
     h1, h2 = st.columns([9, 1.3])
     with h1:
-        _h_soxx_active = (_heat_sort == "📈 מרחק מ-SOXX")
-        _h_sent_active = (_heat_sort == "🧠 סנטימנט דוחות")
+        _h_soxx_active   = (_heat_sort == "📈 מרחק מ-SOXX")
+        _h_sent_active   = (_heat_sort == "🧠 סנטימנט דוחות")
+        _h_analyst_active = (_heat_sort == "📊 ציון אנליסטים")
+        _h_beta_active   = (_heat_sort == "🎯 בטא")
         st.markdown(
             "<div dir='rtl' style='display:flex; align-items:center; padding:4px 10px; "
             "font-size:12px; color:#9ca3af; font-weight:600;'>"
@@ -3180,6 +3622,8 @@ with st.container(border=True):
             + col_header("מול המדד " + soxx_hdr, active=_h_soxx_active, width="170px")
             + col_header("רוחב", width="90px")
             + col_header("סנטימנט הדוח האחרון", active=_h_sent_active, width="110px")
+            + col_header("ציון אנליסטים", active=_h_analyst_active, width="105px")
+            + col_header("בטא (2ש')", active=_h_beta_active, width="95px")
             + "</div>",
             unsafe_allow_html=True,
         )
@@ -3207,8 +3651,15 @@ with st.container(border=True):
         is_open = st.session_state.get(open_key, False)
         row_bg = "rgba(96,165,250,0.12)" if is_open else "transparent"
 
-        _agg = value_chain_sentiment(sector, _sent_season, _sentiment_data)
-        _sent_span = sentiment_cell_html(_agg, wrapper="span")
+        if sector.startswith("11."):
+            _sent_span = _chain11_sent_span
+        else:
+            _agg = value_chain_sentiment(sector, _sent_season, _sentiment_data)
+            _sent_span = sentiment_cell_html(_agg, wrapper="span")
+        _analyst_agg  = analyst_group_score(value_chain.get(sector, []), _analyst_scores)
+        _analyst_span = analyst_cell_html(_analyst_agg, _analyst_med, wrapper="span")
+        _beta_agg     = beta_group_score(value_chain.get(sector, []), _beta_scores)
+        _beta_span    = beta_cell_html(_beta_agg, wrapper="span")
 
         if is_open:
             _row_bg_val = row_bg
@@ -3229,23 +3680,49 @@ with st.container(border=True):
                 "<span style='width:80px; text-align:center; color:" + med_color + "; font-weight:700;'>" + med_txt + "</span>"
                 "<span style='width:170px; text-align:center; color:" + vs_color + "; font-weight:600; font-size:14px;'>" + vs_txt + "</span>"
                 "<span style='width:90px; text-align:center; color:" + bcolor + "; font-size:14px;'>" + str(up) + "/" + str(total) + " עלו</span>"
-                + _sent_span +
+                + _sent_span
+                + _analyst_span
+                + _beta_span +
                 "</div>",
                 unsafe_allow_html=True,
             )
         with btn_col:
             btn_txt = "סגור" if is_open else "פתח"
             if st.button(btn_txt, key="heatrow_" + sector_key(sector),
-                         use_container_width=True, type="tertiary"):
+                         width='stretch', type="tertiary"):
                 st.session_state[open_key] = not is_open
                 st.rerun()
 
         if is_open:
             with st.container(border=True):
-                render_domain_detail(sector, pairs, period)
+                if sector.startswith("11."):
+                    st.markdown(
+                        "<div dir='rtl' style='text-align:right; font-size:12px; color:#9ca3af; "
+                        "background:rgba(107,114,128,0.08); border:1px solid rgba(107,114,128,0.20); "
+                        "border-radius:6px; padding:8px 12px; margin-bottom:4px;'>"
+                        "חוליה תומכת. אינה נמנית עם מדד "
+                        "<span dir='ltr' style='unicode-bidi:isolate; display:inline-block;'>SOXX</span>"
+                        " ואינה מתואמת איתו. "
+                        "תוצאות הדוחות בתחום מונעות מרגולציה, מתמחור אנרגיה ומחוזי אספקה ארוכי טווח, "
+                        "ולא ממחזור הזמנות השבבים, ולכן ניתוח הפתעות הדוח אינו רלוונטי עבורה ואינו מחושב."
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
+                render_domain_detail(sector, pairs, period,
+                                     analyst_scores=_analyst_scores,
+                                     analyst_med=_analyst_med,
+                                     beta_scores=_beta_scores)
 
         rank = rank + 1
 
+st.caption(
+    "ציון אנליסטים 1–5: 5=קנייה חזקה · 4=קנייה · 3=החזקה · 2=מכירה · 1=מכירה חזקה "
+    "· ממוצע משוקלל לפי מספר האנליסטים בכל חברה, ממוצע לפי קבוצה"
+)
+st.caption(
+    "בטא (2ש'): >1 = החוליה מגבירה את תנועת המדד, <1 = ממתנת · "
+    "חציון החברות בתחום · חלון קבוע של שנתיים שבועי, ואינו מגיב לבורר התקופה"
+)
 
 # ---------- צלילה לתחום ----------
 st.markdown(
@@ -3282,7 +3759,26 @@ else:
                "#fb7185", "#22d3ee", "#a3e635", "#fb923c", "#e879f9",
                "#4ade80", "#38bdf8", "#facc15", "#f87171", "#c084fc"]
 
-    _z3_tab_perf, _z3_tab_sent = st.tabs(["📈 ביצועי מניות", "🧠 סנטימנט התחום"])
+    chosen_pairs = get_changes(_z3_tickers, period)
+    _z3_soxx_chg = get_change(BENCHMARK, period)
+
+    if chosen.startswith("11."):
+        st.markdown(
+            "<div dir='rtl' style='text-align:right; font-size:12px; color:#9ca3af;"
+            " background:rgba(107,114,128,0.08); border:1px solid rgba(107,114,128,0.20);"
+            " border-radius:6px; padding:8px 12px; margin-bottom:8px;'>"
+            "חוליה תומכת. אינה נמנית עם מדד "
+            "<span dir='ltr' style='unicode-bidi:isolate; display:inline-block;'>SOXX</span>"
+            " ואינה מתואמת איתו. "
+            "תוצאות הדוחות בתחום מונעות מרגולציה, מתמחור אנרגיה ומחוזי אספקה ארוכי טווח, "
+            "ולא ממחזור הזמנות השבבים, ולכן ניתוח הפתעות הדוח אינו רלוונטי עבורה ואינו מחושב."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+    _z3_tab_perf, _z3_tab_sent, _z3_tab_beta = st.tabs(
+        ["📈 ביצועי מניות", "🧠 סנטימנט התחום", "🎯 בטא מול תשואה"]
+    )
 
     with _z3_tab_perf:
         st.caption("ביצועי המניות מול חציון התחום ומול מדד SOXX — מנורמל ל-100 — בתקופות יומיות מול סגירת היום הקודם, בשאר התקופות מנקודת הפתיחה של התקופה. לחצי על מניה במקרא כדי להסתיר/להציג אותה.")
@@ -3366,19 +3862,128 @@ else:
                        tickformat=(_z3_xfmt if _z3_intraday else None)),
         )
         with st.container(border=True):
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width='stretch')
 
         st.subheader("טבלת תשואות")
-        chosen_pairs = get_changes(_z3_tickers, period)
-        st.markdown(returns_table_html(chosen_pairs), unsafe_allow_html=True)
+        st.markdown(returns_table_html(chosen_pairs, beta_scores=_beta_scores), unsafe_allow_html=True)
+        st.caption("בטא מעל 1 = מניה מגבירה את תנועת המדד · מתחת ל-1 = ממתנת · "
+                   "מחושבת על תשואות שבועיות בחלון שנתיים ואינה מגיבה לבורר התקופה")
 
-        soxx_change2 = get_change(BENCHMARK, period)
+        soxx_change2 = _z3_soxx_chg
         if soxx_change2 is not None and len(chosen_pairs) > 0:
             sector_median = statistics.median([c for s, c in chosen_pairs])
             diff = sector_median - soxx_change2
             better = "📈 התחום בביצועי יתר מול המדד" if diff >= 0 else "📉 התחום בביצועי חסר מול המדד"
             st.info("חציון התחום: " + str(round(sector_median, 1)) + "%  |  SOXX: " +
                     str(round(soxx_change2, 1)) + "%  →  " + better + " (" + str(round(diff, 1)) + " נק')")
+
+    with _z3_tab_beta:
+        _scatter_pts = [
+            (sym, chg, _beta_scores[sym]["beta"], _beta_scores[sym].get("r2", 1.0))
+            for sym, chg in chosen_pairs
+            if sym in _beta_scores and _beta_scores[sym].get("beta") is not None
+        ]
+        _no_beta_syms = [sym for sym, _ in chosen_pairs if sym not in _beta_scores]
+        if len(_scatter_pts) < 2:
+            st.caption("אין מספיק נתוני בטא להציג גרף פיזור לתחום זה.")
+        else:
+            _sc_syms   = [p[0] for p in _scatter_pts]
+            _sc_rets   = [p[1] for p in _scatter_pts]
+            _sc_betas  = [p[2] for p in _scatter_pts]
+            _sc_r2s    = [p[3] for p in _scatter_pts]
+            _sc_colors = [beta_color(b) for b in _sc_betas]
+            _sc_labels = [
+                sym + ("*" if r2 < BETA_MIN_R2 else "")
+                for sym, r2 in zip(_sc_syms, _sc_r2s)
+            ]
+            _sc_warn = [
+                " ⚠️ R² נמוך — הבטא רועשת" if r2 < BETA_MIN_R2 else ""
+                for r2 in _sc_r2s
+            ]
+            if _z3_soxx_chg is not None:
+                _sc_vs = [round(ret - _z3_soxx_chg, 1) for ret in _sc_rets]
+                _sc_customdata = [
+                    [round(r2, 2), warn, vs]
+                    for r2, warn, vs in zip(_sc_r2s, _sc_warn, _sc_vs)
+                ]
+                _hover = (
+                    "<b>%{text}</b><br>"
+                    "בטא: %{x:.2f}<br>"
+                    "תשואה: %{y:.1f}%<br>"
+                    "מול SOXX: %{customdata[2]:+.1f} נק'<br>"
+                    "R²: %{customdata[0]:.2f}%{customdata[1]}"
+                    "<extra></extra>"
+                )
+            else:
+                _sc_customdata = [
+                    [round(r2, 2), warn]
+                    for r2, warn in zip(_sc_r2s, _sc_warn)
+                ]
+                _hover = (
+                    "<b>%{text}</b><br>"
+                    "בטא: %{x:.2f}<br>"
+                    "תשואה: %{y:.1f}%<br>"
+                    "R²: %{customdata[0]:.2f}%{customdata[1]}"
+                    "<extra></extra>"
+                )
+            _sc_fig = go.Figure()
+            _sc_fig.add_trace(go.Scatter(
+                x=_sc_betas,
+                y=_sc_rets,
+                mode="markers+text",
+                text=_sc_labels,
+                textposition="top center",
+                textfont=dict(size=11, color="#e5e7eb"),
+                marker=dict(size=10, color=_sc_colors, line=dict(width=1, color="#374151")),
+                customdata=_sc_customdata,
+                hovertemplate=_hover,
+                showlegend=False,
+            ))
+            _sc_fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.15)", line_width=1)
+            _sc_fig.add_vline(x=1, line_dash="dash", line_color="#f97316", line_width=2)
+            if _z3_soxx_chg is not None:
+                _sc_fig.add_hline(y=_z3_soxx_chg, line_dash="dash", line_color="#f59e0b", line_width=2)
+                _sc_fig.add_trace(go.Scatter(
+                    x=[1.0], y=[_z3_soxx_chg], mode="markers+text",
+                    marker=dict(symbol="diamond", size=16, color="#f59e0b",
+                                line=dict(color="#1e2533", width=2)),
+                    text=["SOXX"], textposition="bottom center",
+                    textfont=dict(size=12, color="#f59e0b"),
+                    hovertemplate=(
+                        "<b>SOXX</b><br>בטא: 1.00 (הגדרה)<br>"
+                        "תשואה: %{y:.1f}%<extra></extra>"
+                    ),
+                    showlegend=False,
+                ))
+            _y_vals = list(_sc_rets)
+            if _z3_soxx_chg is not None:
+                _y_vals.append(_z3_soxx_chg)
+            _y_pad = (max(_y_vals) - min(_y_vals)) * 0.15 + 1.0
+            _sc_fig.update_layout(
+                template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(title=rtl_text("בטא מול SOXX · חלון קבוע: שנתיים, שבועי")),
+                yaxis=dict(
+                    title=rtl_text("תשואה בתקופה (%)"),
+                    range=[min(_y_vals) - _y_pad, max(_y_vals) + _y_pad],
+                ),
+                margin=dict(l=40, r=20, t=40, b=40),
+            )
+            st.markdown(
+                "<div dir='rtl' style='text-align:right; font-size:14px; font-weight:600;"
+                " color:#f3f4f6; margin-bottom:4px;'>"
+                "בטא מול תשואה — " + str(chosen) + "</div>",
+                unsafe_allow_html=True,
+            )
+            st.plotly_chart(_sc_fig, width='stretch', key="z3_beta_" + sector_key(chosen))
+            st.caption(
+                "הקו הכתום האופקי = תשואת SOXX · האנכי = בטא 1 · הצטלבותם היא המדד עצמו · "
+                "מעל הקו = ביצועי יתר מול הסקטור · מימין לקו = מגבירת תנועה · "
+                "הקו המקווקו הדק = אפס תשואה · * = R² נמוך, הבטא רועשת"
+            )
+        if _no_beta_syms:
+            st.caption("ללא נתוני בטא: " + ", ".join(_no_beta_syms))
 
     with _z3_tab_sent:
         # אגרגט התחום לאורך עונות — value_chain_sentiment (ממוצע פשוט, זהה לכרטיסיות)
@@ -3464,7 +4069,7 @@ else:
                 legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1,
                             font=dict(size=11)),
             )
-            st.plotly_chart(_z3_fig, use_container_width=True, key="z3_sent_" + sector_key(chosen))
+            st.plotly_chart(_z3_fig, width='stretch', key="z3_sent_" + sector_key(chosen))
 
 # ======================================================
 # פילוח טכנולוגי — ליבה ומעטפת
@@ -3477,6 +4082,13 @@ st.markdown(
 section_banner(5, 8, "🧬", "פילוח טכנולוגי — ליבה ומעטפת", "#a78bfa", period_dependent=True, period_label=period_label)
 st.caption("כל תחום מדורג לפי תשואה משוקללת: ליבה (חשיפה × 1.0) ומעטפת (חשיפה × 0.4). "
            "שני צירים חופפים בכוונה — טכנולוגיה (מה מוכרים) ושוקי קצה (למי מוכרים) — אין להשוות ביניהם כסכום.")
+st.markdown(
+    "<div dir='rtl' style='text-align:right; color:#6b7280; font-size:12px; margin-top:-10px; margin-bottom:4px;'>"
+    "רחף על <span style='color:#a78bfa; background:rgba(167,139,250,0.15); padding:1px 4px; "
+    "border-radius:4px; font-size:11px;'>ⓘ</span> לקריאת תיאור כל תחום"
+    "</div>",
+    unsafe_allow_html=True,
+)
 
 
 def render_tech_detail(idx, sentiment_data=None, season=None, group_name=None):
@@ -3803,6 +4415,15 @@ with st.spinner("מחשב את הפילוח הטכנולוגי..."):
 
                 _tech_sent_span = weighted_score_html(_ws, wrapper="span")
 
+                _desc = TECH_DESCRIPTIONS.get(group_name)
+                if _desc:
+                    _info_icon = ("<span title='" + _desc + "' style='color:#a78bfa; "
+                                  "font-size:13px; cursor:help; flex-shrink:0; "
+                                  "background:rgba(167,139,250,0.15); padding:1px 4px; "
+                                  "border-radius:4px; line-height:1;'>ⓘ</span>")
+                else:
+                    _info_icon = ""
+
                 row_col, btn_col = st.columns([9, 1.3])
                 with row_col:
                     st.markdown(
@@ -3810,7 +4431,9 @@ with st.spinner("מחשב את הפילוח הטכנולוגי..."):
                         "background:" + row_bg + "; border-top:1px solid rgba(255,255,255,0.06); "
                         "border-radius:6px; min-height:34px;'>"
                         "<span style='width:32px; text-align:right; color:#9ca3af;'>" + str(rankn) + "</span>"
-                        "<span style='flex:1; text-align:right; font-weight:600;'>" + group_name + "</span>"
+                        "<span style='flex:1; display:flex; align-items:center; justify-content:flex-start; gap:6px;'>"
+                        "<span style='font-weight:600;'>" + group_name + "</span>"
+                        + _info_icon + "</span>"
                         "<span style='width:90px; text-align:center; color:" + wret_color + "; font-weight:700;'>" + wret_txt + "</span>"
                         "<span style='width:190px; text-align:center; color:#9ca3af; font-size:13px;'>"
                         "ליבה " + str(n_core) + " · מעטפת " + str(n_env) + " · משקל " + core_weight_pct + "</span>"
@@ -3821,7 +4444,7 @@ with st.spinner("מחשב את הפילוח הטכנולוגי..."):
                 with btn_col:
                     btn_txt = "סגור" if is_open else "פתח"
                     if st.button(btn_txt, key="techrow_" + sector_key(group_name),
-                                 use_container_width=True, type="tertiary"):
+                                 width='stretch', type="tertiary"):
                         st.session_state[open_key] = not is_open
                         st.rerun()
 
@@ -3904,7 +4527,7 @@ else:
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     with st.container(border=True):
-        st.plotly_chart(fig_capex, use_container_width=True)
+        st.plotly_chart(fig_capex, width='stretch')
 
     # --- סה"כ מצרפי ---
     combined = pd.concat(capex_q.values(), axis=1).dropna()
@@ -4007,7 +4630,7 @@ else:
                             xanchor="right", x=1),
                 showlegend=True,
             )
-            st.plotly_chart(fig_a, use_container_width=True)
+            st.plotly_chart(fig_a, width='stretch')
             if guid.get("year_label"):
                 st.caption("שנה פיסקלית נוכחית: " + year_label)
 
@@ -4123,7 +4746,7 @@ else:
                 legend=dict(orientation="h", yanchor="bottom", y=1.08,
                             xanchor="right", x=1),
             )
-            st.plotly_chart(fig_stack, use_container_width=True)
+            st.plotly_chart(fig_stack, width='stretch')
 
             # שורת סיכום: צמיחת ה-CapEx בפועל על פני התקופה
             actual_totals = totals[:-1] if has_forecast else totals
@@ -4320,7 +4943,7 @@ _cm = st.session_state["z6_cal_month"]
 
 _nav_prev, _nav_title, _nav_next = st.columns([1, 3, 1])
 with _nav_prev:
-    if st.button("◄ חודש קודם", key="z6_prev_month", use_container_width=True):
+    if st.button("◄ חודש קודם", key="z6_prev_month", width='stretch'):
         _nm, _ny = (_cm - 1, _cy) if _cm > 1 else (12, _cy - 1)
         st.session_state["z6_cal_month"] = _nm
         st.session_state["z6_cal_year"] = _ny
@@ -4332,7 +4955,7 @@ with _nav_title:
         unsafe_allow_html=True,
     )
 with _nav_next:
-    if st.button("חודש הבא ►", key="z6_next_month", use_container_width=True):
+    if st.button("חודש הבא ►", key="z6_next_month", width='stretch'):
         _nm, _ny = (_cm + 1, _cy) if _cm < 12 else (1, _cy + 1)
         st.session_state["z6_cal_month"] = _nm
         st.session_state["z6_cal_year"] = _ny
@@ -4813,7 +5436,7 @@ for _il_i, _il_sym in enumerate(_il_display):
             _il_impact_key = "il_impact_" + _il_sym + "_" + _il_season
             _il_impact_res = st.session_state.get(_il_impact_key)
             if st.button("🔍 נתח השפעת עונת הדוחות", key="il_impact_btn_" + _il_sym,
-                         use_container_width=True):
+                         width='stretch'):
                 _il_ctx_text, _il_ctx_syms = _build_il_ctx(_il_season_analyzed)
                 with st.spinner("מנתח השפעת הדוחות על " + _il_sym + "..."):
                     _il_txt, _il_srcs = gemini_israeli_impact(_il_sym, _il_season, _il_ctx_text)
@@ -4854,7 +5477,7 @@ with st.expander("🔍 ניתוח השפעת עונת הדוחות — חברו�
     _ext_impact_key = "il_impact_" + _ext_chosen + "_" + _il_season
     _ext_impact_res = st.session_state.get(_ext_impact_key)
 
-    if st.button("🔍 נתח השפעת עונת הדוחות", key="il_ext_impact_btn", use_container_width=True):
+    if st.button("🔍 נתח השפעת עונת הדוחות", key="il_ext_impact_btn", width='stretch'):
         _ext_ctx_text, _ext_ctx_syms = _build_il_ctx(_il_season_analyzed)
         with st.spinner("מנתח השפעת הדוחות על " + _ext_chosen + "..."):
             _ext_txt, _ext_srcs = gemini_israeli_impact(_ext_chosen, _il_season, _ext_ctx_text)
@@ -4895,7 +5518,7 @@ with st.expander("🎯 ניתוח השפעה ממוקדת — דוח של חבר
         _foc_target = st.selectbox("חברת יעד:", _foc_target_opts, key="foc_target_sel")
         _foc_key = "focus_impact_" + _foc_source + "_" + _foc_target + "_" + _il_season
         _foc_res = st.session_state.get(_foc_key)
-        if st.button("🎯 נתח השפעה", key="foc_impact_btn", use_container_width=True):
+        if st.button("🎯 נתח השפעה", key="foc_impact_btn", width='stretch'):
             _foc_record = _il_season_analyzed[_foc_source]
             with st.spinner("מנתח השפעת " + _foc_source + " על " + _foc_target + "..."):
                 _foc_txt, _foc_srcs = gemini_focused_impact(
@@ -5355,7 +5978,7 @@ with st.container(border=True):
                 _sc, _dc = st.columns(2)
                 with _sc:
                     if st.button("✅ שמור לקובץ", key="z6_savebtn_" + _z6_chosen,
-                                 use_container_width=True, type="primary"):
+                                 width='stretch', type="primary"):
                         _save_ok = True
                         if _edit_mode:
                             # --- בנה record מהשדות הערוכים ---
@@ -5420,7 +6043,7 @@ with st.container(border=True):
                             st.success("נשמר: " + _z6_chosen + " / " + _z6_season)
                             st.rerun()
                 with _dc:
-                    if st.button("🗑️ בטל", key="z6_discardbtn_" + _z6_chosen, use_container_width=True):
+                    if st.button("🗑️ בטל", key="z6_discardbtn_" + _z6_chosen, width='stretch'):
                         del st.session_state[_z6_result_key]
                         st.rerun()
 
@@ -5661,12 +6284,100 @@ section_banner(8, 8, "🎯", "דירוגי אנליסטים ומחירי יעד"
                subtitle="שדרוגים, הורדות ומחירי יעד לפי חברה",
                period_dependent=False)
 
+# --- א) Top/Bottom 5 אנליסטים ---
+_z8_sorted = sorted(_analyst_scores.items(), key=lambda x: x[1]["score"], reverse=True)
+_z8_top5   = _z8_sorted[:5]
+_z8_bot5   = list(reversed(_z8_sorted[-5:])) if len(_z8_sorted) >= 5 else list(reversed(_z8_sorted))
+
+# (תווית, יישור th+td, מפתח) — מקור אמת יחיד לכותרות ולשורות
+_AN_COLS = [
+    ("מניה",     "right",  "sym"),
+    ("ציון",     "center", "score"),
+    ("פירוט",    "right",  "detail"),
+    ("אנליסטים", "center", "n"),
+]
+
+def _z8_analyst_row(sym, sc, med):
+    _iso = lambda t: ("<span dir='ltr' style='unicode-bidi:isolate; display:inline-block;'>"
+                      + str(t) + "</span>")
+    color = analyst_color(sc["score"], med)
+    score_txt = str(round(sc["score"], 2))
+    detail = (str(sc["buy"]) + " קנייה · "
+              + str(sc["hold"]) + " החזקה · "
+              + str(sc["sell"]) + " מכירה")
+    cells = {
+        "sym":    ("<td style='padding:5px 10px; text-align:right; font-weight:600;'>"
+                   + _iso(sym) + "</td>"),
+        "score":  ("<td style='padding:5px 10px; text-align:center; color:" + color
+                   + "; font-weight:700;'>" + _iso(score_txt) + "</td>"),
+        "detail": ("<td style='padding:5px 10px; text-align:right; color:#9ca3af; font-size:11px;'>"
+                   + detail + "</td>"),
+        "n":      ("<td style='padding:5px 10px; text-align:center; color:#6b7280; font-size:11px;'>"
+                   + _iso("n=" + str(sc["n"])) + "</td>"),
+    }
+    return (
+        "<tr style='border-top:1px solid rgba(255,255,255,0.06);'>"
+        + "".join(cells[key] for _, _, key in _AN_COLS)
+        + "</tr>"
+    )
+
+_z8_tbl_hdr = (
+    "<table dir='rtl' style='width:100%; border-collapse:collapse; font-size:12px;'>"
+    "<tr style='color:#6b7280; font-size:11px;'>"
+    + "".join(
+        "<th style='padding:4px 10px; text-align:" + align + ";'>" + label + "</th>"
+        for label, align, _ in _AN_COLS
+    )
+    + "</tr>"
+)
+
+_z8_col_top, _z8_col_bot = st.columns(2)
+with _z8_col_top:
+    st.markdown(
+        "<div dir='rtl' style='text-align:right; font-weight:700; font-size:16px; margin-bottom:6px;'>🏆 5 המדורגות הגבוהות</div>",
+        unsafe_allow_html=True,
+    )
+    _z8_top_rows = "".join(_z8_analyst_row(s, sc, _analyst_med) for s, sc in _z8_top5)
+    st.markdown(_z8_tbl_hdr + _z8_top_rows + "</table>", unsafe_allow_html=True)
+
+with _z8_col_bot:
+    st.markdown(
+        "<div dir='rtl' style='text-align:right; font-weight:700; font-size:16px; margin-bottom:6px;'>⚠️ 5 המדורגות הנמוכות</div>",
+        unsafe_allow_html=True,
+    )
+    _z8_bot_rows = "".join(_z8_analyst_row(s, sc, _analyst_med) for s, sc in _z8_bot5)
+    st.markdown(_z8_tbl_hdr + _z8_bot_rows + "</table>", unsafe_allow_html=True)
+
 # --- ב) בורר חברה ---
 _z8_sym = st.selectbox(
     "בחרי חברה לניתוח מחירי יעד ודירוגים:",
     list(_rating_universe),
     key="z8_sym",
 )
+
+# --- ציון אנליסטים לחברה הנבחרת ---
+_z8_ascore = get_analyst_score(_z8_sym)
+if _z8_ascore and _z8_ascore.get("score") is not None:
+    _z8_sc = round(_z8_ascore["score"], 2)
+    _z8_sc_n = _z8_ascore.get("n", 0)
+    _z8_buy  = _z8_ascore.get("buy", 0)
+    _z8_hld  = _z8_ascore.get("hold", 0)
+    _z8_sel  = _z8_ascore.get("sell", 0)
+    _z8_dist_txt = (
+        str(_z8_buy) + " קנייה · "
+        + str(_z8_hld) + " החזקה · "
+        + str(_z8_sel) + " מכירה"
+    )
+    st.markdown(
+        "<div dir='rtl' style='background:rgba(255,255,255,0.04); border-radius:8px; "
+        "padding:10px 14px; margin:8px 0; text-align:right;'>"
+        "<span style='color:#9ca3af; font-size:12px;'>ציון אנליסטים: </span>"
+        "<span style='color:#e5e7eb; font-weight:700; font-size:16px;'>" + str(_z8_sc) + "</span>"
+        "<span style='color:#6b7280; font-size:11px;'> / 5 &nbsp;(n=" + str(_z8_sc_n) + ")</span>"
+        "<br><span style='color:#9ca3af; font-size:11px;'>" + _z8_dist_txt + "</span>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
 # --- ג) מחירי יעד ---
 _z8_pt = get_price_targets(_z8_sym)
@@ -5732,7 +6443,7 @@ if _z8_pt:
             yaxis=dict(color="#9ca3af"), xaxis=dict(color="#9ca3af"),
             showlegend=False, margin=dict(l=10, r=80, t=20, b=10),
         )
-        st.plotly_chart(_z8_fig, use_container_width=True)
+        st.plotly_chart(_z8_fig, width='stretch')
 else:
     st.caption("אין נתוני מחירי יעד זמינים לחברה זו.")
 

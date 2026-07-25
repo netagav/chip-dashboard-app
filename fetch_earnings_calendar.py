@@ -268,8 +268,35 @@ def main():
             cal_ok += 1
         time.sleep(SLEEP_BASE + random.uniform(0, 1.5))
 
-    cal_existing = {(r["symbol"], r["date"]): r for r in existing["earnings_calendar"]}
-    cal_merged = {**cal_existing, **cal_new}
+    def _cal_q(date_str):
+        # רבעון קלנדרי מתוך מחרוזת ISO — משמש כמפתח dedup לרשומות עתידיות
+        m = int(date_str[5:7])
+        return (int(date_str[:4]), (m - 1) // 3 + 1)
+
+    # עבר (is_future=False): עובדות היסטוריות — מיזוג לפי (symbol, date), new גובר
+    cal_hist_ex = {(r["symbol"], r["date"]): r
+                   for r in existing["earnings_calendar"] if not r.get("is_future", True)}
+    cal_hist_new = {k: v for k, v in cal_new.items() if not v.get("is_future", True)}
+    merged_hist = {**cal_hist_ex, **cal_hist_new}
+
+    # עתיד (is_future=True): מיזוג לפי (symbol, רבעון) — new גובר
+    # גם מנקה כפילויות שנצברו בקובץ (כשYahoo שינה תאריך בין ריצות)
+    cal_fut_ex_q: dict = {}
+    for r in existing["earnings_calendar"]:
+        if r.get("is_future", True):
+            qk = (r["symbol"], _cal_q(r["date"]))
+            # כשיש כפילות קיימת — שמור את התאריך המאוחר יותר
+            if qk not in cal_fut_ex_q or r["date"] > cal_fut_ex_q[qk]["date"]:
+                cal_fut_ex_q[qk] = r
+    cal_fut_new_q = {(v["symbol"], _cal_q(v["date"])): v
+                     for v in cal_new.values() if v.get("is_future", True)}
+    merged_fut_q = {**cal_fut_ex_q, **cal_fut_new_q}
+
+    # בנה cal_merged עם מפתח (symbol, date) לתאימות עם הפרמטרים הקיימים
+    cal_merged = dict(merged_hist)
+    for r in merged_fut_q.values():
+        cal_merged[(r["symbol"], r["date"])] = r
+
     final_calendar = sorted(
         [r for r in cal_merged.values() if lo.isoformat() <= r["date"] <= hi.isoformat()],
         key=lambda r: (r["date"], r["symbol"]),
