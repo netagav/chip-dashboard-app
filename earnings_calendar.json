@@ -59,17 +59,17 @@
     {
       "date": "2026-04-29",
       "symbol": "AMZN",
-      "eps_est": 1.64,
+      "eps_est": 1.65,
       "eps_actual": 2.78,
-      "surprise": 69.02,
+      "surprise": 68.18,
       "is_future": false
     },
     {
       "date": "2026-04-29",
       "symbol": "GOOGL",
-      "eps_est": 2.63,
+      "eps_est": 2.67,
       "eps_actual": 5.11,
-      "surprise": 94.3,
+      "surprise": 91.59,
       "is_future": false
     },
     {
@@ -83,9 +83,9 @@
     {
       "date": "2026-04-29",
       "symbol": "META",
-      "eps_est": 6.82,
-      "eps_actual": 7.31,
-      "surprise": 7.2,
+      "eps_est": 6.66,
+      "eps_actual": 10.44,
+      "surprise": 56.79,
       "is_future": false
     },
     {
@@ -219,26 +219,26 @@
     {
       "date": "2026-07-22",
       "symbol": "GOOGL",
-      "eps_est": 2.89,
-      "eps_actual": null,
-      "surprise": null,
-      "is_future": true
+      "eps_est": 2.9,
+      "eps_actual": 9.11,
+      "surprise": 214.23,
+      "is_future": false
     },
     {
       "date": "2026-07-22",
       "symbol": "TXN",
-      "eps_est": 1.92,
-      "eps_actual": null,
-      "surprise": null,
-      "is_future": true
+      "eps_est": 1.94,
+      "eps_actual": 2.14,
+      "surprise": 10.42,
+      "is_future": false
     },
     {
       "date": "2026-07-23",
       "symbol": "INTC",
       "eps_est": 0.22,
-      "eps_actual": null,
-      "surprise": null,
-      "is_future": true
+      "eps_actual": 0.42,
+      "surprise": 92.49,
+      "is_future": false
     },
     {
       "date": "2026-07-28",
@@ -338,6 +338,14 @@
     },
     {
       "date": "2026-08-10",
+      "symbol": "CAMT",
+      "eps_est": 0.76,
+      "eps_actual": null,
+      "surprise": null,
+      "is_future": true
+    },
+    {
+      "date": "2026-08-12",
       "symbol": "CAMT",
       "eps_est": 0.76,
       "eps_actual": null,
@@ -452,9 +460,9 @@
         "currency": "USD"
       },
       "recommendation_dist": {
-        "strongBuy": 10,
+        "strongBuy": 11,
         "buy": 25,
-        "hold": 2,
+        "hold": 1,
         "sell": 0,
         "strongSell": 0
       },
@@ -480,7 +488,7 @@
     },
     "ADI": {
       "price_targets": {
-        "current": 372.22,
+        "current": 371.86,
         "low": 365.0,
         "mean": 457.73334,
         "median": 455.0,
@@ -3831,7 +3839,7 @@
     },
     "AEIS": {
       "price_targets": {
-        "current": 313.9,
+        "current": 303.99,
         "low": 350.0,
         "mean": 428.72726,
         "median": 421.0,
@@ -5145,10 +5153,10 @@
     },
     "AMAT": {
       "price_targets": {
-        "current": 550.01,
+        "current": 536.25,
         "low": 358.0,
-        "mean": 623.0571,
-        "median": 647.0,
+        "mean": 627.65717,
+        "median": 650.0,
         "high": 900.0,
         "currency": "USD"
       },
@@ -9665,11 +9673,11 @@
     },
     "AMD": {
       "price_targets": {
-        "current": 538.0006,
+        "current": 521.95,
         "low": 320.0,
-        "mean": 541.65955,
-        "median": 540.0,
-        "high": 725.0,
+        "mean": 570.59576,
+        "median": 575.0,
+        "high": 1250.0,
         "currency": "USD"
       },
       "recommendation_dist": {
@@ -9680,6 +9688,27 @@
         "strongSell": 0
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-25",
+          "firm": "UBS",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
+        {
+          "date": "2026-07-25",
+          "firm": "Jefferies",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
+        {
+          "date": "2026-07-24",
+          "firm": "Roth Capital",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
         {
           "date": "2026-07-24",
           "firm": "Rosenblatt",
@@ -14885,11 +14914,11 @@
     },
     "AMKR": {
       "price_targets": {
-        "current": 65.19,
+        "current": 64.96,
         "low": 60.0,
-        "mean": 76.125,
-        "median": 77.5,
-        "high": 90.0,
+        "mean": 77.88889,
+        "median": 80.0,
+        "high": 92.0,
         "currency": "USD"
       },
       "recommendation_dist": {
@@ -14900,6 +14929,13 @@
         "strongSell": 0
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-25",
+          "firm": "UBS",
+          "action": "up",
+          "from_grade": "Neutral",
+          "to_grade": "Buy"
+        },
         {
           "date": "2026-07-22",
           "firm": "B. Riley Securities",
@@ -15506,7 +15542,7 @@
     },
     "AMZN": {
       "price_targets": {
-        "current": 234.02,
+        "current": 232.11,
         "low": 207.0,
         "mean": 313.1321,
         "median": 317.5,
@@ -22469,7 +22505,7 @@
     },
     "ANET": {
       "price_targets": {
-        "current": 176.18,
+        "current": 173.99,
         "low": 164.0,
         "mean": 192.31033,
         "median": 195.0,
@@ -25610,7 +25646,7 @@
     },
     "ARM": {
       "price_targets": {
-        "current": 269.82,
+        "current": 260.01,
         "low": 125.0,
         "mean": 300.73026,
         "median": 260.0,
@@ -27064,7 +27100,7 @@
     },
     "ASMIY": {
       "price_targets": {
-        "current": 980.08,
+        "current": 969.53,
         "low": 1420.0,
         "mean": 1420.0,
         "median": 1420.0,
@@ -27082,11 +27118,11 @@
     },
     "ASML": {
       "price_targets": {
-        "current": 1781.78,
-        "low": 880.838,
-        "mean": 2112.3682,
-        "median": 2288.4778,
-        "high": 2845.3286,
+        "current": 1757.09,
+        "low": 880.0364,
+        "mean": 2110.4458,
+        "median": 2286.395,
+        "high": 2842.739,
         "currency": "USD"
       },
       "recommendation_dist": {
@@ -28184,7 +28220,7 @@
     },
     "AVGO": {
       "price_targets": {
-        "current": 385.46,
+        "current": 381.92,
         "low": 215.88,
         "mean": 525.44,
         "median": 530.0,
@@ -32506,7 +32542,7 @@
     },
     "CAMT": {
       "price_targets": {
-        "current": 150.71,
+        "current": 147.79,
         "low": 160.0,
         "mean": 187.58333,
         "median": 187.5,
@@ -33330,7 +33366,7 @@
     },
     "CDNS": {
       "price_targets": {
-        "current": 332.96,
+        "current": 326.24,
         "low": 275.0,
         "mean": 395.94193,
         "median": 400.0,
@@ -34938,7 +34974,7 @@
     },
     "COHR": {
       "price_targets": {
-        "current": 289.355,
+        "current": 282.39,
         "low": 230.0,
         "mean": 391.45267,
         "median": 400.0,
@@ -36301,7 +36337,7 @@
     },
     "DELL": {
       "price_targets": {
-        "current": 448.54,
+        "current": 437.5,
         "low": 360.0,
         "mean": 501.0435,
         "median": 500.0,
@@ -38672,7 +38708,7 @@
     },
     "ENTG": {
       "price_targets": {
-        "current": 131.88,
+        "current": 129.15,
         "low": 115.0,
         "mean": 166.0,
         "median": 166.0,
@@ -39853,7 +39889,7 @@
     },
     "ETN": {
       "price_targets": {
-        "current": 410.27,
+        "current": 404.07,
         "low": 321.0,
         "mean": 455.7916,
         "median": 475.0,
@@ -42644,7 +42680,7 @@
     },
     "GFS": {
       "price_targets": {
-        "current": 54.525,
+        "current": 53.53,
         "low": 60.0,
         "mean": 81.0,
         "median": 80.0,
@@ -43559,7 +43595,7 @@
     },
     "GOOGL": {
       "price_targets": {
-        "current": 319.03,
+        "current": 319.74,
         "low": 340.0,
         "mean": 428.11536,
         "median": 430.0,
@@ -50648,7 +50684,7 @@
     },
     "HPE": {
       "price_targets": {
-        "current": 48.96,
+        "current": 47.69,
         "low": 28.0,
         "mean": 64.12947,
         "median": 67.0,
@@ -52606,7 +52642,7 @@
     },
     "IFNNY": {
       "price_targets": {
-        "current": 73.625,
+        "current": 72.06,
         "low": 65.0,
         "mean": 105.75,
         "median": 116.5,
@@ -52667,10 +52703,10 @@
     },
     "INTC": {
       "price_targets": {
-        "current": 95.26,
-        "low": 45.0,
-        "mean": 108.625,
-        "median": 102.5,
+        "current": 92.32,
+        "low": 74.0,
+        "mean": 115.4,
+        "median": 110.0,
         "high": 200.0,
         "currency": "USD"
       },
@@ -52682,6 +52718,13 @@
         "strongSell": 1
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-25",
+          "firm": "DA Davidson",
+          "action": "main",
+          "from_grade": "Neutral",
+          "to_grade": "Neutral"
+        },
         {
           "date": "2026-07-24",
           "firm": "Wells Fargo",
@@ -52698,10 +52741,24 @@
         },
         {
           "date": "2026-07-24",
+          "firm": "Truist Securities",
+          "action": "main",
+          "from_grade": "Hold",
+          "to_grade": "Hold"
+        },
+        {
+          "date": "2026-07-24",
           "firm": "Stifel",
           "action": "main",
           "from_grade": "Hold",
           "to_grade": "Hold"
+        },
+        {
+          "date": "2026-07-24",
+          "firm": "Roth Capital",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
         },
         {
           "date": "2026-07-24",
@@ -52712,10 +52769,24 @@
         },
         {
           "date": "2026-07-24",
+          "firm": "Morgan Stanley",
+          "action": "main",
+          "from_grade": "Equal-Weight",
+          "to_grade": "Equal-Weight"
+        },
+        {
+          "date": "2026-07-24",
           "firm": "Mizuho",
           "action": "main",
           "from_grade": "Neutral",
           "to_grade": "Neutral"
+        },
+        {
+          "date": "2026-07-24",
+          "firm": "JP Morgan",
+          "action": "main",
+          "from_grade": "Underweight",
+          "to_grade": "Underweight"
         },
         {
           "date": "2026-07-24",
@@ -57859,7 +57930,7 @@
     },
     "KLAC": {
       "price_targets": {
-        "current": 214.63,
+        "current": 210.52,
         "low": 150.0,
         "mean": 234.0357,
         "median": 227.5,
@@ -60832,7 +60903,7 @@
     },
     "LITE": {
       "price_targets": {
-        "current": 776.71,
+        "current": 762.99,
         "low": 600.0,
         "mean": 1104.8906,
         "median": 1100.0,
@@ -63210,7 +63281,7 @@
     },
     "LRCX": {
       "price_targets": {
-        "current": 313.06,
+        "current": 305.21,
         "low": 220.0,
         "mean": 372.32257,
         "median": 385.0,
@@ -66932,7 +67003,7 @@
     },
     "MCHP": {
       "price_targets": {
-        "current": 79.29,
+        "current": 78.86,
         "low": 80.0,
         "mean": 113.08333,
         "median": 118.5,
@@ -69877,7 +69948,7 @@
     },
     "META": {
       "price_targets": {
-        "current": 602.33,
+        "current": 595.19,
         "low": 664.46,
         "mean": 825.841,
         "median": 823.66,
@@ -72787,7 +72858,7 @@
     },
     "MRVL": {
       "price_targets": {
-        "current": 198.3874,
+        "current": 194.23,
         "low": 126.0,
         "mean": 256.9142,
         "median": 242.5,
@@ -75753,7 +75824,7 @@
     },
     "MSFT": {
       "price_targets": {
-        "current": 384.77,
+        "current": 381.7,
         "low": 400.0,
         "mean": 556.7513,
         "median": 550.0,
@@ -82114,7 +82185,7 @@
     },
     "MU": {
       "price_targets": {
-        "current": 940.4,
+        "current": 920.95,
         "low": 361.0,
         "mean": 1507.381,
         "median": 1550.0,
@@ -88258,7 +88329,7 @@
     },
     "NVDA": {
       "price_targets": {
-        "current": 210.4572,
+        "current": 206.84,
         "low": 180.0,
         "mean": 302.82758,
         "median": 300.0,
@@ -95151,7 +95222,7 @@
     },
     "NVMI": {
       "price_targets": {
-        "current": 445.77,
+        "current": 437.98,
         "low": 540.0,
         "mean": 603.375,
         "median": 600.0,
@@ -95688,7 +95759,7 @@
     },
     "NXPI": {
       "price_targets": {
-        "current": 269.71,
+        "current": 269.24,
         "low": 200.0,
         "mean": 314.10345,
         "median": 313.0,
@@ -95703,6 +95774,13 @@
         "strongSell": 0
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-24",
+          "firm": "Oppenheimer",
+          "action": "main",
+          "from_grade": "Outperform",
+          "to_grade": "Outperform"
+        },
         {
           "date": "2026-07-20",
           "firm": "Wells Fargo",
@@ -98619,7 +98697,7 @@
     },
     "ON": {
       "price_targets": {
-        "current": 87.78,
+        "current": 86.81,
         "low": 85.0,
         "mean": 113.12,
         "median": 110.0,
@@ -101669,7 +101747,7 @@
     },
     "ONTO": {
       "price_targets": {
-        "current": 281.6,
+        "current": 272.62,
         "low": 330.0,
         "mean": 369.6,
         "median": 357.5,
@@ -102444,7 +102522,7 @@
     },
     "ORCL": {
       "price_targets": {
-        "current": 119.17,
+        "current": 114.99,
         "low": 110.0,
         "mean": 248.14584,
         "median": 240.0,
@@ -106985,7 +107063,7 @@
     },
     "QCOM": {
       "price_targets": {
-        "current": 168.795,
+        "current": 166.97,
         "low": 100.0,
         "mean": 221.23334,
         "median": 222.5,
@@ -110843,10 +110921,10 @@
     },
     "SMCI": {
       "price_targets": {
-        "current": 31.18,
+        "current": 30.1,
         "low": 15.0,
-        "mean": 38.4375,
-        "median": 37.5,
+        "mean": 37.8125,
+        "median": 36.5,
         "high": 58.0,
         "currency": "USD"
       },
@@ -111527,7 +111605,7 @@
     },
     "SNDK": {
       "price_targets": {
-        "current": 1501.26,
+        "current": 1436.56,
         "low": 1000.0,
         "mean": 2217.7727,
         "median": 2250.0,
@@ -112190,7 +112268,7 @@
     },
     "SNPS": {
       "price_targets": {
-        "current": 375.035,
+        "current": 373.47,
         "low": 414.77,
         "mean": 564.4308,
         "median": 575.0,
@@ -114099,11 +114177,11 @@
     },
     "STM": {
       "price_targets": {
-        "current": 52.9,
+        "current": 51.54,
         "low": 32.8,
-        "mean": 73.36154,
+        "mean": 72.28462,
         "median": 72.0,
-        "high": 101.0,
+        "high": 97.0,
         "currency": "USD"
       },
       "recommendation_dist": {
@@ -114114,6 +114192,13 @@
         "strongSell": 0
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-24",
+          "firm": "Mizuho",
+          "action": "main",
+          "from_grade": "Outperform",
+          "to_grade": "Outperform"
+        },
         {
           "date": "2026-07-21",
           "firm": "Susquehanna",
@@ -114825,7 +114910,7 @@
     },
     "STX": {
       "price_targets": {
-        "current": 885.675,
+        "current": 851.69,
         "low": 680.0,
         "mean": 1008.6087,
         "median": 1000.0,
@@ -116928,7 +117013,7 @@
     },
     "TER": {
       "price_targets": {
-        "current": 360.16,
+        "current": 349.92,
         "low": 270.0,
         "mean": 429.88235,
         "median": 446.0,
@@ -119465,7 +119550,7 @@
     },
     "TSEM": {
       "price_targets": {
-        "current": 241.57,
+        "current": 233.37,
         "low": 277.0,
         "mean": 313.83334,
         "median": 320.5,
@@ -119883,10 +119968,10 @@
     },
     "TSM": {
       "price_targets": {
-        "current": 407.705,
-        "low": 354.0,
-        "mean": 527.26044,
-        "median": 530.0,
+        "current": 403.41,
+        "low": 430.0,
+        "mean": 537.42706,
+        "median": 534.5,
         "high": 700.0,
         "currency": "USD"
       },
@@ -120595,7 +120680,7 @@
     },
     "TXN": {
       "price_targets": {
-        "current": 280.415,
+        "current": 279.58,
         "low": 225.0,
         "mean": 320.03226,
         "median": 330.0,
@@ -125157,7 +125242,7 @@
     },
     "UMC": {
       "price_targets": {
-        "current": 19.5122,
+        "current": 19.48,
         "low": 7.4,
         "mean": 16.24496,
         "median": 10.07972,
@@ -125393,16 +125478,16 @@
     },
     "VRT": {
       "price_targets": {
-        "current": 298.92,
+        "current": 290.36,
         "low": 236.0,
-        "mean": 376.8,
-        "median": 380.0,
+        "mean": 376.15384,
+        "median": 378.0,
         "high": 500.0,
         "currency": "USD"
       },
       "recommendation_dist": {
         "strongBuy": 3,
-        "buy": 20,
+        "buy": 21,
         "hold": 3,
         "sell": 0,
         "strongSell": 1
@@ -126602,7 +126687,7 @@
     },
     "WDC": {
       "price_targets": {
-        "current": 532.8296,
+        "current": 519.8,
         "low": 415.0,
         "mean": 633.8333,
         "median": 615.0,
@@ -131827,8 +131912,8 @@
         {
           "date": "2026-04-29",
           "reported_eps": 2.78,
-          "eps_estimate": 1.64,
-          "surprise_pct": 69.02
+          "eps_estimate": 1.65,
+          "surprise_pct": 68.18
         },
         {
           "date": "2026-02-05",
@@ -131845,26 +131930,26 @@
         {
           "date": "2025-07-31",
           "reported_eps": 1.68,
-          "eps_estimate": 1.32,
-          "surprise_pct": 27.19
+          "eps_estimate": 1.33,
+          "surprise_pct": 26.13
         },
         {
           "date": "2025-05-01",
           "reported_eps": 1.59,
           "eps_estimate": 1.36,
-          "surprise_pct": 16.77
+          "surprise_pct": 17.08
         },
         {
           "date": "2025-02-06",
           "reported_eps": 1.86,
           "eps_estimate": 1.48,
-          "surprise_pct": 25.29
+          "surprise_pct": 25.36
         },
         {
           "date": "2024-10-31",
           "reported_eps": 1.43,
           "eps_estimate": 1.14,
-          "surprise_pct": 25.22
+          "surprise_pct": 25.17
         },
         {
           "date": "2024-08-01",
@@ -131900,19 +131985,19 @@
           "date": "2023-04-27",
           "reported_eps": 0.31,
           "eps_estimate": 0.21,
-          "surprise_pct": 44.29
+          "surprise_pct": 46.82
         },
         {
           "date": "2023-02-02",
           "reported_eps": 0.03,
-          "eps_estimate": 0.17,
-          "surprise_pct": -82.2
+          "eps_estimate": 0.16,
+          "surprise_pct": -81.68
         },
         {
           "date": "2022-10-27",
           "reported_eps": 0.28,
           "eps_estimate": 0.21,
-          "surprise_pct": 35.53
+          "surprise_pct": 33.0
         },
         {
           "date": "2022-07-28",
@@ -131923,44 +132008,44 @@
         {
           "date": "2022-04-28",
           "reported_eps": -0.38,
-          "eps_estimate": 0.42,
-          "surprise_pct": -190.58
+          "eps_estimate": 0.41,
+          "surprise_pct": -191.55
         },
         {
           "date": "2022-02-03",
           "reported_eps": 1.39,
-          "eps_estimate": 0.18,
-          "surprise_pct": 657.12
+          "eps_estimate": 0.19,
+          "surprise_pct": 641.94
         },
         {
           "date": "2021-10-28",
           "reported_eps": 0.31,
           "eps_estimate": 0.44,
-          "surprise_pct": -31.21
+          "surprise_pct": -30.85
         },
         {
           "date": "2021-07-29",
           "reported_eps": 0.76,
-          "eps_estimate": 0.61,
-          "surprise_pct": 23.06
+          "eps_estimate": 0.62,
+          "surprise_pct": 22.57
         },
         {
           "date": "2021-04-29",
           "reported_eps": 0.79,
-          "eps_estimate": 0.47,
-          "surprise_pct": 67.3
+          "eps_estimate": 0.48,
+          "surprise_pct": 64.11
         },
         {
           "date": "2021-02-02",
           "reported_eps": 0.7,
-          "eps_estimate": 0.35,
-          "surprise_pct": 100.1
+          "eps_estimate": 0.36,
+          "surprise_pct": 97.39
         },
         {
           "date": "2020-10-29",
           "reported_eps": 0.62,
-          "eps_estimate": 0.38,
-          "surprise_pct": 64.25
+          "eps_estimate": 0.37,
+          "surprise_pct": 66.17
         },
         {
           "date": "2020-07-30",
@@ -134125,8 +134210,8 @@
         {
           "date": "2026-04-29",
           "reported_eps": 5.11,
-          "eps_estimate": 2.63,
-          "surprise_pct": 94.3
+          "eps_estimate": 2.67,
+          "surprise_pct": 91.59
         },
         {
           "date": "2026-02-04",
@@ -134150,7 +134235,7 @@
           "date": "2025-04-24",
           "reported_eps": 2.81,
           "eps_estimate": 2.01,
-          "surprise_pct": 39.84
+          "surprise_pct": 40.1
         },
         {
           "date": "2025-02-04",
@@ -134167,8 +134252,8 @@
         {
           "date": "2024-07-23",
           "reported_eps": 1.89,
-          "eps_estimate": 1.84,
-          "surprise_pct": 2.54
+          "eps_estimate": 1.85,
+          "surprise_pct": 2.4
         },
         {
           "date": "2024-04-25",
@@ -134186,43 +134271,43 @@
           "date": "2023-10-24",
           "reported_eps": 1.55,
           "eps_estimate": 1.45,
-          "surprise_pct": 7.05
+          "surprise_pct": 6.74
         },
         {
           "date": "2023-07-25",
           "reported_eps": 1.44,
           "eps_estimate": 1.34,
-          "surprise_pct": 7.29
+          "surprise_pct": 7.23
         },
         {
           "date": "2023-04-25",
           "reported_eps": 1.17,
           "eps_estimate": 1.07,
-          "surprise_pct": 9.45
+          "surprise_pct": 9.52
         },
         {
           "date": "2023-02-02",
           "reported_eps": 1.05,
-          "eps_estimate": 1.2,
-          "surprise_pct": -12.33
+          "eps_estimate": 1.19,
+          "surprise_pct": -11.87
         },
         {
           "date": "2022-10-25",
           "reported_eps": 1.06,
-          "eps_estimate": 1.26,
-          "surprise_pct": -16.01
+          "eps_estimate": 1.25,
+          "surprise_pct": -15.27
         },
         {
           "date": "2022-07-26",
           "reported_eps": 1.21,
-          "eps_estimate": 1.29,
-          "surprise_pct": -6.05
+          "eps_estimate": 1.27,
+          "surprise_pct": -5.05
         },
         {
           "date": "2022-04-26",
           "reported_eps": 1.23,
-          "eps_estimate": 1.28,
-          "surprise_pct": -3.67
+          "eps_estimate": 1.29,
+          "surprise_pct": -4.43
         },
         {
           "date": "2022-02-01",
@@ -134233,14 +134318,14 @@
         {
           "date": "2021-10-26",
           "reported_eps": 1.4,
-          "eps_estimate": 1.16,
-          "surprise_pct": 20.44
+          "eps_estimate": 1.17,
+          "surprise_pct": 20.02
         },
         {
           "date": "2021-07-27",
           "reported_eps": 1.36,
           "eps_estimate": 0.96,
-          "surprise_pct": 42.7
+          "surprise_pct": 41.37
         },
         {
           "date": "2021-04-27",
@@ -134251,8 +134336,8 @@
         {
           "date": "2021-02-02",
           "reported_eps": 1.12,
-          "eps_estimate": 0.8,
-          "surprise_pct": 39.28
+          "eps_estimate": 0.79,
+          "surprise_pct": 41.85
         },
         {
           "date": "2020-10-29",
@@ -135540,9 +135625,9 @@
       "eps_history": [
         {
           "date": "2026-04-29",
-          "reported_eps": 7.31,
-          "eps_estimate": 6.82,
-          "surprise_pct": 7.2
+          "reported_eps": 10.44,
+          "eps_estimate": 6.66,
+          "surprise_pct": 56.79
         },
         {
           "date": "2026-01-28",
@@ -135552,33 +135637,33 @@
         },
         {
           "date": "2025-10-29",
-          "reported_eps": 7.25,
-          "eps_estimate": 6.67,
-          "surprise_pct": 8.66
+          "reported_eps": 1.05,
+          "eps_estimate": 6.71,
+          "surprise_pct": -84.34
         },
         {
           "date": "2025-07-30",
           "reported_eps": 7.14,
-          "eps_estimate": 5.86,
-          "surprise_pct": 21.82
+          "eps_estimate": 5.9,
+          "surprise_pct": 20.96
         },
         {
           "date": "2025-04-30",
           "reported_eps": 6.43,
-          "eps_estimate": 5.21,
-          "surprise_pct": 23.53
+          "eps_estimate": 5.22,
+          "surprise_pct": 23.11
         },
         {
           "date": "2025-01-29",
           "reported_eps": 8.02,
-          "eps_estimate": 6.74,
-          "surprise_pct": 19.0
+          "eps_estimate": 6.76,
+          "surprise_pct": 18.67
         },
         {
           "date": "2024-10-30",
           "reported_eps": 6.03,
-          "eps_estimate": 5.3,
-          "surprise_pct": 13.86
+          "eps_estimate": 5.29,
+          "surprise_pct": 13.94
         },
         {
           "date": "2024-07-31",
@@ -135589,8 +135674,8 @@
         {
           "date": "2024-04-24",
           "reported_eps": 4.71,
-          "eps_estimate": 4.36,
-          "surprise_pct": 8.11
+          "eps_estimate": 4.32,
+          "surprise_pct": 8.92
         },
         {
           "date": "2024-02-01",
@@ -135601,8 +135686,8 @@
         {
           "date": "2023-10-25",
           "reported_eps": 4.39,
-          "eps_estimate": 3.6,
-          "surprise_pct": 21.96
+          "eps_estimate": 3.63,
+          "surprise_pct": 20.9
         },
         {
           "date": "2023-07-26",
@@ -135625,38 +135710,38 @@
         {
           "date": "2022-10-26",
           "reported_eps": 1.64,
-          "eps_estimate": 1.85,
-          "surprise_pct": -11.32
+          "eps_estimate": 1.86,
+          "surprise_pct": -12.06
         },
         {
           "date": "2022-07-27",
           "reported_eps": 2.46,
           "eps_estimate": 2.55,
-          "surprise_pct": -3.56
+          "surprise_pct": -3.38
         },
         {
           "date": "2022-04-27",
           "reported_eps": 2.72,
-          "eps_estimate": 2.53,
-          "surprise_pct": 7.57
+          "eps_estimate": 2.55,
+          "surprise_pct": 6.82
         },
         {
           "date": "2022-02-02",
           "reported_eps": 3.67,
           "eps_estimate": 3.83,
-          "surprise_pct": -4.06
+          "surprise_pct": -4.1
         },
         {
           "date": "2021-10-25",
           "reported_eps": 3.22,
-          "eps_estimate": 3.17,
-          "surprise_pct": 1.52
+          "eps_estimate": 3.18,
+          "surprise_pct": 1.32
         },
         {
           "date": "2021-07-28",
           "reported_eps": 3.61,
-          "eps_estimate": 3.06,
-          "surprise_pct": 17.94
+          "eps_estimate": 3.01,
+          "surprise_pct": 20.04
         },
         {
           "date": "2021-04-28",
@@ -135667,20 +135752,20 @@
         {
           "date": "2021-01-27",
           "reported_eps": 3.88,
-          "eps_estimate": 3.24,
-          "surprise_pct": 19.91
+          "eps_estimate": 3.2,
+          "surprise_pct": 21.43
         },
         {
           "date": "2020-10-29",
-          "reported_eps": 2.4,
+          "reported_eps": 2.71,
           "eps_estimate": 1.91,
-          "surprise_pct": 25.57
+          "surprise_pct": 41.95
         },
         {
           "date": "2020-07-30",
           "reported_eps": 1.8,
-          "eps_estimate": 1.4,
-          "surprise_pct": 28.88
+          "eps_estimate": 1.37,
+          "surprise_pct": 31.2
         }
       ],
       "quarterly_revenue": [
@@ -138790,9 +138875,9 @@
         },
         {
           "date": "2025-10-21",
-          "reported_eps": 1.57,
+          "reported_eps": 1.48,
           "eps_estimate": 1.49,
-          "surprise_pct": 5.81
+          "surprise_pct": -0.4
         },
         {
           "date": "2025-07-22",
@@ -138803,8 +138888,8 @@
         {
           "date": "2025-04-23",
           "reported_eps": 1.28,
-          "eps_estimate": 1.1,
-          "surprise_pct": 16.76
+          "eps_estimate": 1.06,
+          "surprise_pct": 20.21
         },
         {
           "date": "2025-01-23",
@@ -138814,15 +138899,15 @@
         },
         {
           "date": "2024-10-22",
-          "reported_eps": 1.44,
-          "eps_estimate": 1.41,
-          "surprise_pct": 2.38
+          "reported_eps": 1.47,
+          "eps_estimate": 1.37,
+          "surprise_pct": 7.08
         },
         {
           "date": "2024-07-23",
-          "reported_eps": 1.17,
-          "eps_estimate": 1.19,
-          "surprise_pct": -1.48
+          "reported_eps": 1.22,
+          "eps_estimate": 1.16,
+          "surprise_pct": 5.0
         },
         {
           "date": "2024-04-23",
@@ -138832,15 +138917,15 @@
         },
         {
           "date": "2024-01-23",
-          "reported_eps": 1.46,
-          "eps_estimate": 1.49,
-          "surprise_pct": -2.1
+          "reported_eps": 1.49,
+          "eps_estimate": 1.47,
+          "surprise_pct": 1.7
         },
         {
           "date": "2023-10-24",
           "reported_eps": 1.85,
-          "eps_estimate": 1.84,
-          "surprise_pct": 0.33
+          "eps_estimate": 1.82,
+          "surprise_pct": 1.88
         },
         {
           "date": "2023-07-25",
@@ -138851,26 +138936,26 @@
         {
           "date": "2023-04-25",
           "reported_eps": 1.85,
-          "eps_estimate": 1.8,
-          "surprise_pct": 2.51
+          "eps_estimate": 1.78,
+          "surprise_pct": 3.99
         },
         {
           "date": "2023-01-24",
-          "reported_eps": 2.19,
-          "eps_estimate": 2.03,
-          "surprise_pct": 7.92
+          "reported_eps": 2.13,
+          "eps_estimate": 1.98,
+          "surprise_pct": 7.69
         },
         {
           "date": "2022-10-25",
-          "reported_eps": 2.56,
-          "eps_estimate": 2.42,
-          "surprise_pct": 5.58
+          "reported_eps": 2.47,
+          "eps_estimate": 2.39,
+          "surprise_pct": 3.18
         },
         {
           "date": "2022-07-26",
-          "reported_eps": 2.52,
-          "eps_estimate": 2.15,
-          "surprise_pct": 17.26
+          "reported_eps": 2.45,
+          "eps_estimate": 2.12,
+          "surprise_pct": 15.49
         },
         {
           "date": "2022-04-26",
@@ -138880,39 +138965,39 @@
         },
         {
           "date": "2022-01-25",
-          "reported_eps": 2.33,
-          "eps_estimate": 1.96,
-          "surprise_pct": 18.97
+          "reported_eps": 2.27,
+          "eps_estimate": 1.94,
+          "surprise_pct": 16.79
         },
         {
           "date": "2021-10-26",
-          "reported_eps": 2.12,
-          "eps_estimate": 2.09,
-          "surprise_pct": 1.61
+          "reported_eps": 2.07,
+          "eps_estimate": 2.04,
+          "surprise_pct": 1.36
         },
         {
           "date": "2021-07-21",
-          "reported_eps": 2.1,
-          "eps_estimate": 1.85,
-          "surprise_pct": 13.62
+          "reported_eps": 2.05,
+          "eps_estimate": 1.83,
+          "surprise_pct": 11.79
         },
         {
           "date": "2021-04-27",
-          "reported_eps": 1.92,
-          "eps_estimate": 1.61,
-          "surprise_pct": 19.45
+          "reported_eps": 1.87,
+          "eps_estimate": 1.58,
+          "surprise_pct": 18.67
         },
         {
           "date": "2021-01-26",
-          "reported_eps": 1.86,
-          "eps_estimate": 1.34,
-          "surprise_pct": 38.01
+          "reported_eps": 1.8,
+          "eps_estimate": 1.33,
+          "surprise_pct": 34.92
         },
         {
           "date": "2020-10-20",
-          "reported_eps": 1.5,
-          "eps_estimate": 1.29,
-          "surprise_pct": 16.41
+          "reported_eps": 1.45,
+          "eps_estimate": 1.28,
+          "surprise_pct": 13.28
         },
         {
           "date": "2020-07-21",
@@ -139475,5 +139560,5 @@
       ]
     }
   },
-  "generated_at": "2026-07-24"
+  "generated_at": "2026-07-25"
 }
