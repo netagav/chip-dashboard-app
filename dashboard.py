@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 import yfinance as yf
 import statistics
 import math
@@ -8,7 +8,8 @@ import hashlib
 import pandas as pd
 import altair as alt
 import plotly.graph_objects as go
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, time as _time
+from zoneinfo import ZoneInfo
 import logging
 for _name in ("yfinance", "peewee",
               "streamlit.runtime.scriptrunner.script_run_context",
@@ -549,6 +550,9 @@ SEASON_EARLY_DAYS = 21
 SENTIMENT_POS = 0.25
 SENTIMENT_NEG = -0.25
 EARNINGS_TEMPERATURE = 0.2  # טמפרטורה נמוכה לניתוח מובנה של דוחות בלבד
+# חברות שמדווחות רשמית במטבע מקומי אך מציגות ומדוברות בדולר.
+# גובר על get_financial_currency בבחירת מטבע היעד לניתוח.
+REPORTING_CURRENCY_OVERRIDE = {"TSM": "USD"}
 
 # סף מרחק מהמדד לכל תקופה — כמה החציון צריך להכות/לפגר אחרי SOXX
 # כדי שהתחום ייחשב "חם" או "חלש". מטפס עם אורך התקופה.
@@ -588,6 +592,116 @@ PERIOD_OPTIONS = {
     "5Y": "5y",
 }
 DAILY_PERIODS = ["online", "lastclose"]
+
+NY_TZ = ZoneInfo("America/New_York")
+_MARKET_OPEN = _time(9, 30)
+_MARKET_CLOSE = _time(16, 0)
+
+# NYSE / NASDAQ holidays through 2027 (early-close days excluded — handled separately)
+_NYSE_HOLIDAYS = {
+    datetime(2025, 1, 1).date(), datetime(2025, 1, 20).date(),
+    datetime(2025, 2, 17).date(), datetime(2025, 4, 18).date(),
+    datetime(2025, 5, 26).date(), datetime(2025, 6, 19).date(),
+    datetime(2025, 7, 4).date(), datetime(2025, 9, 1).date(),
+    datetime(2025, 11, 27).date(), datetime(2025, 12, 25).date(),
+    datetime(2026, 1, 1).date(), datetime(2026, 1, 19).date(),
+    datetime(2026, 2, 16).date(), datetime(2026, 4, 3).date(),
+    datetime(2026, 5, 25).date(), datetime(2026, 6, 19).date(),
+    datetime(2026, 7, 3).date(), datetime(2026, 9, 7).date(),
+    datetime(2026, 11, 26).date(), datetime(2026, 12, 25).date(),
+    datetime(2027, 1, 1).date(), datetime(2027, 1, 18).date(),
+    datetime(2027, 2, 15).date(), datetime(2027, 4, 2).date(),
+    datetime(2027, 5, 31).date(), datetime(2027, 6, 18).date(),
+    datetime(2027, 7, 5).date(), datetime(2027, 9, 6).date(),
+    datetime(2027, 11, 25).date(), datetime(2027, 12, 24).date(),
+}
+
+
+def ny_now():
+    return datetime.now(NY_TZ)
+
+
+def session_is_complete(d):
+    """True אם יום מסחר d (datetime.date, שעון NY) כבר נסגר לחלוטין (אחרי 16:00 NY)."""
+    if d.weekday() >= 5 or d in _NYSE_HOLIDAYS:
+        return False
+    now = ny_now()
+    if now.date() > d:
+        return True
+    return now.date() == d and now.time() >= _MARKET_CLOSE
+
+
+def _period_to_start(period):
+    """fetch_start ל-yfinance — תמיד לפחות 8 ימים לפני measure_start כדי שעוגן _anchor_index זמין.
+
+    הפרדה מפורשת:
+      fetch_start  = measure_start - 8d  (באפר לסופ"ש + חג רצוף)
+      measure_start = התאריך שממנו נגזרת התקופה (= d של close[anchor])
+    """
+    today = ny_now().date()
+    if period == "ytd":
+        # measure_start = 01/01; עוגן = 31/12 של השנה הקודמת → מביאים מ-25/12
+        return today.replace(year=today.year - 1, month=12, day=25)
+    if period == "5d":
+        return today - timedelta(days=10)
+    if period == "lastclose":
+        return today - timedelta(days=45)
+    _months = {"1mo": 1, "3mo": 3, "6mo": 6, "1y": 12, "5y": 60}
+    months = _months.get(period, 1)
+    measure_start = (pd.Timestamp(today) - pd.DateOffset(months=months)).date()
+    return measure_start - timedelta(days=8)
+
+
+def _close_for_date(daily_close, d):
+    """שכבה 1: מחיר סגירה רשמי מהסדרה היומית.
+    מחזיר (price, "daily") אם קיים, (None, None) אחרת."""
+    if daily_close is None:
+        return None, None
+    matches = [float(v) for ts, v in daily_close.items() if ts.date() == d]
+    return (matches[-1], "daily") if matches else (None, None)
+
+
+@st.cache_data(ttl=60)
+def _get_quote_prev_close(symbol):
+    """שכבה 2: fast_info.previous_close — הסגירה הרשמית של הסשן שקדם לנוכחי.
+    מטמון TTL=60s; None אם לא זמין."""
+    try:
+        fi = yf.Ticker(symbol).fast_info
+        px = getattr(fi, "previous_close", None)
+        return float(px) if px and float(px) > 0 else None
+    except Exception:
+        return None
+
+
+def _anchor_index(close, period, last_date):
+    """מיקום הבר שממנו נמדדת התקופה — הבר האחרון שתאריכו קטן ממש מתחילת התקופה.
+
+    כלל: תשואה = close[-1] / close[anchor] * 100 - 100.
+    אם last_date=27/07 ו-period="1mo" → start=27/06 (שבת) → עוגן=26/06 (589.94).
+    YTD: start=01/01 → עוגן=31/12 של השנה הקודמת.
+    5d: 6 ברים = 5 סשנים → עוגן ב-iloc[-6].
+    תקופה חלקית (אין בר לפני start) → 0 (מחזיר True ב-is_partial).
+    """
+    dates = [ts.date() for ts in close.index]
+
+    if period == "5d":
+        # ספירת ברים בסדרה בפועל — חסין לחגים מעצם ההגדרה.
+        # 6 ברים = 5 סשנים (close[-1] / close[-6] - 1 = תשואת 5 ימי מסחר).
+        return max(0, len(dates) - 6), len(dates) < 6
+
+    if period == "ytd":
+        start = last_date.replace(month=1, day=1)
+    else:
+        _months = {"1mo": 1, "3mo": 3, "6mo": 6, "1y": 12, "5y": 60}
+        months = _months.get(period, 1)
+        start = (pd.Timestamp(last_date) - pd.DateOffset(months=months)).date()
+
+    # ≤ ולא <: אם start הוא יום מסחר — הוא עצמו העוגן. רק סופ"ש/חג → יורדים אחורה.
+    before = [i for i, d in enumerate(dates) if d <= start]
+    if not before:
+        return 0, True  # תקופה חלקית
+    return before[-1], False
+
 
 # ---------- מצב מפתח ----------
 # DEV_MODE=True: כלי הזנה ידנית גלויים (ניתוח Gemini, שמירה לקובץ, חיפוש CapEx).
@@ -632,11 +746,11 @@ def period_stamp(period_code):
 def get_history(symbol, period):
     try:
         if period == "online":
-            data = yf.Ticker(symbol).history(period="2d", interval="5m")
-        elif period == "lastclose":
-            data = yf.Ticker(symbol).history(period="7d")
+            data = yf.Ticker(symbol).history(period="2d", interval="5m", auto_adjust=False)
         else:
-            data = yf.Ticker(symbol).history(period=period)
+            start = _period_to_start(period)
+            end_d = ny_now().date() + timedelta(days=1)
+            data = yf.Ticker(symbol).history(start=str(start), end=str(end_d), auto_adjust=False)
         close = data["Close"].dropna()
         if len(close) < 2:
             return None
@@ -645,132 +759,136 @@ def get_history(symbol, period):
         return None
 
 
-@st.cache_data(ttl=300)
-def get_prev_close(symbol):
-    try:
-        data = yf.Ticker(symbol).history(period="5d")
-        close = data["Close"].dropna()
-        today = datetime.now(timezone.utc).date()
-        full = close[[d.date() != today for d in close.index]]
-        if len(full) >= 1:
-            return float(full.iloc[-1])
-        return None
-    except Exception:
-        return None
+def market_is_open():
+    """True אם שוק ניו-יורק פתוח כרגע (09:30–16:00 ET, ימי מסחר בלבד)."""
+    now = ny_now()
+    if now.weekday() >= 5 or now.date() in _NYSE_HOLIDAYS:
+        return False
+    return _MARKET_OPEN <= now.time() <= _MARKET_CLOSE
 
 
-@st.cache_data(ttl=300)
-def _get_intraday_session(symbol, skip_current_day=True):
-    """סדרה תוך-יומית נקייה (5 דק') של יום המסחר הנבחר, ללא נקודת עוגן.
-    מחזיר (session_series, prev_close) או (None, None).
-    משמש גם את get_last_session_intraday (שמוסיפה עוגן) וגם את build_chart."""
-    try:
-        data = yf.Ticker(symbol).history(period="7d", interval="5m")
-        close = data["Close"].dropna()
-        if len(close) < 2:
-            return None, None
-        idx = close.index
-        dates = sorted({ts.date() for ts in idx})
-        if not dates:
-            return None, None
-        tz = idx.tz
-        now_exch = datetime.now(tz) if tz is not None else datetime.now(timezone.utc)
-        last_date = dates[-1]
-        if skip_current_day and last_date == now_exch.date() and now_exch.hour < 16 and len(dates) >= 2:
-            last_date = dates[-2]
-        session = close[[ts.date() == last_date for ts in idx]]
-        if len(session) < 2:
-            return None, None
-        before = close[[ts.date() < last_date for ts in idx]]
-        prev_close = float(before.iloc[-1]) if len(before) >= 1 else None
-        return session, prev_close
-    except Exception:
-        return None, None
 
-
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def get_last_session_intraday(symbol, skip_current_day=True):
     """יום המסחר תוך-יומי (5 דק'), עם נקודת עוגן אלכסונית לפני הפתיחה.
     מוגבל לשעות המסחר הרגילות של ארה"ב (09:30–16:00 America/New_York) בלבד.
-    מחזיר (session_series, prev_close) או (None, None).
+    מחזיר (session_series, prev_close, prev_date) או (None, None, None).
+    prev_date — תאריך יום המסחר שממנו נלקח prev_close (היום לפני הסשן).
 
     skip_current_day=True  (ברירת מחדל / lastclose):
-        אם היום האחרון הוא היום הנוכחי והשוק פתוח (לפני 16:00 NY) — מדלג עליו.
+        אם היום האחרון הוא היום הנוכחי וסשן לא הסתיים עדיין — מדלג עליו.
     skip_current_day=False (online):
         תמיד לוקח את היום האחרון הזמין, גם אם חלקי."""
-    from zoneinfo import ZoneInfo
-    from datetime import time as dt_time
-
-    NY_TZ = ZoneInfo("America/New_York")
-    OPEN = dt_time(9, 30)
-    CLOSE = dt_time(16, 0)
-
     try:
-        data = yf.Ticker(symbol).history(period="7d", interval="5m", prepost=False)
+        data = yf.Ticker(symbol).history(period="14d", interval="5m", prepost=False, auto_adjust=False)
         close = data["Close"].dropna()
         if len(close) < 2:
-            return None, None
+            return None, None, None
 
-        # המר index ל-America/New_York
         idx = close.index
         if idx.tz is None:
             close.index = idx.tz_localize("UTC").tz_convert("America/New_York")
         else:
             close.index = idx.tz_convert("America/New_York")
 
-        # סנן לחלון המסחר הרגיל 09:30–16:00 NY בלבד
-        close = close[(close.index.time >= OPEN) & (close.index.time <= CLOSE)]
+        close = close[(close.index.time >= _MARKET_OPEN) & (close.index.time <= _MARKET_CLOSE)]
         if len(close) < 2:
-            return None, None
+            return None, None, None
 
         idx = close.index
         dates = sorted({ts.date() for ts in idx})
         if not dates:
-            return None, None
+            return None, None, None
 
-        now_ny = datetime.now(NY_TZ)
+        now_ny = ny_now()
         last_date = dates[-1]
-        if skip_current_day and last_date == now_ny.date() and now_ny.time() < CLOSE and len(dates) >= 2:
+        if skip_current_day and last_date == now_ny.date() and not session_is_complete(last_date) and len(dates) >= 2:
             last_date = dates[-2]
 
         session = close[[ts.date() == last_date for ts in idx]]
         if len(session) < 2:
-            return None, None
+            return None, None, None
 
         before = close[[ts.date() < last_date for ts in idx]]
         prev_close = float(before.iloc[-1]) if len(before) >= 1 else None
+        prev_date = before.index[-1].date() if len(before) >= 1 else None
 
         if prev_close is not None:
             anchor_ts = session.index[0] - timedelta(minutes=15)
             anchor = pd.Series([prev_close], index=pd.DatetimeIndex([anchor_ts], tz="America/New_York"))
             session = pd.concat([anchor, session])
 
-        return session, prev_close
+        return session, prev_close, prev_date
     except Exception:
-        return None, None
+        return None, None, None
 
 
 def get_change(symbol, period):
-    close = get_history(symbol, period)
-    if close is None:
-        return None
     if period == "online":
-        prev = get_prev_close(symbol)
-        last = close.iloc[-1]
-        if prev is None or prev == 0:
+        # מקור נתונים אחד: session + prev_close מאותה משיכה — ללא סיכון פיצול בין שני calls
+        session, prev_close, _ = get_last_session_intraday(symbol, skip_current_day=False)
+        if session is None or prev_close is None or prev_close == 0:
             return None
-        change = last / prev * 100 - 100
+        # מוודאים שהסשן הוא של היום — מגן מפני מצב "שוק לא פתח עדיין"
+        if session.index[-1].date() != ny_now().date():
+            return None
+        change = float(session.iloc[-1]) / prev_close * 100 - 100
     elif period == "lastclose":
-        today = datetime.now(timezone.utc).date()
-        full_closes = close[[d.date() != today for d in close.index]]
-        if len(full_closes) >= 2:
-            change = full_closes.iloc[-1] / full_closes.iloc[-2] * 100 - 100
-        elif len(close) >= 2:
-            change = close.iloc[-1] / close.iloc[-2] * 100 - 100
-        else:
+        # תאריכים — מהסדרה התוך-יומית (אמינה גם כשהסדרה היומית מפספסת ימים)
+        session, intra_prev_close, prev_date = get_last_session_intraday(symbol, skip_current_day=True)
+        if session is None or prev_date is None:
             return None
+        session_date = session.index[-1].date()
+        intra_last_close = float(session.iloc[-1])
+
+        # מחירים — סדר עדיפויות: שכבה 1 (daily) → שכבה 2 (quote) → שכבה 3 (intraday)
+        daily = get_history(symbol, "lastclose")
+
+        # --- session_date: last/current session (quote.previous_close לא רלוונטי כאן) ---
+        last_px, last_src = _close_for_date(daily, session_date)
+        if last_px is None:
+            if intra_last_close == 0:
+                return None
+            last_px, last_src = intra_last_close, "intraday"
+
+        # --- prev_date: הסשן הקודם — כאן quote.previous_close רלוונטי ---
+        prev_px, prev_src = _close_for_date(daily, prev_date)
+        if prev_px is None:
+            # שכבה 2: fast_info.previous_close מתייחס לסשן שקדם לנוכחי — בדיוק prev_date
+            prev_px_q = _get_quote_prev_close(symbol)
+            if prev_px_q is not None:
+                prev_px, prev_src = prev_px_q, "quote"
+                print(f"[DATA_WARN {symbol}] {prev_date}: quote בלבד ({prev_px:.4f}) — לא ניתן לאמת מול סדרה יומית")
+            elif intra_prev_close and intra_prev_close != 0:
+                prev_px, prev_src = intra_prev_close, "intraday"
+                print(f"[DATA_WARN {symbol}] {prev_date}: תוך-יומי בלבד ({prev_px:.4f}) — לא ניתן לאמת מול מקור רשמי")
+        elif prev_src == "daily":
+            # אימות צולב: daily vs quote — פער >0.1% מעיד על בעיה
+            prev_px_q = _get_quote_prev_close(symbol)
+            if prev_px_q is not None:
+                _diff = abs(prev_px - prev_px_q) / prev_px
+                if _diff > 0.001:
+                    print(f"[DATA_WARN {symbol}] {prev_date}: daily={prev_px:.4f} quote={prev_px_q:.4f} פער={_diff*100:.2f}% — אי-התאמה בין מקורות")
+
+        if prev_px is None or prev_px == 0:
+            return None
+        change = last_px / prev_px * 100 - 100
+        print(f"[lastclose {symbol}] {session_date} ({last_px:.2f}, {last_src}) vs {prev_date} ({prev_px:.2f}, {prev_src}) => {change:.2f}%")
     else:
-        change = close.iloc[-1] / close.iloc[0] * 100 - 100
+        close = get_history(symbol, period)
+        if close is None:
+            return None
+        if len(close) < 2:
+            return None
+        last_date = close.index[-1].date()
+        anchor_i, is_partial = _anchor_index(close, period, last_date)
+        anchor_px = float(close.iloc[anchor_i])
+        last_px = float(close.iloc[-1])
+        if anchor_px == 0:
+            return None
+        change = last_px / anchor_px * 100 - 100
+        _partial_tag = " [חלקי]" if is_partial else ""
+        print(f"[{period} {symbol}] anchor={close.index[anchor_i].date()} ({anchor_px:.2f}) last={last_date} ({last_px:.2f}) => {change:.2f}%{_partial_tag}")
     if math.isnan(change):
         return None
     return change
@@ -1139,11 +1257,19 @@ def currency_symbol(code):
 
 
 def record_currency(symbol, record):
-    """קוד המטבע של רשומה: מהשדה השמור אם קיים, אחרת fallback ל-yfinance."""
+    """קוד המטבע של רשומה: מהשדה השמור אם קיים, אחרת fallback ל-target_currency."""
     ccy = (record or {}).get("currency")
     if ccy:
         return ccy
-    return get_financial_currency(symbol)
+    return target_currency(symbol)
+
+
+def target_currency(symbol):
+    """המטבע שבו Gemini יתבקש לדווח עבור חברה זו.
+    REPORTING_CURRENCY_OVERRIDE גובר על get_financial_currency."""
+    if symbol in REPORTING_CURRENCY_OVERRIDE:
+        return REPORTING_CURRENCY_OVERRIDE[symbol]
+    return get_financial_currency(symbol) or "USD"
 
 
 @st.cache_data(ttl=21600)
@@ -1314,7 +1440,7 @@ def analyst_group_score(symbols, scores_map):
 def _weekly_returns_raw(symbol):
     """תשואות שבועיות (W-FRI) ללא קאש — נקראת מתוך threads בלבד."""
     try:
-        data = yf.Ticker(symbol).history(period=BETA_WINDOW)
+        data = yf.Ticker(symbol).history(period=BETA_WINDOW, auto_adjust=False)
         close = data["Close"].dropna()
         if close.index.tz is not None:
             close.index = close.index.tz_localize(None)
@@ -1515,7 +1641,7 @@ def get_stock_reaction(symbol, report_date_str):
         report_date = datetime.fromisoformat(report_date_str[:10]).date()
         start = report_date - timedelta(days=2)
         end = report_date + timedelta(days=6)
-        df = yf.Ticker(symbol).history(start=str(start), end=str(end))["Close"].dropna()
+        df = yf.Ticker(symbol).history(start=str(start), end=str(end), auto_adjust=False)["Close"].dropna()
         if len(df) < 2:
             return None, None
         date_prices = [(dt.date(), float(p)) for dt, p in zip(df.index, df.values)]
@@ -1706,6 +1832,7 @@ def gemini_analyze_earnings(symbol, season):
     q_months = {"1": "ינואר–מרץ", "2": "אפריל–יוני", "3": "יולי–ספטמבר", "4": "אוקטובר–דצמבר"}
     season_label = "Q" + q + " " + year + " (" + q_months.get(q, "") + ")"
 
+    _target_ccy = target_currency(symbol)
     prompt = (
         "חפש ברשת שני מקורות לגבי " + symbol + " לתקופת " + season_label + ":\n"
         "1. הדוח הרבעוני (10-Q / press release) — תוצאות EPS, הכנסות, מול ציפיות האנליסטים.\n"
@@ -1724,11 +1851,11 @@ def gemini_analyze_earnings(symbol, season):
         '    {"domain": "<שם מהרשימה הסגורה בלבד>", "direction": "improving|stable|deteriorating", '
         '"note": "<משפט קצר בעברית מה אמרה ההנהלה על שוק הקצה הזה>"}\n'
         "  ],\n"
-        '  "revenue_actual_b": <הכנסות בפועל במיליארדי דולרים, מספר עשרוני, או null>,\n'
-        '  "revenue_estimate_b": <קונצנזוס האנליסטים להכנסות לפני הדוח, במיליארדי דולרים, או null>,\n'
+        '  "revenue_actual_b": <הכנסות בפועל במיליארדי ' + _target_ccy + ', מספר עשרוני, או null>,\n'
+        '  "revenue_estimate_b": <קונצנזוס האנליסטים להכנסות לפני הדוח, במיליארדי ' + _target_ccy + ', מספר עשרוני, או null>,\n'
         '  "eps_actual": <EPS בפועל, מספר עשרוני, או null>,\n'
         '  "eps_estimate": <קונצנזוס האנליסטים ל-EPS לפני הדוח, מספר עשרוני, או null>,\n'
-        '  "currency": "<קוד המטבע שבו מדווחים ה-EPS וההכנסות בדוח זה: USD/EUR/KRW/TWD/JPY/GBP/ILS — ברירת מחדל USD>",\n'
+        '  "currency": "' + _target_ccy + '",\n'
         '  "next_q_guidance": {\n'
         '    "revenue_b": <אמצע טווח תחזית ההכנסות שהחברה נתנה לרבעון הבא, או null>,\n'
         '    "eps": <אמצע טווח תחזית ה-EPS של החברה לרבעון הבא, או null>,\n'
@@ -1765,7 +1892,13 @@ def gemini_analyze_earnings(symbol, season):
         "3. כלול ב-domain_signals רק תחומים שהוזכרו בצורה מפורשת בשיחה. אם אין — השאר רשימה ריקה.\n"
         "4. אם לא מצאת דוח לתקופה זו, החזר: {\"error\": \"לא נמצא דוח לתקופה זו\"}\n"
         "5. כל שדה מספרי שלא נמצא במקורות — החזר null, אל תנחש. "
-        "vs_consensus = השוואת תחזית ההכנסות של החברה מול קונצנזוס האנליסטים לרבעון הבא."
+        "vs_consensus = השוואת תחזית ההכנסות של החברה מול קונצנזוס האנליסטים לרבעון הבא.\n"
+        "6. מטבע: כל הערכים הכספיים חייבים להיות ב-" + _target_ccy + " בלבד — אין לערבב מטבעות. "
+        "אם המקורות מציגים גם מקבילה בדולר (נפוץ בחברות קוריאניות, טייוואניות ויפניות) — התעלם ממנה. "
+        "revenue_actual_b / revenue_estimate_b / next_q_guidance.revenue_b / next_q_guidance.analyst_revenue_b — "
+        "הם במיליארדים של " + _target_ccy + ". לדוגמה: הכנסות 133.87 טריליון וון → revenue_actual_b: 133870. "
+        "eps_actual / eps_estimate / next_q_guidance.eps — ערך למניה ב-" + _target_ccy + " ללא המרת סדר גודל. "
+        "currency חייב להיות \"" + _target_ccy + "\"."
     )
 
     try:
@@ -2091,9 +2224,12 @@ def build_chart(stocks, period, intraday=False, skip_current_day=True):
     series_list = []
     for symbol in stocks:
         if intraday:
-            close, _prev = get_last_session_intraday(symbol, skip_current_day)
+            close, _prev, _ = get_last_session_intraday(symbol, skip_current_day)
         else:
             close = get_history(symbol, period)
+            if close is not None and len(close) >= 2:
+                _ai, _ = _anchor_index(close, period, close.index[-1].date())
+                close = close.iloc[_ai:]
         if close is None:
             continue
         clean = close.dropna()
@@ -2123,9 +2259,12 @@ def build_spread_chart(stocks, period, intraday=False, skip_current_day=True):
     if chart_data.empty:
         return None
     if intraday:
-        soxx_close, _ = get_last_session_intraday(BENCHMARK, skip_current_day)
+        soxx_close, _, _ = get_last_session_intraday(BENCHMARK, skip_current_day)
     else:
         soxx_close = get_history(BENCHMARK, period)
+        if soxx_close is not None and len(soxx_close) >= 2:
+            _ai_s, _ = _anchor_index(soxx_close, period, soxx_close.index[-1].date())
+            soxx_close = soxx_close.iloc[_ai_s:]
     if soxx_close is None:
         return None
 
@@ -2194,6 +2333,21 @@ def rtl_text(s):
     Plotly מרנדר טקסט כ-SVG; CSS direction/unicode-bidi אינו נתמך שם.
     U+202B פותח הטמעת RTL, U+202C סוגר אותה."""
     return "\u202B" + s + "\u202C"
+
+
+def sentiment_pct(score):
+    """ממפה ציון מנוע (-1..+1) לאחוז תצוגה (0..100). 50 = ניטרלי."""
+    return int(round((float(score) + 1) / 2 * 100))
+
+
+def fmt_money_b(value, ccy_symbol=""):
+    """מציג ערך כספי: T (טריליון) / B (מיליארד) / M (מיליון)."""
+    v = float(value)
+    if abs(v) >= 1000:
+        return ccy_symbol + f"{v/1000:.2f}T"
+    if abs(v) >= 1:
+        return ccy_symbol + f"{v:.2f}B"
+    return ccy_symbol + f"{v*1000:.1f}M"
 
 
 def sector_key(sector_name):
@@ -2762,51 +2916,51 @@ def col_header(label, active=False, width=None, flex=False):
 def render_sentiment_trend(seasons, scores, chart_key, second_series=None):
     """גרף קו של סנטימנט לאורך עונות.
     second_series (אופציונלי): tuple של (seasons2, scores2, label2, color2) לקו שני מקווקו."""
+    scores_pct = [sentiment_pct(s) for s in scores]
     colors = ["#22c55e" if s >= SENTIMENT_POS else ("#ef4444" if s <= SENTIMENT_NEG else "#9ca3af") for s in scores]
-    labels = [("+" if int(round(s * 100)) >= 0 else "") + str(int(round(s * 100))) + "%" for s in scores]
+    labels = [str(p) + "%" for p in scores_pct]
 
-    # ציר Y דינמי: טווח מכסה את שתי הסדרות אם קיימת שנייה
-    _all_scores = list(scores)
+    # ציר Y ב-0–100
+    _all_pct = list(scores_pct)
     if second_series:
-        _all_scores += list(second_series[1])
-    _s_min = min(_all_scores)
-    _s_max = max(_all_scores)
-    _pad = max((_s_max - _s_min) * 0.18, 0.15)
-    _y_low  = max(_s_min - _pad, -1.0)
-    _y_high = min(_s_max + _pad + 0.08, 1.0)
+        _all_pct += [sentiment_pct(s) for s in second_series[1]]
+    _s_min = min(_all_pct)
+    _s_max = max(_all_pct)
+    _pad = max((_s_max - _s_min) * 0.18, 7)
+    _y_low  = max(_s_min - _pad, 0)
+    _y_high = min(_s_max + _pad + 4, 100)
 
-    _candidates = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0]
-    _tick_vals  = [t for t in _candidates if _y_low - 0.01 <= t <= _y_high + 0.01]
-    _tick_text  = [("+" if t > 0 else "") + str(int(round(t * 100))) + "%" for t in _tick_vals]
+    _tick_vals  = [t for t in [0, 25, 50, 75, 100] if _y_low - 1 <= t <= _y_high + 1]
+    _tick_text  = [str(t) + "%" for t in _tick_vals]
 
     _has_second = bool(second_series)
     _first_label = "סנטימנט חברות" if _has_second else None
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=seasons, y=scores, mode="lines+markers+text",
+        x=seasons, y=scores_pct, mode="lines+markers+text",
         name=_first_label,
         line=dict(color="#60a5fa", width=2.5),
         marker=dict(size=14, color=colors, line=dict(color="#1e2533", width=2)),
         text=labels, textposition="top center",
         textfont=dict(size=13, color="#e5e7eb"),
-        hovertemplate="<b>%{x}</b><br>ציון: %{y:.2f}<extra></extra>",
+        hovertemplate="<b>%{x}</b><br>ציון: %{y:.0f}%<extra></extra>",
         showlegend=_has_second,
     ))
 
     if _has_second:
         _s2, _sc2, _lbl2, _col2 = second_series
+        _sc2_pct = [sentiment_pct(s) for s in _sc2]
         fig.add_trace(go.Scatter(
-            x=_s2, y=_sc2, mode="lines+markers",
+            x=_s2, y=_sc2_pct, mode="lines+markers",
             name=_lbl2,
             line=dict(color=_col2, width=2, dash="dash"),
             marker=dict(size=9, color=_col2, line=dict(color="#1e2533", width=1.5)),
-            hovertemplate="<b>%{x}</b><br>" + _lbl2 + ": %{y:.2f}<extra></extra>",
+            hovertemplate="<b>%{x}</b><br>" + _lbl2 + ": %{y:.0f}%<extra></extra>",
             showlegend=True,
         ))
 
-    if _y_low <= 0 <= _y_high:
-        fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1)
+    fig.add_hline(y=50, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1)
     fig.update_layout(
         height=240, template="plotly_dark",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(14,18,30,0.7)",
@@ -2867,12 +3021,11 @@ def returns_table_html(pairs, descending=True, sentiment_data=None, season=None,
             rec = get_record(sentiment_data, symbol, season)
             if rec and rec.get("sentiment_score") is not None:
                 score = float(rec["sentiment_score"])
-                pct = int(round(score * 100))
-                sign = "+" if pct >= 0 else ""
+                pct = sentiment_pct(score)
                 emoji = "🟢" if score >= SENTIMENT_POS else ("🔴" if score <= SENTIMENT_NEG else "⚪")
                 col = "#22c55e" if score >= SENTIMENT_POS else ("#ef4444" if score <= SENTIMENT_NEG else "#9ca3af")
                 sent_html = (emoji + " <span style='color:" + col +
-                             "; font-weight:700;'>" + sign + str(pct) + "%</span>")
+                             "; font-weight:700;'>" + str(pct) + "%</span>")
                 report_date = rec.get("report_date", "—")
             else:
                 sent_html = "<span style='color:#6b7280;'>—</span>"
@@ -2917,12 +3070,11 @@ def tech_table_html(rows, sentiment_data=None, season=None):
             rec = get_record(sentiment_data, symbol, season)
             if rec and rec.get("sentiment_score") is not None:
                 score = float(rec["sentiment_score"])
-                pct = int(round(score * 100))
-                sign = "+" if pct >= 0 else ""
+                pct = sentiment_pct(score)
                 emoji = "🟢" if score >= SENTIMENT_POS else ("🔴" if score <= SENTIMENT_NEG else "⚪")
                 col = "#22c55e" if score >= SENTIMENT_POS else ("#ef4444" if score <= SENTIMENT_NEG else "#9ca3af")
                 sent_html = (emoji + " <span style='color:" + col +
-                             "; font-weight:700;'>" + sign + str(pct) + "%</span>")
+                             "; font-weight:700;'>" + str(pct) + "%</span>")
             else:
                 sent_html = "<span style='color:#6b7280;'>—</span>"
             row += "<td style='text-align:center; padding:4px 10px; white-space:nowrap;'>" + sent_html + "</td>"
@@ -2947,8 +3099,7 @@ def sentiment_cell_html(agg, wrapper="td", width="110px"):
     score = agg["score"]
     reported = agg["reported"]
     total = agg["total"]
-    pct = int(round(score * 100))
-    sign = "+" if pct >= 0 else ""
+    pct = sentiment_pct(score)
     if score >= SENTIMENT_POS:
         emoji = "🟢"
         color = "#22c55e"
@@ -2960,7 +3111,7 @@ def sentiment_cell_html(agg, wrapper="td", width="110px"):
         color = "#9ca3af"
     cov_color = "#9ca3af" if reported <= 1 else "#6b7280"
     cov = f"<span style='color:{cov_color}; font-size:10px;'>({reported}/{total})</span>"
-    inner = f"{emoji} <span style='color:{color}; font-weight:700;'>{sign}{pct}%</span> {cov}"
+    inner = f"{emoji} <span style='color:{color}; font-weight:700;'>{pct}%</span> {cov}"
     if wrapper == "span":
         return (f"<span style='width:{width}; text-align:center; white-space:nowrap; display:inline-block;'>"
                 f"{inner}</span>")
@@ -3020,8 +3171,7 @@ def weighted_score_html(ws, wrapper="span"):
             return "<span style='width:" + width + "; " + empty_style + "'>—</span>"
         return "<td style='" + empty_style + "'>—</td>"
     score = ws["score"]
-    pct = int(round(score * 100))
-    sign = "+" if pct >= 0 else ""
+    pct = sentiment_pct(score)
     if score >= SENTIMENT_POS:
         emoji, color = "🟢", "#22c55e"
     elif score <= SENTIMENT_NEG:
@@ -3036,7 +3186,7 @@ def weighted_score_html(ws, wrapper="span"):
     cov = ("<span style='color:#6b7280; font-size:10px;'>" +
            ("(" + " · ".join(cov_parts) + ")" if cov_parts else "") + "</span>")
     inner = (emoji + " <span style='color:" + color + "; font-weight:700;'>" +
-             sign + str(pct) + "%</span> " + cov)
+             str(pct) + "%</span> " + cov)
     if wrapper == "span":
         return ("<span style='width:" + width + "; text-align:center; "
                 "white-space:nowrap; display:inline-block;'>" + inner + "</span>")
@@ -3188,45 +3338,80 @@ section_banner(1, 8, "⚡", "מדד סקטור השבבים — SOXX", "#f59e0b"
                subtitle="התנהגות המדד הכללי, עם התראות AI על תנועות חריגות",
                period_dependent=True, period_label=period_label)
 soxx_close = get_history(BENCHMARK, period)
+_online_closed = (period == "online" and not market_is_open())
 
 if soxx_close is None:
     st.warning("לא הצלחנו למשוך נתוני SOXX כרגע")
     soxx_change = None
     holdings_pairs = []
+elif _online_closed:
+    st.info("⏸️ מצב Online פעיל רק בשעות המסחר (09:30–16:00 שעון ניו-יורק, ימי מסחר בלבד). עבור ל-Last Close לנתוני יום המסחר האחרון.")
+    soxx_change = None
+    holdings_pairs = []
 else:
+    # שלב 1: משוך את הסשן התוך-יומי מראש — מקור אמת יחיד לכותרת, לגרף ולכיתוב
+    _session = None
+    _mini_prev_close = None
+    _mini_prev_date = None
+    if period in DAILY_PERIODS:
+        _skip = (period == "lastclose")
+        _session, _mini_prev_close, _mini_prev_date = get_last_session_intraday(BENCHMARK, skip_current_day=_skip)
+
+    # שלב 1ב: תיקון עוגן — prev_close נפתר פעם אחת (שכבה 1 → 2) ומוזרק לגרף ולכותרת.
+    # ללא זה: הכותרת משתמשת ב-quote (רשמי) אך הגרף עוגן ב-intraday (שונה בפחות מ-1%).
+    if period == "lastclose" and _session is not None and _mini_prev_date is not None:
+        _daily_bm = get_history(BENCHMARK, "lastclose")
+        _off_prev, _ = _close_for_date(_daily_bm, _mini_prev_date)
+        if _off_prev is None:
+            _off_q = _get_quote_prev_close(BENCHMARK)
+            if _off_q is not None:
+                _off_prev = _off_q
+        if _off_prev is not None:
+            _session = _session.copy()
+            _session.iloc[0] = _off_prev
+            _mini_prev_close = _off_prev
+
     soxx_change = get_change(BENCHMARK, period)
-    if soxx_change is None:
-        soxx_change = 0.0
-    soxx_color = "#22c55e" if soxx_change >= 0 else "#ef4444"
-    sign = "+" if soxx_change >= 0 else ""
+    if soxx_change is not None:
+        soxx_color = "#22c55e" if soxx_change >= 0 else "#ef4444"
+        _soxx_pct_html = ("+" if soxx_change >= 0 else "") + str(round(soxx_change, 1)) + "%"
+    else:
+        soxx_color = "#6b7280"
+        _soxx_pct_html = "אין נתונים"
 
     st.markdown(
         "<h3>⚡ SOXX — מדד סקטור השבבים "
-        "(<span style='color:" + soxx_color + ";'>" + sign + str(round(soxx_change, 1)) + "%</span>)</h3>",
+        "(<span style='color:" + soxx_color + ";'>" + _soxx_pct_html + "</span>)</h3>",
         unsafe_allow_html=True,
     )
-    st.caption("תקופה: " + period_label)
+    if period == "lastclose" and _session is not None:
+        # כיתוב אזהרה כאשר מחיר כלשהו הגיע משכבה 3 (תוך-יומי — לא סגירה רשמית)
+        _bm_daily = get_history(BENCHMARK, "lastclose")
+        _ld = _session.index[-1].date()
+        _pd = _mini_prev_date
+        _, _ls = _close_for_date(_bm_daily, _ld)
+        _, _ps = _close_for_date(_bm_daily, _pd) if _pd else (None, None)
+        if _ps is None and _pd:
+            _ps = "quote" if _get_quote_prev_close(BENCHMARK) else None
+        if _ls is None or _ps is None:
+            _missing = _ld.strftime("%d/%m") if _ls is None else (_pd.strftime("%d/%m") if _pd else "?")
+            st.caption("⚠ מחיר SOXX " + _missing + ": הסגירה הרשמית חסרה במקור — מוצג מחיר משוער מנתונים תוך-יומיים")
+    elif period == "online" and _session is not None:
+        st.caption("Online · " + _session.index[-1].date().strftime("%d/%m/%Y") + " · מסחר פעיל")
+    else:
+        st.caption("תקופה: " + period_label)
 
     holdings_pairs = get_changes(SOXX_HOLDINGS, period)
     holdings_pairs.sort(key=lambda x: x[1], reverse=True)
 
     render_ai_alert(soxx_change, holdings_pairs, period, period_label)
 
-    # לגרף הקטן בלבד: בתקופות יומיות (online / lastclose) מציגים את יום המסחר
-    # המלא האחרון שהסתיים — שעות פתיחה עד סגירה — במקום סדרת ימים.
-    # שאר התקופות (1M, 3M וכו') ללא שינוי. אם משיכת התוך-יומי נכשלת — נפילה
-    # בחזרה למקור המקורי.
+    # שלב 2: בנה את הגרף הקטן — בתקופות יומיות אנחנו כבר מחזיקים את _session
     mini_source = soxx_close
-    _mini_prev_close = None
-    if period in DAILY_PERIODS:
-        # lastclose: מדלג על היום הנוכחי אם השוק פתוח → יום מלא אחרון שהסתיים
-        # online: תמיד לוקח את היום האחרון הזמין, גם אם חלקי (שוק פתוח עכשיו)
-        _skip = (period == "lastclose")
-        _session, _mini_prev_close = get_last_session_intraday(BENCHMARK, skip_current_day=_skip)
-        if _session is not None:
-            mini_source = _session
-        else:
-            _mini_prev_close = None
+    if period in DAILY_PERIODS and _session is not None:
+        mini_source = _session
+    elif period in DAILY_PERIODS:
+        _mini_prev_close = None
     soxx_price = mini_source.reset_index()
     soxx_price.columns = ["תאריך", "מחיר"]
     base_price = soxx_price["מחיר"].iloc[0]
@@ -3282,6 +3467,9 @@ else:
         showlegend=False,
     )
     st.plotly_chart(mini, width='stretch')
+    if period in DAILY_PERIODS:
+        _cap_date = mini_source.index[-1].date()
+        st.caption("יום מסחר אחרון שמוצג: " + _cap_date.strftime("%d/%m/%Y"))
     st.markdown(
         "<div style='margin:8px 0 20px; border-top:1px solid rgba(255,255,255,0.08);'></div>",
         unsafe_allow_html=True,
@@ -3343,6 +3531,9 @@ else:
                         for title, uri in _saved_out["sources"]:
                             st.markdown("• [" + (title or uri) + "](" + uri + ")")
 
+
+if _online_closed:
+    st.stop()
 
 # ---------- חישוב הדירוג ----------
 with st.spinner("סורק את כל התחומים..."):
@@ -3786,7 +3977,7 @@ else:
         date_index = chart_data.index
         median_series = chart_data.median(axis=1)
         if _z3_intraday:
-            soxx_close2, _ = get_last_session_intraday(BENCHMARK, _z3_skip)
+            soxx_close2, _, _ = get_last_session_intraday(BENCHMARK, _z3_skip)
         else:
             soxx_close2 = get_history(BENCHMARK, period)
 
@@ -3973,7 +4164,7 @@ else:
             st.markdown(
                 "<div dir='rtl' style='text-align:right; font-size:14px; font-weight:600;"
                 " color:#f3f4f6; margin-bottom:4px;'>"
-                "בטא מול תשואה — " + str(chosen) + "</div>",
+                "בטא מול תשואה — " + clean_name(chosen) + "</div>",
                 unsafe_allow_html=True,
             )
             st.plotly_chart(_sc_fig, width='stretch', key="z3_beta_" + sector_key(chosen))
@@ -4011,40 +4202,40 @@ else:
         if len(_z3_tx) < 2 and not _z3_sym_series:
             st.caption("אין מספיק נתוני סנטימנט להצגת מגמה (נדרשות ≥2 עונות).")
         else:
-            # ציר Y דינמי — בדיוק כמו render_sentiment_trend
-            _z3_all_scores = [v for (_, _sy) in _z3_sym_series.values() for v in _sy] + list(_z3_ty)
-            if _z3_all_scores:
-                _z3_s_min = min(_z3_all_scores); _z3_s_max = max(_z3_all_scores)
-                _z3_pad = max((_z3_s_max - _z3_s_min) * 0.18, 0.15)
-                _z3_y_low = max(_z3_s_min - _z3_pad, -1.0)
-                _z3_y_high = min(_z3_s_max + _z3_pad + 0.08, 1.0)
+            # ציר Y ב-0–100
+            _z3_all_pct = [sentiment_pct(v) for (_, _sy) in _z3_sym_series.values() for v in _sy] + [sentiment_pct(v) for v in _z3_ty]
+            if _z3_all_pct:
+                _z3_s_min = min(_z3_all_pct); _z3_s_max = max(_z3_all_pct)
+                _z3_pad = max((_z3_s_max - _z3_s_min) * 0.18, 7)
+                _z3_y_low = max(_z3_s_min - _z3_pad, 0)
+                _z3_y_high = min(_z3_s_max + _z3_pad + 4, 100)
             else:
-                _z3_y_low, _z3_y_high = -1.0, 1.0
-            _z3_cands = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0]
-            _z3_tick_vals = [t for t in _z3_cands if _z3_y_low - 0.01 <= t <= _z3_y_high + 0.01]
-            _z3_tick_text = [("+" if t > 0 else "") + str(int(round(t * 100))) + "%" for t in _z3_tick_vals]
+                _z3_y_low, _z3_y_high = 0, 100
+            _z3_tick_vals = [t for t in [0, 25, 50, 75, 100] if _z3_y_low - 1 <= t <= _z3_y_high + 1]
+            _z3_tick_text = [str(t) + "%" for t in _z3_tick_vals]
 
             _z3_fig = go.Figure()
-            if _z3_y_low <= 0 <= _z3_y_high:
-                _z3_fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1)
+            _z3_fig.add_hline(y=50, line_dash="dot", line_color="rgba(255,255,255,0.25)", line_width=1)
 
             # קווי מניות דקים — אותה פלטה כמו טאב הביצועים
             for _ci, (_sym, (_sx, _sy)) in enumerate(_z3_sym_series.items()):
                 _clr = palette[_ci % len(palette)]
+                _sy_pct = [sentiment_pct(v) for v in _sy]
                 _z3_fig.add_trace(go.Scatter(
-                    x=_sx, y=_sy, name=_sym, mode="lines+markers",
+                    x=_sx, y=_sy_pct, name=_sym, mode="lines+markers",
                     line=dict(color=_clr, width=1.5),
                     marker=dict(size=7, color=_clr, line=dict(color="#1e2533", width=1)),
-                    hovertemplate="<b>" + _sym + "</b><br>%{x}: %{y:.2f}<extra></extra>",
+                    hovertemplate="<b>" + _sym + "</b><br>%{x}: %{y:.0f}%<extra></extra>",
                 ))
 
             # קו התחום — לבן ועבה ומקווקו
             if len(_z3_tx) >= 2:
+                _z3_ty_pct = [sentiment_pct(v) for v in _z3_ty]
                 _z3_fig.add_trace(go.Scatter(
-                    x=_z3_tx, y=_z3_ty, name=chosen + " (תחום)", mode="lines+markers",
+                    x=_z3_tx, y=_z3_ty_pct, name=chosen + " (תחום)", mode="lines+markers",
                     line=dict(color="#ffffff", width=3, dash="dash"),
                     marker=dict(size=10, color="#ffffff", line=dict(color="#1e2533", width=2)),
-                    hovertemplate="<b>" + chosen + " (אגרגט)</b><br>%{x}: %{y:.2f}<extra></extra>",
+                    hovertemplate="<b>" + chosen + " (אגרגט)</b><br>%{x}: %{y:.0f}%<extra></extra>",
                 ))
 
             _z3_fig.update_layout(
@@ -4141,10 +4332,9 @@ def render_tech_detail(idx, sentiment_data=None, season=None, group_name=None):
             _ws_detail = weighted_tech_score(group_name, _gd_def, season, sentiment_data)
             if _ws_detail and _ws_detail["comp_score"] is not None and _ws_detail["sig_score"] is not None:
                 def _fmt(v):
-                    p = int(round(v * 100))
-                    s = "+" if p >= 0 else ""
+                    p = sentiment_pct(v)
                     c = "#22c55e" if v >= SENTIMENT_POS else ("#ef4444" if v <= SENTIMENT_NEG else "#9ca3af")
-                    return "<span style='color:" + c + "; font-weight:700;'>" + s + str(p) + "%</span>"
+                    return "<span style='color:" + c + "; font-weight:700;'>" + str(p) + "%</span>"
                 _sw = _ws_detail["sig_weight"]
                 _sw_pct = round(_sw * 100)
                 _cw_pct = 100 - _sw_pct
@@ -4178,7 +4368,7 @@ def render_tech_detail(idx, sentiment_data=None, season=None, group_name=None):
                     "(🟢 +1 / ⚪ 0 / 🔴 -1), כולל מחברות שאינן בתחום. "
                     "משקל הסיגנלים עולה עם מספרם "
                     "(10% לסיגנל אחד · 20% לשניים · 30% משלושה ומעלה) — ראיה בודדת לא מזיזה כמו קונצנזוס. "
-                    "טווחים: 🟢 מ-+25% · ⚪ ביניים · 🔴 מ--25%."
+                    "טווחים: 🟢 מ-63% · ⚪ ביניים · 🔴 מתחת ל-38% · 50% = ניטרלי."
                     "</div>",
                     unsafe_allow_html=True,
                 )
@@ -5137,13 +5327,12 @@ for _week in _weeks:
                     _sc = _rec.get("sentiment_score")
                     if _sc is not None:
                         _sc_f = float(_sc)
-                        _sc_pct = int(round(_sc_f * 100))
-                        _sc_sign = "+" if _sc_pct >= 0 else ""
+                        _sc_pct = sentiment_pct(_sc_f)
                         _sc_emoji = "🟢" if _sc_f >= SENTIMENT_POS else ("🔴" if _sc_f <= SENTIMENT_NEG else "⚪")
                         _sc_col = "#22c55e" if _sc_f >= SENTIMENT_POS else ("#ef4444" if _sc_f <= SENTIMENT_NEG else "#9ca3af")
                         _a_tip.append(
                             _sc_emoji + " סנטימנט: <b style='color:" + _sc_col + ";'>"
-                            + _sc_sign + str(_sc_pct) + "%</b>"
+                            + str(_sc_pct) + "%</b>"
                         )
                     # EPS
                     _ea = _rec.get("eps_actual")
@@ -5151,7 +5340,7 @@ for _week in _weeks:
                     if _ea is not None and _ee is not None:
                         try:
                             _ea_f = float(_ea); _ee_f = float(_ee)
-                            _eps_str = f"EPS: {_tip_ccy}{_ea_f:.2f} / {_tip_ccy}{_ee_f:.2f} צפי"
+                            _eps_str = f"EPS: {_tip_ccy}{_ea_f:,.2f} / {_tip_ccy}{_ee_f:,.2f} צפי"
                             if _ee_f != 0:
                                 _es = _ea_f / _ee_f * 100 - 100
                                 _es_sign = "+" if _es > 0 else ""
@@ -5166,7 +5355,7 @@ for _week in _weeks:
                     if _ra is not None and _re is not None:
                         try:
                             _ra_f = float(_ra); _re_f = float(_re)
-                            _rev_str = f"הכנסות: {_tip_ccy}{_ra_f:.2f}B / {_tip_ccy}{_re_f:.2f}B צפי"
+                            _rev_str = "הכנסות: " + fmt_money_b(_ra_f, _tip_ccy) + " / " + fmt_money_b(_re_f, _tip_ccy) + " צפי"
                             if _re_f != 0:
                                 _rs = _ra_f / _re_f * 100 - 100
                                 _rs_sign = "+" if _rs > 0 else ""
@@ -5183,12 +5372,12 @@ for _week in _weeks:
                         _nq_parts = []
                         if _nq_rev is not None:
                             try:
-                                _nq_parts.append("הכנסות " + _tip_ccy + f"{float(_nq_rev):.2f}B")
+                                _nq_parts.append("הכנסות " + fmt_money_b(float(_nq_rev), _tip_ccy))
                             except (TypeError, ValueError):
                                 pass
                         if _nq_eps is not None:
                             try:
-                                _nq_parts.append("EPS " + _tip_ccy + f"{float(_nq_eps):.2f}")
+                                _nq_parts.append(f"EPS {_tip_ccy}{float(_nq_eps):,.2f}")
                             except (TypeError, ValueError):
                                 pass
                         if _nq_parts:
@@ -5201,7 +5390,7 @@ for _week in _weeks:
                             try:
                                 _cons_parts.append(
                                     "<span style='color:#9ca3af; font-size:10px;'>קונצנזוס: "
-                                    + _tip_ccy + f"{float(_nq_arv):.2f}B</span>"
+                                    + fmt_money_b(float(_nq_arv), _tip_ccy) + "</span>"
                                 )
                             except (TypeError, ValueError):
                                 pass
@@ -5414,15 +5603,14 @@ for _il_i, _il_sym in enumerate(_il_display):
             # סנטימנט שמור
             if _il_rec and _il_rec.get("sentiment_score") is not None:
                 _il_score = float(_il_rec["sentiment_score"])
-                _il_pct = int(round(_il_score * 100))
-                _il_sign = "+" if _il_pct >= 0 else ""
+                _il_pct = sentiment_pct(_il_score)
                 _il_emoji = "🟢" if _il_score >= SENTIMENT_POS else ("🔴" if _il_score <= SENTIMENT_NEG else "⚪")
                 _il_col_c = "#22c55e" if _il_score >= SENTIMENT_POS else ("#ef4444" if _il_score <= SENTIMENT_NEG else "#9ca3af")
                 st.markdown(
                     "<div dir='rtl' style='font-size:13px; margin:3px 0 10px;'>"
                     "🧠 <b>סנטימנט " + _il_season + ":</b> " + _il_emoji +
                     " <span style='color:" + _il_col_c + "; font-weight:700;'>" +
-                    _il_sign + str(_il_pct) + "%</span></div>",
+                    str(_il_pct) + "%</span></div>",
                     unsafe_allow_html=True,
                 )
             else:
@@ -5591,8 +5779,7 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
     """מרנדר רשומת ניתוח (מה-JSON או מ-session_state)."""
     _ccy_sym = currency_symbol(record_currency(symbol, rec))
     score = float(rec.get("sentiment_score") or 0)
-    pct = int(round(score * 100))
-    sign = "+" if pct >= 0 else ""
+    pct = sentiment_pct(score)
     emoji = "🟢" if score >= SENTIMENT_POS else ("🔴" if score <= SENTIMENT_NEG else "⚪")
     col = "#22c55e" if score >= SENTIMENT_POS else ("#ef4444" if score <= SENTIMENT_NEG else "#9ca3af")
     res_map = {"beat": "🟢 הכה ציפיות", "meet": "⚪ עמד בציפיות", "miss": "🔴 פספס ציפיות"}
@@ -5654,8 +5841,8 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
             _ea_f = float(_eps_act)
             _ee_f = float(_eps_est)
             _eps_parts = [
-                f"EPS: <b>{_ccy_sym}{_ea_f:.2f}</b> בפועל",
-                f"<span style='color:#9ca3af;'>{_ccy_sym}{_ee_f:.2f} צפי</span>",
+                f"EPS: <b>{_ccy_sym}{_ea_f:,.2f}</b> בפועל",
+                f"<span style='color:#9ca3af;'>{_ccy_sym}{_ee_f:,.2f} צפי</span>",
             ]
             if _ee_f != 0:
                 _es = _ea_f / _ee_f * 100 - 100
@@ -5676,8 +5863,8 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
             _rev_act_f = float(_rev_act)
             _rev_est_f = float(_rev_est)
             _rev_parts = [
-                f"הכנסות: <b>{_ccy_sym}{_rev_act_f:.2f}B</b> בפועל",
-                f"<span style='color:#9ca3af;'>{_ccy_sym}{_rev_est_f:.2f}B צפי</span>",
+                "הכנסות: <b>" + fmt_money_b(_rev_act_f, _ccy_sym) + "</b> בפועל",
+                "<span style='color:#9ca3af;'>" + fmt_money_b(_rev_est_f, _ccy_sym) + " צפי</span>",
             ]
             if _rev_est_f != 0:
                 _rs = _rev_act_f / _rev_est_f * 100 - 100
@@ -5709,18 +5896,18 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
         _nq_vs = _nqg.get("vs_consensus", "none")
         if _nq_rev is not None:
             try:
-                _nq_parts.append(f"צפי הכנסות רבעון הבא: <b>{_ccy_sym}{float(_nq_rev):.2f}B</b>")
+                _nq_parts.append("צפי הכנסות רבעון הבא: <b>" + fmt_money_b(float(_nq_rev), _ccy_sym) + "</b>")
             except (TypeError, ValueError):
                 pass
         if _nq_eps is not None:
             try:
-                _nq_parts.append(f"EPS: <b>{_ccy_sym}{float(_nq_eps):.2f}</b>")
+                _nq_parts.append(f"EPS: <b>{_ccy_sym}{float(_nq_eps):,.2f}</b>")
             except (TypeError, ValueError):
                 pass
         if _nq_arv is not None:
             try:
                 _nq_parts.append(
-                    f"<span style='color:#9ca3af;'>קונצנזוס: {_ccy_sym}{float(_nq_arv):.2f}B</span>"
+                    "<span style='color:#9ca3af;'>קונצנזוס: " + fmt_money_b(float(_nq_arv), _ccy_sym) + "</span>"
                 )
             except (TypeError, ValueError):
                 pass
@@ -5748,7 +5935,7 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
         "<span style='color:#6b7280; font-size:13px; margin-right:10px;'> " + _z6_season + " · " + report_date + "</span></div>"
         + mkt_row + alert_html + rev_row + guid_row +
         "<div dir='rtl' style='display:flex; gap:20px; margin:6px 0 10px; flex-wrap:wrap; font-size:14px;'>"
-        "<span>סנטימנט: " + emoji + " <b style='color:" + col + ";'>" + sign + str(pct) + "%</b></span>"
+        "<span>סנטימנט: " + emoji + " <b style='color:" + col + ";'>" + str(pct) + "%</b></span>"
         "<span>תוצאות: " + res_txt + "</span>"
         "<span>הנחיה: " + guid_txt + "</span>"
         "</div>",
@@ -5876,11 +6063,12 @@ with st.container(border=True):
                             index=_GUID_OPTS.index(_cur_guid) if _cur_guid in _GUID_OPTS else 1,
                             key="z6_ed_guid_" + _z6_chosen)
                     with _ec2:
-                        _ed_score = st.number_input("ציון סנטימנט (−1 עד +1)",
-                            min_value=-1.0, max_value=1.0, step=0.05,
-                            value=float(_z6_pending.get("sentiment_score") or 0.0),
+                        _ed_score_raw = float(_z6_pending.get("sentiment_score") or 0.0)
+                        _ed_score = st.number_input("ציון סנטימנט (0%–100%, 50% = ניטרלי)",
+                            min_value=0, max_value=100, step=5,
+                            value=sentiment_pct(_ed_score_raw),
                             key="z6_ed_score_" + _z6_chosen)
-                        st.caption("💡 תיקון מספרים לא משנה את הציון אוטומטית — אם התיקון הופך את התמונה (miss↔beat), עדכני גם את הציון והתוצאות ידנית.")
+                        st.caption("50% = ניטרלי · 63% = הסף הירוק · 38% = הסף האדום · 💡 תיקון מספרים לא משנה את הציון אוטומטית — אם התיקון הופך את התמונה (miss↔beat), עדכני גם את הציון והתוצאות ידנית.")
                     _ed_summary = st.text_area("סיכום",
                         value=_z6_pending.get("summary", "") or "",
                         height=100,
@@ -6001,7 +6189,7 @@ with st.container(border=True):
 
                             _record = {
                                 "report_date": _ed_date.strip(),
-                                "sentiment_score": round(_ed_score, 4),
+                                "sentiment_score": round(_ed_score / 100 * 2 - 1, 4),
                                 "results_vs_expectations": _ed_results,
                                 "guidance_direction": _ed_guid,
                                 "summary": _ed_summary.strip(),
@@ -6124,7 +6312,7 @@ with st.container(border=True):
             def _hfmt(v, dec=2):
                 if v is None or (isinstance(v, float) and math.isnan(v)):
                     return "<span style='color:#6b7280;'>—</span>"
-                return f"{v:.{dec}f}"
+                return f"{v:,.{dec}f}"
 
             def _hfmt_surp(v):
                 if v is None or (isinstance(v, float) and math.isnan(v)):
@@ -6135,11 +6323,10 @@ with st.container(border=True):
 
             def _hfmt_sent(score):
                 sc = float(score)
-                pct = int(round(sc * 100))
-                sign = "+" if pct >= 0 else ""
+                pct = sentiment_pct(sc)
                 col = "#22c55e" if sc >= SENTIMENT_POS else ("#ef4444" if sc <= SENTIMENT_NEG else "#9ca3af")
                 emoji = "🟢" if sc >= SENTIMENT_POS else ("🔴" if sc <= SENTIMENT_NEG else "⚪")
-                return f"{emoji} <span style='color:{col}; font-weight:700;'>{sign}{pct}%</span>"
+                return f"{emoji} <span style='color:{col}; font-weight:700;'>{pct}%</span>"
 
             _rev_hdr_txt = f"הכנסות ({_hist_ccy}, B)" if _h_has_rev else ""
             _h_thdr = (
@@ -6178,7 +6365,7 @@ with st.container(border=True):
                         _rva = _h_srec.get("revenue_actual_b")
                         if _rva is not None:
                             try:
-                                _rva_html = f"{currency_symbol(_row_ccy)}{float(_rva):.2f}B"
+                                _rva_html = fmt_money_b(float(_rva), currency_symbol(_row_ccy))
                                 _rev_cell = (
                                     "<td style='text-align:center; padding:6px 10px;'>"
                                     f"<span class='chip-future' style='position:relative;'>{_rva_html}{_split_tip}</span></td>"
@@ -6190,7 +6377,7 @@ with st.container(border=True):
                     else:
                         _hrv = _h_rev_by_q.get(_hqk)
                         if _hrv is not None and not (isinstance(_hrv, float) and math.isnan(_hrv)):
-                            _rev_cell = f"<td style='text-align:center; padding:6px 10px;'>{_hrv:.2f}B</td>"
+                            _rev_cell = "<td style='text-align:center; padding:6px 10px;'>" + fmt_money_b(_hrv) + "</td>"
                         else:
                             _rev_cell = _h_td_dash
 
@@ -6232,7 +6419,7 @@ with st.container(border=True):
                 _gem_est_cell = _h_td_dash
                 if _h_rev_est_gem is not None:
                     try:
-                        _gem_est_cell = f"<td style='text-align:center; padding:6px 10px;'>{currency_symbol(record_currency(_z6_chosen, _h_srec))}{float(_h_rev_est_gem):.2f}B</td>"
+                        _gem_est_cell = "<td style='text-align:center; padding:6px 10px;'>" + fmt_money_b(float(_h_rev_est_gem), currency_symbol(record_currency(_z6_chosen, _h_srec))) + "</td>"
                     except (TypeError, ValueError):
                         pass
 

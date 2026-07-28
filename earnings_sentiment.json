@@ -662,5 +662,773 @@
       "currency": "USD",
       "analyzed_at": "2026-07-25"
     }
+  },
+  "QCOM": {
+    "2026Q1": {
+      "report_date": "2026-04-29",
+      "sentiment_score": -0.1,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "lowered",
+      "summary": "קוואלקום דיווחה על תוצאות חזקות לרבעון השני של שנת הכספים 2026, עם הכנסות ורווח למניה (Non-GAAP EPS) שגברו על ציפיות האנליסטים. עם זאת, החברה הורידה את תחזית ההכנסות לרבעון השלישי של שנת הכספים, תוך ציון אתגרי שוק המכשירים הניידים עקב דינמיקת זיכרון וצמצום מלאי בערוצים. מגזרי הרכב וה-IoT הציגו צמיחה חזקה.",
+      "domain_signals": [
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "deteriorating",
+          "note": "משלוחי מכשירי קצה בסין היו נמוכים משמעותית מהביקוש הצרכני הסופי עקב הפחתות בניית OEM מונעות זיכרון וצמצום מלאי ערוצים."
+        },
+        {
+          "domain": "רכב",
+          "direction": "improving",
+          "note": "הכנסות שיא של 1.3 מיליארד דולר מתחום הרכב (עלייה של 38% משנה לשנה) והכנסות שנתיות צפויות לעלות על 6 מיליארד דולר עד סוף שנת הכספים."
+        },
+        {
+          "domain": "תעשייה",
+          "direction": "improving",
+          "note": "הכנסות IoT (הכוללות מוצרי צריכה ותעשייה) עלו ב-9% משנה לשנה."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "משלוחים ראשוניים ללקוח היפר-סקיילר מוביל צפויים בדצמבר, מה שמסמן כניסה לתחום הדאטה סנטר."
+        }
+      ],
+      "revenue_actual_b": 10.6,
+      "revenue_estimate_b": 10.59,
+      "eps_actual": 2.65,
+      "eps_estimate": 2.56,
+      "next_q_guidance": {
+        "revenue_b": 9.6,
+        "eps": 2.2,
+        "analyst_revenue_b": null,
+        "vs_consensus": "none"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-26"
+    }
+  },
+  "MSFT": {
+    "2026Q1": {
+      "report_date": "2026-04-29",
+      "sentiment_score": 0.65,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "maintained",
+      "summary": "מיקרוסופט דיווחה על תוצאות חזקות לרבעון השלישי של שנת הכספים 2026, כשהיא עוקפת את ציפיות האנליסטים הן בהכנסות והן ברווח למניה, בעיקר בזכות צמיחה איתנה בעסקי הענן וה-AI. הכנסות Azure האיצו באופן משמעותי, כאשר הביקוש ממשיך לעלות על ההיצע הזמין, מה שהוביל להשקעות הון גבוהות מהצפוי בתשתיות AI. ההנחיה לרבעון הבא משקפת המשך צמיחה חזקה בענן וב-AI, למרות ירידה מסוימת במגזר המחשוב האישי.",
+      "domain_signals": [
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "הכנסות Azure ושירותי ענן אחרים צמחו ב-40% והביקוש ממשיך לעלות על ההיצע הזמין."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "קצב ההכנסות השנתי מעסקי ה-AI עבר את 37 מיליארד דולר, עם צמיחה של 123% משנה לשנה."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "deteriorating",
+          "note": "הכנסות Windows OEM ומכשירים ירדו, והכנסות מחשוב אישי ירדו ב-1%."
+        },
+        {
+          "domain": "תקשורת ורשתות",
+          "direction": "improving",
+          "note": "הכנסות Microsoft Cloud צמחו ב-29%, עם צמיחה חזקה ב-M365 Commercial, Dynamics 365 ו-LinkedIn."
+        }
+      ],
+      "revenue_actual_b": 82.9,
+      "revenue_estimate_b": 81.4,
+      "eps_actual": 4.27,
+      "eps_estimate": 4.07,
+      "next_q_guidance": {
+        "revenue_b": 87.25,
+        "eps": null,
+        "analyst_revenue_b": 87.6,
+        "vs_consensus": "inline"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-26"
+    }
+  },
+  "META": {
+    "2026Q1": {
+      "report_date": "2026-04-29",
+      "sentiment_score": 0.9,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "מטא דיווחה על רבעון חזק עם הכנסות של 56.31 מיליארד דולר ורווח למניה מותאם של 7.31 דולר, שניהם עלו על ציפיות האנליסטים. החברה העלתה את תחזית ההוצאות ההוניות לשנת 2026, בעיקר להשקעות בתשתיות AI, מה שמשקף אופטימיות לגבי עתיד הבינה המלאכותית.",
+      "domain_signals": [
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "ההנהלה הדגישה השקעות משמעותיות בתשתיות AI ופיתוח מודלים חדשים, כולל העלאת תחזית ההוצאות ההוניות לתמיכה ביכולות AI עתידיות."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "הוצאות מרכזי הנתונים עלו עקב השקעות בתשתיות AI, מה שמעיד על הרחבת יכולות."
+        },
+        {
+          "domain": "Edge AI (בינה מלאכותית בקצה)",
+          "direction": "improving",
+          "note": "משקפי ה-AI הראו צמיחה חזקה בהכנסות, למרות ירידה במכירות אוזניות Quest."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "improving",
+          "note": "אפליקציות הליבה הציגו מומנטום חזק, עם עלייה של 19% בהופעות מודעות ו-12% במחיר הממוצע למודעה."
+        }
+      ],
+      "revenue_actual_b": 56.31,
+      "revenue_estimate_b": 55.56,
+      "eps_actual": 7.31,
+      "eps_estimate": 6.79,
+      "next_q_guidance": {
+        "revenue_b": 59.5,
+        "eps": null,
+        "analyst_revenue_b": 59.6,
+        "vs_consensus": "inline"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-26"
+    }
+  },
+  "LRCX": {
+    "2026Q1": {
+      "report_date": "2026-04-22",
+      "sentiment_score": 0.85,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "חברת Lam Research דיווחה על תוצאות חזקות לרבעון השלישי של שנת הכספים 2026, עם רווח למניה והכנסות שעלו על ציפיות האנליסטים. החברה סיפקה תחזית חיובית לרבעון הבא, הכוללת רווח למניה שיא צפוי, וכן העלתה את תחזית ההוצאות על ציוד ייצור שבבים (WFE) לשנת 2026, תוך ציון ביקוש חזק בשוקי הזיכרון והאריזה המתקדמת. עם זאת, ההנהלה ציינה ירידה בתשלומים מראש מלקוחות וציפיות לירידה בהכנסות מסין ברבעון הבא.",
+      "domain_signals": [
+        {
+          "domain": "ייצור (Foundry)",
+          "direction": "improving",
+          "note": "ה-Foundry היווה 54% מהכנסות המערכות, עם צמיחה של 35% משנה לשנה, והתחזקות מרוכזת בקצה המוביל ובאריזה מתקדמת."
+        },
+        {
+          "domain": "DRAM",
+          "direction": "improving",
+          "note": "הכנסות ה-DRAM היוו 27% מהכנסות המערכות, עם צמיחה מונעת על ידי השקעות בזיכרון ברוחב פס גבוה (HBM) והמעבר להתקני 1C."
+        },
+        {
+          "domain": "NAND",
+          "direction": "improving",
+          "note": "זיכרון לא נדיף (NAND) תרם 12% מהכנסות המערכות, כאשר ההנהלה ציינה האצה בפעילות שדרוג הקשורה לביקוש ממרכזי נתונים של AI להתקני QLC NAND בעלי קיבולת גבוהה."
+        },
+        {
+          "domain": "אריזה מתקדמת",
+          "direction": "improving",
+          "note": "החברה רואה צמיחה משמעותית בפתרונות אריזה מתקדמת, עם צפי לצמיחה של מעל 50% בהכנסות בשנת 2026 בתחום זה."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "הביקוש ממרכזי נתונים של AI להתקני QLC NAND בעלי קיבולת גבוהה מאיץ את פעילות השדרוג."
+        },
+        {
+          "domain": "ציוד ייצור (Semicap)",
+          "direction": "improving",
+          "note": "החברה העלתה את תחזית ההוצאות על ציוד ייצור שבבים (WFE) לשנת 2026 ל-140 מיליארד דולר, מ-135 מיליארד דולר, עם נטייה לעלייה נוספת."
+        },
+        {
+          "domain": "HBM",
+          "direction": "improving",
+          "note": "השקעות בזיכרון ברוחב פס גבוה (HBM) מאיצות את הכנסות ה-DRAM."
+        }
+      ],
+      "revenue_actual_b": 5.84,
+      "revenue_estimate_b": 5.75,
+      "eps_actual": 1.47,
+      "eps_estimate": 1.36,
+      "next_q_guidance": {
+        "revenue_b": 6.6,
+        "eps": 1.65,
+        "analyst_revenue_b": 6.65,
+        "vs_consensus": "below"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-26"
+    }
+  },
+  "ARM": {
+    "2026Q1": {
+      "report_date": "2026-05-06",
+      "sentiment_score": 0.55,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "maintained",
+      "summary": "ARM דיווחה על רבעון רביעי פיסקאלי 2026 חזק, עם הכנסות של 1.49 מיליארד דולר ורווח למניה של 0.60 דולר, שניהם גברו על ציפיות האנליסטים. החברה הציגה צמיחה משמעותית בתמלוגים ורישיונות, במיוחד בתחומי הדאטה סנטר וה-AI, אך ציינה אילוצי אספקה עבור מעבד ה-AGI החדש שלה. התחזית לרבעון הבא הייתה בהתאם לציפיות האנליסטים.",
+      "domain_signals": [
+        {
+          "domain": "Data Center",
+          "direction": "improving",
+          "note": "תמלוגי הדאטה סנטר יותר מהכפילו את עצמם משנה לשנה, וקיים ביקוש חזק למעבד ה-AGI החדש של Arm, כאשר תחום זה צפוי להפוך למגזר הגדול ביותר של החברה."
+        },
+        {
+          "domain": "Edge AI",
+          "direction": "improving",
+          "note": "החברה דיווחה על צמיחה בהכנסות מתמלוגים בתחום ה-Edge AI."
+        },
+        {
+          "domain": "רכב",
+          "direction": "improving",
+          "note": "נתח השוק בתחום הרכב והרובוטיקה גדל מ-36% ל-44% בין שנות הכספים 2022 ל-2025."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "stable",
+          "note": "החברה ממשיכה לראות אימוץ מתמשך של ארכיטקטורת Armv9 וחתמה על רישיונות CSS חדשים עבור סמארטפונים וטאבלטים, תוך שמירה על נתח שוק דומיננטי במובייל."
+        }
+      ],
+      "revenue_actual_b": 1.49,
+      "revenue_estimate_b": 1.47,
+      "eps_actual": 0.6,
+      "eps_estimate": 0.58,
+      "next_q_guidance": {
+        "revenue_b": 1.26,
+        "eps": 0.4,
+        "analyst_revenue_b": 1.2627,
+        "vs_consensus": "inline"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-26"
+    }
+  },
+  "AMZN": {
+    "2026Q1": {
+      "report_date": "2026-04-29",
+      "sentiment_score": 0.95,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "אמזון דיווחה על תוצאות חזקות לרבעון הראשון של 2026, כשהיא עוקפת את ציפיות האנליסטים הן ברווח למניה והן בהכנסות. חטיבת AWS הציגה האצה משמעותית בצמיחה, וההנהלה סיפקה תחזית הכנסות איתנה לרבעון השני של 2026, העולה על קונצנזוס האנליסטים.",
+      "domain_signals": [
+        {
+          "domain": "Data Center",
+          "direction": "improving",
+          "note": "צמיחת AWS המשיכה להאיץ, עם עלייה של 28% משנה לשנה, שיעור הצמיחה המהיר ביותר מזה 15 רבעונים, והיא כעת עסק עם קצב הכנסות שנתי של 150 מיליארד דולר."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "קצב ההכנסות השנתי של עסקי השבבים של אמזון, הכוללים את קווי המוצרים Graviton, Trainium ו-Nitro, עלה על 20 מיליארד דולר, עם צמיחה תלת-ספרתית משנה לשנה, ו-Trainium נמכר ברובו."
+        },
+        {
+          "domain": "CPU / מחשוב",
+          "direction": "improving",
+          "note": "מעבדי Graviton נמצאים בשימוש על ידי 98% מ-1,000 לקוחות EC2 המובילים, ומציעים שיפור של עד 40% ביחס מחיר-ביצועים לעומת כל מעבד x86 אחר."
+        },
+        {
+          "domain": "תקשורת ורשתות",
+          "direction": "improving",
+          "note": "השקת שירות הלוויינים Amazon Leo מתקדמת לקראת השקה מסחרית."
+        }
+      ],
+      "revenue_actual_b": 181.5,
+      "revenue_estimate_b": 177.28,
+      "eps_actual": 2.78,
+      "eps_estimate": 1.63,
+      "next_q_guidance": {
+        "revenue_b": 196.5,
+        "eps": null,
+        "analyst_revenue_b": 195.9,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-26"
+    }
+  },
+  "005930.KS": {
+    "2026Q1": {
+      "report_date": "2026-04-30",
+      "sentiment_score": 0.96,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "סמסונג אלקטרוניקס דיווחה על תוצאות שיא לרבעון הראשון של 2026, עם הכנסות ורווח למניה שעלו משמעותית על ציפיות האנליסטים. הצמיחה הונעה בעיקר על ידי ביצועים חזקים בעסקי השבבים, במיוחד זיכרונות HBM ו-DRAM, עקב ביקוש גובר לבינה מלאכותית ומרכזי נתונים. ההנהלה העלתה את התחזיות לרבעון הבא, למרות חששות מעלויות רכיבים גבוהות וחולשה בחטיבות המובייל והתצוגה.",
+      "domain_signals": [
+        {
+          "domain": "DRAM",
+          "direction": "improving",
+          "note": "עסקי הזיכרון רשמו שיא הכנסות ותפעול, עם עליות במחירי המכירה הממוצעים וביקוש חזק למוצרי AI."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "הביקוש לזיכרונות מתקדמים עבור מרכזי נתונים מונעי AI דחף את הרווחיות."
+        },
+        {
+          "domain": "HBM",
+          "direction": "improving",
+          "note": "החברה החלה בייצור המוני של שבבי HBM4 וצופה הכפלה משולשת בהכנסות מ-HBM השנה."
+        },
+        {
+          "domain": "NAND",
+          "direction": "improving",
+          "note": "עסקי הזיכרון (כולל NAND) היו המניע העיקרי לתוצאות החזקות, עם ביקוש חזק לשרתים."
+        },
+        {
+          "domain": "ייצור (Foundry)",
+          "direction": "improving",
+          "note": "עסקי הייצור (Foundry) מתקדמים בפיתוח תהליכי 2 ננומטר ו-1.4 ננומטר ומרחיבים את פעילותם ללקוחות HPC ופוטוניקה מסיליקון."
+        },
+        {
+          "domain": "פוטוניקה ואופטיקה",
+          "direction": "improving",
+          "note": "עסקי הייצור (Foundry) מרחיבים את פעילותם לתחום הפוטוניקה מסיליקון."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "deteriorating",
+          "note": "חטיבת המובייל (MX) התמודדה עם לחץ על הרווחיות עקב עלויות רכיבים גבוהות וצפויה ירידה ברווחים ברבעון הבא."
+        },
+        {
+          "domain": "רכב",
+          "direction": "improving",
+          "note": "חטיבת Harman צופה צמיחה ברווחים ברבעון השני של 2026 בזכות עלייה באספקת רכיבים לתעשיית הרכב."
+        }
+      ],
+      "revenue_actual_b": 133900.0,
+      "revenue_estimate_b": 126290.0,
+      "eps_actual": 7123.0,
+      "eps_estimate": 6152.03,
+      "next_q_guidance": {
+        "revenue_b": 171000.0,
+        "eps": null,
+        "analyst_revenue_b": null,
+        "vs_consensus": "none"
+      },
+      "currency": "KRW",
+      "analyzed_at": "2026-07-26"
+    }
+  },
+  "AMD": {
+    "2026Q1": {
+      "report_date": "2026-05-05",
+      "sentiment_score": 0.95,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "AMD דיווחה על תוצאות חזקות לרבעון הראשון של 2026, עם הכנסות ורווח למניה שעלות משמעותית את ציפיות האנליסטים. הצמיחה הואצה בעיקר על ידי הביקוש הגובר לתשתיות AI ומגזר הדאטה סנטר. החברה העלתה את תחזיותיה לרבעון השני של 2026, מה שמשקף אופטימיות לגבי המשך המומנטום.",
+      "domain_signals": [
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "מגזר הדאטה סנטר הוא המניע העיקרי לצמיחה, עם ביקוש חזק למעבדי EPYC ומאיצי Instinct וצמיחה של 57% בהכנסות המגזר."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "הביקוש למאיצי AI, כולל סדרות MI450 ו-Helios, מתחזק ועולה על הציפיות הראשוניות."
+        },
+        {
+          "domain": "CPU / מחשוב",
+          "direction": "improving",
+          "note": "ביקוש חזק למעבדי Ryzen ו-EPYC, עם הרחבת פריסות ללקוחות ענן וארגונים."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "stable",
+          "note": "צמיחה צנועה צפויה במגזר ה-Client ברבעון הבא."
+        },
+        {
+          "domain": "תעשייה",
+          "direction": "improving",
+          "note": "הושקו מעבדי Ryzen AI Embedded P100 ומשפחת Kintex™ UltraScale+™ Gen 2 FPGAs ליישומים תעשייתיים וקצה."
+        },
+        {
+          "domain": "תקשורת ורשתות",
+          "direction": "improving",
+          "note": "מעבדי EPYC 8005 מותאמים במיוחד לסביבות טלקומוניקציה וקצה."
+        },
+        {
+          "domain": "Edge AI (בינה מלאכותית בקצה)",
+          "direction": "improving",
+          "note": "הושקו מעבדי Ryzen AI Embedded P100 ליישומי קצה."
+        }
+      ],
+      "revenue_actual_b": 10.3,
+      "revenue_estimate_b": 9.85,
+      "eps_actual": 1.37,
+      "eps_estimate": 1.29,
+      "next_q_guidance": {
+        "revenue_b": 11.2,
+        "eps": null,
+        "analyst_revenue_b": 10.5,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-26"
+    }
+  },
+  "TSEM": {
+    "2026Q1": {
+      "report_date": "2026-05-13",
+      "sentiment_score": 0.9,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "תוצאות TSEM לרבעון הראשון של 2026 הציגו ביצועים חזקים, עם הכנסות ורווח למניה שעלו על ציפיות האנליסטים באופן משמעותי. ההנהלה סיפקה תחזית חיובית לרבעון השני של 2026, המצביעה על הכנסות שיא וצמיחה רבעונית עקבית לאורך השנה, בעיקר בזכות מומנטום חזק בתחום הפוטוניקה מסיליקון. עם זאת, צוינו אתגרים בשוק ה-RF מובייל ובזמינות אינדיום פוספיד.",
+      "domain_signals": [
+        {
+          "domain": "פוטוניקה ואופטיקה",
+          "direction": "improving",
+          "note": "החברה דיווחה על מומנטום חזק וצמיחה של פי 3 בהכנסות מפוטוניקה מסיליקון, עם התחייבויות חוזיות משמעותיות לשנים הבאות."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "deteriorating",
+          "note": "פלח ה-RF מובייל חווה ירידה משמעותית של 36% רבעונית וצפוי לרדת גם לשנה כולה."
+        },
+        {
+          "domain": "ייצור (Foundry)",
+          "direction": "improving",
+          "note": "החברה מרחיבה את יכולות הייצור ב-300 מ\"מ ורכשה בעלות מלאה על מתקן Fab 7 ביפן."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "הוזכרו דרישות מרכזי נתונים של AI כגורם מניע לטכנולוגיות פוטוניקה מסיליקון."
+        }
+      ],
+      "revenue_actual_b": 0.414,
+      "revenue_estimate_b": 0.40838,
+      "eps_actual": 0.65,
+      "eps_estimate": 0.55,
+      "next_q_guidance": {
+        "revenue_b": 0.455,
+        "eps": null,
+        "analyst_revenue_b": null,
+        "vs_consensus": "none"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-27"
+    }
+  },
+  "NVMI": {
+    "2026Q1": {
+      "report_date": "2026-05-14",
+      "sentiment_score": 0.9,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "נובה (NVMI) דיווחה על תוצאות שיא לרבעון הראשון של 2026, תוך עקיפת ציפיות האנליסטים הן בהכנסות והן ברווח למניה. החברה סיפקה תחזית חזקה לרבעון השני של 2026, כאשר אמצע טווח התחזית להכנסות ולרווח למניה עולה על תוצאות הרבעון הראשון ועל קונצנזוס האנליסטים לרווח למניה. הצמיחה הונעה על ידי ביקוש חזק בתחומי הזיכרון (במיוחד DRAM מתקדם), Logic & Foundry (כולל Gate-All-Around) ואריזה מתקדמת.",
+      "domain_signals": [
+        {
+          "domain": "DRAM",
+          "direction": "improving",
+          "note": "החברה דיווחה על הכנסות שיא מזיכרון, מונעות על ידי ביקוש חזק ל-DRAM מתקדם, והרחיבה את חשיפתה לשוק ה-DRAM."
+        },
+        {
+          "domain": "אריזה מתקדמת",
+          "direction": "improving",
+          "note": "הכנסות מאריזה מתקדמת הגיעו לשיא רבעוני, כאשר פורטפוליו המוצרים של נובה ממוקם היטב בייצור 2.5D ו-3D."
+        },
+        {
+          "domain": "ייצור (Foundry)",
+          "direction": "improving",
+          "note": "הכנסות מ-Logic הגיעו לשיא, מונעות על ידי קו מוצרי המטרולוגיה המשולבת של נובה, Gate-All-Around וחדירות לקוחות חדשים."
+        },
+        {
+          "domain": "ציוד ייצור (Semicap)",
+          "direction": "improving",
+          "note": "ההנהלה צופה ביצועים טובים יותר מצמיחת WFE (ציוד ייצור פרוסות) בשיעור דו-ספרתי בינוני לשנת 2026."
+        },
+        {
+          "domain": "CPU / מחשוב",
+          "direction": "improving",
+          "note": "המעבר מ-FinFET ל-Gate-All-Around מהווה הזדמנות משמעותית עבור נובה, עם גידול של כ-30% בעוצמת המטרולוגיה."
+        }
+      ],
+      "revenue_actual_b": 0.2353,
+      "revenue_estimate_b": 0.22702,
+      "eps_actual": 2.33,
+      "eps_estimate": 2.16,
+      "next_q_guidance": {
+        "revenue_b": 0.25,
+        "eps": 2.41,
+        "analyst_revenue_b": null,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-28"
+    }
+  },
+  "CAMT": {
+    "2026Q1": {
+      "report_date": "2026-05-12",
+      "sentiment_score": 0.9,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "CAMT דיווחה על תוצאות חזקות לרבעון הראשון של 2026, עם רווח למניה והכנסות שעלו על ציפיות האנליסטים. ההנהלה ציינה התחלה חסרת תקדים לשנה מבחינת הזמנות נכנסות וסיפקה תחזית אופטימית למחצית השנייה של 2026 ולשנת 2027, עם צמיחה צפויה של מעל 25% בהכנסות במחצית השנייה לעומת הראשונה. החברה ממשיכה להשקיע בבינה מלאכותית ובאריזה מתקדמת, שמהוות נתח משמעותי מההכנסות.",
+      "domain_signals": [
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "כ-50% מההכנסות הגיעו ממוצרים הקשורים ל-AI, והחברה משקיעה רבות בתחום ורכשה את Visual Layer."
+        },
+        {
+          "domain": "אריזה מתקדמת",
+          "direction": "improving",
+          "note": "הביקוש נותר חזק בתחום האריזה המתקדמת, שתרם כ-20% מההכנסות."
+        },
+        {
+          "domain": "HBM",
+          "direction": "improving",
+          "note": "התקבלו הזמנות ותחזיות משני יצרני HBM בהיקף של מעל 260 מיליון דולר לשנים 2026 ו-2027."
+        },
+        {
+          "domain": "ציוד ייצור (Semicap)",
+          "direction": "improving",
+          "note": "החברה דיווחה על התחלה חסרת תקדים של הזמנות נכנסות, מה שמחזק את הביטחון בתוצאות לשנים 2026 ו-2027."
+        }
+      ],
+      "revenue_actual_b": 0.1217,
+      "revenue_estimate_b": 0.12015,
+      "eps_actual": 0.7,
+      "eps_estimate": 0.67,
+      "next_q_guidance": {
+        "revenue_b": 0.13,
+        "eps": null,
+        "analyst_revenue_b": 0.1302,
+        "vs_consensus": "inline"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-28"
+    }
+  },
+  "AMAT": {
+    "2026Q1": {
+      "report_date": "2026-05-14",
+      "sentiment_score": 0.95,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "Applied Materials דיווחה על תוצאות שיא לרבעון השני של שנת הכספים 2026, עם הכנסות ורווח למניה שעלו על ציפיות האנליסטים. החברה העלתה את תחזית הצמיחה לעסקי ציוד המוליכים למחצה לשנת 2026 ליותר מ-30%, מונעת על ידי ביקושים חזקים בתחום ה-AI ואריזה מתקדמת. ההנהלה צופה רבעון שלישי חזק, עם תחזית הכנסות ורווח למניה מעל קונצנזוס האנליסטים.",
+      "domain_signals": [
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "הביקוש מונע על ידי האצת בניית תשתית AI גלובלית."
+        },
+        {
+          "domain": "ציוד ייצור (Semicap)",
+          "direction": "improving",
+          "note": "החברה צופה כעת שעסקי ציוד המוליכים למחצה יצמחו ביותר מ-30% בשנת קלנדרית 2026."
+        },
+        {
+          "domain": "DRAM",
+          "direction": "improving",
+          "note": "הכנסות ה-DRAM הסתכמו ב-1.7 מיליארד דולר, עלייה של 18% משנה לשנה, עם ביקוש מוגבר לזיכרון HBM."
+        },
+        {
+          "domain": "אריזה מתקדמת",
+          "direction": "improving",
+          "note": "הכנסות מאריזה מתקדמת צפויות לצמוח ביותר מ-50% בשנת קלנדרית 2026."
+        },
+        {
+          "domain": "ייצור (Foundry)",
+          "direction": "improving",
+          "note": "החברה ציינה צמיחה ב-Foundry/Logic מתקדם והשיקה מערכות חדשות לטרנזיסטורי Gate-All-Around."
+        }
+      ],
+      "revenue_actual_b": 7.91,
+      "revenue_estimate_b": 7.69,
+      "eps_actual": 2.86,
+      "eps_estimate": 2.68,
+      "next_q_guidance": {
+        "revenue_b": 8.95,
+        "eps": 3.36,
+        "analyst_revenue_b": 8.15,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-28"
+    }
+  },
+  "ADI": {
+    "2026Q1": {
+      "report_date": "2026-05-20",
+      "sentiment_score": 0.9,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "אנלוג דיבייסז דיווחה על תוצאות חזקות לרבעון השני של 2026, עם הכנסות של 3.62 מיליארד דולר ורווח למניה מתואם של 3.09 דולר, שניהם עלו על ציפיות האנליסטים. החברה סיפקה תחזית אופטימית לרבעון הבא, המצביעה על המשך צמיחה בהכנסות ל-3.9 מיליארד דולר. הצמיחה הונעה על ידי ביצועים חזקים בשוקי התעשייה, מרכזי הנתונים והתקשורת.",
+      "domain_signals": [
+        {
+          "domain": "תעשייה",
+          "direction": "improving",
+          "note": "שוק התעשייה, שהיווה 50% מההכנסות, הציג צמיחה חזקה של 56% משנה לשנה, עם גידול בכל העסקים התעשייתיים, כולל תעופה וביטחון."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "עסקי הדאטה סנטר הציגו צמיחה חזקה, מונעת על ידי ביקוש הקשור לבינה מלאכותית למוצרי אופטיקה וכוח."
+        },
+        {
+          "domain": "תקשורת ורשתות",
+          "direction": "improving",
+          "note": "שוק התקשורת הציג צמיחה משמעותית של 79% משנה לשנה, הנתמכת על ידי חשיפה למרכזי נתונים."
+        },
+        {
+          "domain": "רכב",
+          "direction": "improving",
+          "note": "שוק הרכב הציג צמיחה מוגבלת אך עם רווחי תוכן מתמשכים בפלטפורמות ADAS ומערכות ניהול סוללות לרכבים חשמליים שחזרו לצמיחה."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "improving",
+          "note": "שוק הצרכנים הציג צמיחה של 23% משנה לשנה."
+        }
+      ],
+      "revenue_actual_b": 3.62,
+      "revenue_estimate_b": 3.51,
+      "eps_actual": 3.09,
+      "eps_estimate": 2.9,
+      "next_q_guidance": {
+        "revenue_b": 3.9,
+        "eps": 3.3,
+        "analyst_revenue_b": null,
+        "vs_consensus": "none"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-28"
+    }
+  },
+  "NVDA": {
+    "2026Q1": {
+      "report_date": "2026-05-20",
+      "sentiment_score": 0.95,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "NVIDIA דיווחה על תוצאות שיא לרבעון הראשון של שנת הכספים 2027, תוך עקיפה משמעותית של ציפיות האנליסטים הן בהכנסות והן ברווח למניה. מגזר הדאטה סנטר הציג צמיחה חזקה במיוחד, מונעת על ידי ביקוש לארכיטקטורת Blackwell. החברה סיפקה תחזית חזקה לרבעון הבא, שעלתה גם היא על קונצנזוס האנליסטים, למרות אי-הכללת הכנסות ממחשוב מרכזי נתונים בסין.",
+      "domain_signals": [
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "הכנסות מרכזי נתונים הגיעו ל-75 מיליארד דולר, עלייה של 92% משנה לשנה, מונעת על ידי פריסות מערכות Blackwell בקרב ספקי ענן היפר-סקייל, לקוחות ריבוניים וספקי ענן AI מקוריים."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "ביקוש חזק לארכיטקטורת Blackwell ומוצרי GB300 ו-NVL72 הוביל לצמיחה מהירה ביותר, המהווה את השקת המוצר המהירה ביותר בתולדות החברה."
+        },
+        {
+          "domain": "CPU / מחשוב",
+          "direction": "improving",
+          "note": "השקת מעבד Vera פותחת שוק חדש של 200 מיליארד דולר (TAM) עבור NVIDIA, עם ציפייה להכנסות של כ-20 מיליארד דולר ממעבדים עצמאיים בשנת הכספים הנוכחית."
+        },
+        {
+          "domain": "Edge AI (בינה מלאכותית בקצה)",
+          "direction": "stable",
+          "note": "הכנסות מ-Edge Computing עמדו על 6.4 מיליארד דולר, עלייה של 29% משנה לשנה, אך ביקוש צרכני ירד מעט עקב מחירי זיכרון ומערכות גבוהים יותר."
+        },
+        {
+          "domain": "תקשורת ורשתות",
+          "direction": "improving",
+          "note": "הכנסות מרישות מרכזי נתונים כמעט שולשו משנה לשנה והגיעו ל-15 מיליארד דולר."
+        },
+        {
+          "domain": "פוטוניקה ואופטיקה",
+          "direction": "improving",
+          "note": "הורחבה שיתוף הפעולה בטכנולוגיית פוטוניקה מסיליקון ואופטיקה מתקדמת באמצעות שותפויות אסטרטגיות."
+        }
+      ],
+      "revenue_actual_b": 81.6,
+      "revenue_estimate_b": 79.2,
+      "eps_actual": 1.87,
+      "eps_estimate": 1.77,
+      "next_q_guidance": {
+        "revenue_b": 91.0,
+        "eps": null,
+        "analyst_revenue_b": 87.0,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-28"
+    }
+  },
+  "MRVL": {
+    "2026Q1": {
+      "report_date": "2026-05-27",
+      "sentiment_score": 0.85,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "Marvell Technology דיווחה על תוצאות חזקות לרבעון הראשון של שנת הכספים 2027, עם הכנסות ורווח למניה (Non-GAAP EPS) שעלו על ציפיות האנליסטים. החברה העלתה באופן משמעותי את תחזיות ההכנסות לשנות הכספים 2027 ו-2028, בעיקר בזכות ביקוש חזק במגזר הדאטה סנטר. ההנהלה צופה המשך צמיחה מואצת, במיוחד בתחום ה-AI.",
+      "domain_signals": [
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "הביקוש במגזר הדאטה סנטר חזק במיוחד, עם הזמנות שיא, וצמיחה צפויה של כ-50% בשנת הכספים 2027, המונעת על ידי פתרונות קישוריות, מיתוג וסיליקון מותאם אישית."
+        },
+        {
+          "domain": "פוטוניקה ואופטיקה",
+          "direction": "improving",
+          "note": "החברה רואה ביקוש חזק למוצרי 800G ו-1.6T, וביצעה רכישות אסטרטגיות (Celestial AI ו-XConn) לחיזוק יכולותיה בתחום."
+        },
+        {
+          "domain": "תקשורת ורשתות",
+          "direction": "stable",
+          "note": "שוקי הקצה של תקשורת ואחרים התאוששו במידה רבה מתיקוני מלאי, וצפויים לצמיחה של כ-10% בשנת הכספים 2027, למרות ירידה קלה צפויה ברבעון הבא."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "החברה רואה הזמנות יוצאות דופן הקשורות ל-AI, ותשתיות AI נותרו מנוע הצמיחה המרכזי."
+        }
+      ],
+      "revenue_actual_b": 2.418,
+      "revenue_estimate_b": 2.4,
+      "eps_actual": 0.8,
+      "eps_estimate": 0.79,
+      "next_q_guidance": {
+        "revenue_b": 2.7,
+        "eps": 0.93,
+        "analyst_revenue_b": 2.703,
+        "vs_consensus": "inline"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-28"
+    }
+  },
+  "AVGO": {
+    "2026Q1": {
+      "report_date": "2026-06-03",
+      "sentiment_score": 0.9,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "ברודקום דיווחה על תוצאות שיא לרבעון השני של 2026, עם הכנסות של 22.2 מיליארד דולר ו-EPS מתואם של 2.44 דולר, שניהם עלו על ציפיות האנליסטים. הצמיחה הונעה בעיקר על ידי ביצועים חזקים במגזר מוליכי המוליכים הקשורים ל-AI. החברה סיפקה תחזית חזקה לרבעון הבא, גבוהה משמעותית מקונצנזוס האנליסטים, מה שמעיד על ביטחון בהמשך הביקוש לפתרונות AI.",
+      "domain_signals": [
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "הכנסות מוליכי מוליכים למחצה בתחום ה-AI הגיעו לשיא של 10.8 מיליארד דולר, עלייה של 143% משנה לשנה, והחברה צופה שהכנסות אלו יוכפלו במחצית השנייה של 2026."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "הביקוש הגובר למאיצי AI מותאמים אישית ורשתות AI בדאטה סנטרים היה מניע מרכזי לצמיחה."
+        },
+        {
+          "domain": "תקשורת ורשתות",
+          "direction": "improving",
+          "note": "רשתות AI היוו כמעט 40% מהכנסות מוליכי המוליכים למחצה בתחום ה-AI, עם ביקוש חזק למתגי Tomahawk 6 ו-200G SerDes מצד חברות היפר-סקייל."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "improving",
+          "note": "הכנסות מוליכים למחצה שאינם AI, הכוללות תקשורת אלחוטית, הראו התאוששות מחזורית עם צמיחה של 6% משנה לשנה."
+        },
+        {
+          "domain": "תעשייה",
+          "direction": "improving",
+          "note": "מגזרי קצה תעשייתיים, הכלולים במוליכים למחצה שאינם AI, הראו סימני התאוששות."
+        }
+      ],
+      "revenue_actual_b": 22.2,
+      "revenue_estimate_b": 22.11,
+      "eps_actual": 2.44,
+      "eps_estimate": 2.4,
+      "next_q_guidance": {
+        "revenue_b": 29.4,
+        "eps": null,
+        "analyst_revenue_b": 27.43,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-28"
+    }
   }
 }
