@@ -1430,5 +1430,43 @@
       "currency": "USD",
       "analyzed_at": "2026-07-28"
     }
+  },
+  "ORCL": {
+    "2026Q1": {
+      "report_date": "2026-03-10",
+      "sentiment_score": 0.96,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "33333",
+      "domain_signals": [
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "הביקוש לתשתית AI, כולל GPU, ממשיך לעלות על ההיצע, עם גידול משמעותי בחוזים גדולים הקשורים ל-AI."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "אורקל השקיעה רבות במרכזי נתונים והבטיחה קיבולת של 10GW לשלוש השנים הבאות כדי לעמוד בביקוש הגובר לתשתית AI."
+        },
+        {
+          "domain": "CPU / מחשוב",
+          "direction": "improving",
+          "note": "הביקוש למעבדי CPU עבור תשתית AI ממשיך לעלות על ההיצע."
+        }
+      ],
+      "revenue_actual_b": 3.0,
+      "revenue_estimate_b": 3.0,
+      "eps_actual": 3.0,
+      "eps_estimate": 3.0,
+      "next_q_guidance": {
+        "revenue_b": 3.0,
+        "eps": 3.0,
+        "analyst_revenue_b": null,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-28"
+    }
   }
 }
