@@ -174,36 +174,6 @@ CHAIN_LOGO_DOMAINS = {
     "BE": "bloomenergy.com",
 }
 
-CHAIN_STAGE_COLORS = {
-    "design":     "#a78bfa",  # תכנון — סגול
-    "materials":  "#38bdf8",  # תשומות ייצור — כחול בהיר
-    "mfg":        "#f472b6",  # ייצור — ורוד
-    "downstream": "#facc15",  # מורד הזרם — צהוב
-}
-
-# CHAIN_LAYOUT defines the 3-row visual layout
-# Each entry: (chain_key_prefix, stage, short_subtitle)
-CHAIN_LAYOUT = {
-    "row_top": [
-        ("1", "design",    "כלי EDA, IP-blocks, ארכיטקטורות"),
-        ("6", "materials", "מכונות פוטוליתוגרפיה, אצ'ינג, הפקדה"),
-        ("7", "materials", "מדידה, יישור ובקרת תהליכים"),
-        ("0", "materials", "ווייפרים, גזים, נוזלי עיבוד"),
-    ],
-    "row_mid": [
-        ("2", "design", "מעצבות ללא מפעל — מעבדים ומאיצי AI"),
-        ("3", "design", "מעצבות ללא מפעל — תקשורת ואופטיקה"),
-        ("8", "mfg",    "קבלני ייצור — הופכים עיצוב לשבב"),
-        ("9", "mfg",    "אריזה, חיבורים ובדיקות אחרי ייצור"),
-    ],
-    "row_bot": [
-        ("4", "mfg",        "מתכנן ומייצר בעצמו — לוגיקה, אנלוגי, עוצמה"),
-        ("5", "downstream", "זיכרון DRAM, NAND ואחסון"),
-        ("10", "downstream", "שרתים, מדפי מחשוב, קירור נוזלי"),
-        ("11", "downstream", "חשמל, ציוד אנרגיה ותשתית לדאטה סנטרים"),
-    ],
-}
-
 SENSITIVITY_LEVELS = {
     "vhigh": {"label": "גבוהה מאוד", "color": "#dc2626", "emoji": "🔴"},
     "high":  {"label": "גבוהה",      "color": "#f97316", "emoji": "🟠"},
@@ -964,6 +934,7 @@ def get_change(symbol, period):
         if _gc_date is _ATTRS_MISSING:
             _log.warning(f"[DATA_WARN {symbol}] {last_date}: תכונת attrs (nan_tail_date) לא שרדה על הסדרה — לא ניתן לזהות אם קיים סשן מאוחר יותר שחסר בה")
             _gc_date = None
+
         if _gc_date is not None and not market_is_open() and session_is_complete(_gc_date):
             _gc_q = _get_quote_last_close(symbol)
             # אימות מול close.iloc[-1] — הסגירה של הסשן הקודם, לא ערך תוך-יומי
@@ -1681,63 +1652,6 @@ def beta_group_score(symbols, beta_map):
     return {"beta": round(beta, 4), "r2": round(r2, 4), "reported": reported, "total": total}
 
 
-@st.cache_data(ttl=21600)
-def scan_rating_changes(symbols_tuple, days_back=14):
-    """סורקת שינויי דירוג (up/down) לכל טיקר ב-symbols_tuple בחלון days_back ימים.
-    מחזירה dict {symbol: {up, down, changes}} רק עבור סימבולים עם שינויים."""
-    try:
-        from datetime import date as _date
-        today = _date.today()
-        result = {}
-        for sym in symbols_tuple:
-            try:
-                df = get_upgrades_downgrades(sym)
-                if df is None or df.empty:
-                    continue
-                action_col = None
-                for col in ("Action", "action"):
-                    if col in df.columns:
-                        action_col = col
-                        break
-                if action_col is None:
-                    continue
-                changes = []
-                n_up = 0
-                n_down = 0
-                for _, row in df.iterrows():
-                    act = str(row.get(action_col, "")).lower()
-                    if act not in ("up", "down"):
-                        continue
-                    d = row.get("date")
-                    if d is None:
-                        continue
-                    days_ago = (today - d).days
-                    if days_ago < 0 or days_ago > days_back:
-                        continue
-                    firm = row.get("Firm", row.get("firm", ""))
-                    to_g = row.get("ToGrade", row.get("to_grade", ""))
-                    fr_g = row.get("FromGrade", row.get("from_grade", ""))
-                    changes.append({
-                        "firm":     str(firm or ""),
-                        "action":   act,
-                        "grade":    {"from": str(fr_g or ""), "to": str(to_g or "")},
-                        "date":     d,
-                        "days_ago": days_ago,
-                    })
-                    if act == "up":
-                        n_up += 1
-                    else:
-                        n_down += 1
-                if changes:
-                    changes.sort(key=lambda x: x["days_ago"])
-                    result[sym] = {"up": n_up, "down": n_down, "changes": changes}
-            except Exception:
-                continue
-        return result
-    except Exception:
-        return {}
-
-
 @st.cache_data(ttl=86400)
 def get_forward_estimates(symbol):
     """תחזיות אנליסטים לרבעון הקרוב: eps_est, revenue_est_b, revenue_growth_pct."""
@@ -2309,48 +2223,6 @@ def weighted_tech_score(group_name, group_def, season, sentiment_data):
 def titles_signature(titles):
     joined = "||".join(titles)
     return hashlib.md5(joined.encode("utf-8")).hexdigest()
-
-
-def label_info(median, breadth, soxx_change, period):
-    # דירוג יחסי: כמה החציון מכה או מפגר אחרי SOXX, מול הסף לתקופה
-    threshold = RELATIVE_THRESHOLD.get(period, 10.0)
-    if soxx_change is None:
-        rel = median  # נפילה אחורה: בלי מדד, משווים מול אפס
-    else:
-        rel = median - soxx_change
-    if rel >= threshold and breadth >= BROAD_THRESHOLD:
-        return "🔥 חם", "#22c55e", "rgba(34,197,94,0.12)"
-    if rel <= -threshold:
-        return "⚠️ חלש", "#ef4444", "rgba(239,68,68,0.12)"
-    return "🟡 ניטרלי", "#eab308", "rgba(234,179,8,0.12)"
-
-
-def zone_bg(rel, threshold, max_abs):
-    # צבע רקע לפי המרחק מ-SOXX: ירוק (מכה מעל הסף), צהוב (קרוב למדד), אדום (מפגר מעבר לסף)
-    # rel = חציון פחות SOXX · threshold = סף התקופה · max_abs = המרחק הקיצוני בדירוג
-    if threshold <= 0:
-        threshold = 1.0
-    if rel >= threshold:
-        # ירוק: בהיר בסף -> כהה בקיצון
-        span = max(max_abs - threshold, 1.0)
-        f = min((rel - threshold) / span, 1.0)
-        r = int(134 + (21 - 134) * f)
-        g = int(239 + (128 - 239) * f)
-        b = int(134 + (61 - 134) * f)
-    elif rel <= -threshold:
-        # אדום: בהיר בסף -> כהה בקיצון
-        span = max(max_abs - threshold, 1.0)
-        f = min((-rel - threshold) / span, 1.0)
-        r = int(248 + (153 - 248) * f)
-        g = int(113 + (27 - 113) * f)
-        b = int(113 + (27 - 113) * f)
-    else:
-        # צהוב: בהיר ליד המדד -> חזק ליד הסף
-        f = min(abs(rel) / threshold, 1.0)
-        r = int(250 + (234 - 250) * f)
-        g = int(240 + (179 - 240) * f)
-        b = int(150 + (8 - 150) * f)
-    return "rgba(" + str(r) + "," + str(g) + "," + str(b) + ",0.22)"
 
 
 def build_chart(stocks, period, intraday=False, skip_current_day=True):
@@ -3747,11 +3619,6 @@ if not _online_closed:
         # דירוג לפי המרחק מהמדד: חציון פחות תשואת SOXX, מהגבוה לנמוך
         soxx_ref = soxx_change if soxx_change is not None else 0.0
         results.sort(key=lambda r: r[0] - soxx_ref, reverse=True)
-        # המרחק הקיצוני ביותר מהמדד בדירוג — לנרמול עוצמת הצבע
-        if len(results) > 0:
-            max_abs_dist = max(abs(r[0] - soxx_ref) for r in results)
-        else:
-            max_abs_dist = 1.0
 
 
     # ---------- מפת חום ----------
@@ -4681,7 +4548,7 @@ if not _online_closed:
                         "<td style='text-align:center; padding:6px 10px;'>"
                         "<span style='color:" + _td_dir_color.get(_cur, "#9ca3af") + "; font-size:16px;'>"
                         + _td_dir_emoji.get(_cur, "") + "</span></td>"
-                        "<td style='text-align:right; padding:6px 10px; color:#d1d5db; font-size:12px;'>" + e["note"] + "</td>"
+                        "<td style='text-align:right; padding:6px 10px; color:#d1d5db; font-size:12px;'>" + html.escape(e["note"]) + "</td>"
                         "<td style='text-align:center; padding:6px 10px; font-size:12px; white-space:nowrap;'>" + _prev_dir_cell + "</td>"
                         "<td style='text-align:center; padding:6px 10px; font-size:12px; white-space:nowrap;'>" + _trend_cell + "</td>"
                         "</tr>"
@@ -4946,16 +4813,17 @@ else:
     combined = pd.concat(capex_q.values(), axis=1).dropna()
     if len(combined) >= 2:
         total = combined.sum(axis=1)
-        growth = float(total.iloc[-1]) / float(total.iloc[0]) * 100 - 100
-        g_color = "#22c55e" if growth >= 0 else "#ef4444"
-        st.markdown(
-            "<div dir='rtl' style='text-align:right; font-weight:700; margin:4px 0 12px 0;'>"
-            "סה\"כ CapEx מצרפי ברבעון האחרון (רבעונים חופפים בלבד): "
-            "<span style='color:#22d3ee;'>$" + str(round(float(total.iloc[-1]), 1)) + "B</span>"
-            " · צמיחה מתחילת החלון: <span style='color:" + g_color + ";'>"
-            + ("+" if growth >= 0 else "") + str(round(growth, 1)) + "%</span></div>",
-            unsafe_allow_html=True,
-        )
+        if float(total.iloc[0]) != 0:
+            growth = float(total.iloc[-1]) / float(total.iloc[0]) * 100 - 100
+            g_color = "#22c55e" if growth >= 0 else "#ef4444"
+            st.markdown(
+                "<div dir='rtl' style='text-align:right; font-weight:700; margin:4px 0 12px 0;'>"
+                "סה\"כ CapEx מצרפי ברבעון האחרון (רבעונים חופפים בלבד): "
+                "<span style='color:#22d3ee;'>$" + str(round(float(total.iloc[-1]), 1)) + "B</span>"
+                " · צמיחה מתחילת החלון: <span style='color:" + g_color + ";'>"
+                + ("+" if growth >= 0 else "") + str(round(growth, 1)) + "%</span></div>",
+                unsafe_allow_html=True,
+            )
 
 # ==================================================
 # תחזית שנתית מול שנים קודמות — טאב לכל חברה + טאב מצטבר
@@ -5043,7 +4911,7 @@ for tab, sym in zip(company_tabs, CAPEX_COMPANIES):
                         xanchor="right", x=1),
             showlegend=True,
         )
-        st.plotly_chart(fig_a, width='stretch')
+        st.plotly_chart(fig_a, width='stretch', key="capex_annual_" + sym)
         if guid.get("year_label"):
             st.caption("שנה פיסקלית נוכחית: " + year_label)
 
@@ -5441,9 +5309,12 @@ for _inj_sym, _inj_seasons in _z6_sent_data.items():
         })
         _z6_present.add((_inj_sym, str(_inj_d)))
 
-# אוסף תחזיות לחברות עתידיות בחודש המוצג
+# אוסף תחזיות לחברות עתידיות בחודש המוצג בלבד — הטולטיפ קיים רק לצ'יפים
+# של החודש הזה, אין טעם לסרוק get_forward_estimates על כל חלון ±120 הימים
 _z6_fwd_est: dict[str, dict] = {}
 for _fe_date, _fe_entries in _z6_cal_dict.items():
+    if not (_fe_date[:4] == str(_cy) and _fe_date[5:7] == f"{_cm:02d}"):
+        continue
     for _fe in _fe_entries:
         if _fe["is_future"] and _fe["symbol"] not in _z6_fwd_est:
             _fe_data = get_forward_estimates(_fe["symbol"])
@@ -6158,7 +6029,7 @@ def _render_analysis_record(rec, label="", eps_surprise=None, stock_reaction=Non
         "<div dir='rtl' style='text-align:right; margin-bottom:6px;'>"
         "<span style='font-size:17px; font-weight:800;'>" + _z6_chosen + "</span>"
         + (" <span style='font-size:11px; color:#9ca3af; background:#1e2533; padding:1px 6px; border-radius:4px;'>" + label + "</span>" if label else "") +
-        "<span style='color:#6b7280; font-size:13px; margin-right:10px;'> " + _z6_season + " · " + report_date + "</span></div>"
+        "<span style='color:#6b7280; font-size:13px; margin-right:10px;'> " + _z6_season + " · " + html.escape(report_date) + "</span></div>"
         + mkt_row + alert_html + rev_row + guid_row +
         "<div dir='rtl' style='display:flex; gap:20px; margin:6px 0 10px; flex-wrap:wrap; font-size:14px;'>"
         "<span>סנטימנט: " + emoji + " <b style='color:" + col + ";'>" + str(pct) + "%</b></span>"
@@ -6489,8 +6360,12 @@ with st.container(border=True):
         if DEV_MODE:
             if st.button("🔄 עדכן ניתוח עם Gemini", key="z6_analyzebtn_" + _z6_chosen):
                 with st.spinner("מחפש דוח ושיחת ועידה עם Gemini..."):
-                    st.session_state[_z6_result_key] = gemini_analyze_earnings(_z6_chosen, _z6_season)
-                st.rerun()
+                    _z6_new_result = gemini_analyze_earnings(_z6_chosen, _z6_season)
+                if _z6_new_result is None:
+                    st.error("⚠️ הניתוח נכשל — לא התקבלה תשובה מ-Gemini. נסי שוב.")
+                else:
+                    st.session_state[_z6_result_key] = _z6_new_result
+                    st.rerun()
 
     # --- אין ניתוח עדיין ---
     else:
@@ -6504,8 +6379,12 @@ with st.container(border=True):
         if DEV_MODE:
             if st.button("🧠 נתח דוח עם Gemini", key="z6_analyzebtn_" + _z6_chosen, type="primary"):
                 with st.spinner("מחפש דוח ושיחת ועידה עם Gemini..."):
-                    st.session_state[_z6_result_key] = gemini_analyze_earnings(_z6_chosen, _z6_season)
-                st.rerun()
+                    _z6_new_result = gemini_analyze_earnings(_z6_chosen, _z6_season)
+                if _z6_new_result is None:
+                    st.error("⚠️ הניתוח נכשל — לא התקבלה תשובה מ-Gemini. נסי שוב.")
+                else:
+                    st.session_state[_z6_result_key] = _z6_new_result
+                    st.rerun()
 
 # --- היסטוריית תוצאות מול צפי ---
 with st.container(border=True):
