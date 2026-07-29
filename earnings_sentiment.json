@@ -613,6 +613,47 @@
       },
       "currency": "USD",
       "analyzed_at": "2026-07-25"
+    },
+    "2026Q2": {
+      "report_date": "2026-07-28",
+      "sentiment_score": 0.9,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "KLA דיווחה על תוצאות חזקות לרבעון הרביעי של שנת הכספים 2026, עם הכנסות ורווח למניה שגברו על ציפיות האנליסטים. החברה ציינה כי הביצועים הונעו על ידי השקעות בתשתית AI, חוזק ב-foundry/logic מוביל ועלייה בביקוש לאריזה מתקדמת. ההנהלה העלתה את תחזיותיה לרבעון הראשון של שנת הכספים 2027, והן גבוהות מקונצנזוס האנליסטים. החברה העלתה את תחזי ה WFE (ציוד לייצור פרסות סיליקון)- עדות להמשך גידול בהוצאות ה CAPEX של יצרניות השבבים.",
+      "domain_signals": [
+        {
+          "domain": "CPU / מחשוב",
+          "direction": "improving",
+          "note": "הביקוש מונע על ידי תשתית AI."
+        },
+        {
+          "domain": "אריזה מתקדמת",
+          "direction": "improving",
+          "note": "הזדמנויות צמיחה חדשות נפתחות באריזה מתקדמת."
+        },
+        {
+          "domain": "ייצור (Foundry)",
+          "direction": "improving",
+          "note": "חוזק מתמשך ב-foundry/logic מוביל."
+        },
+        {
+          "domain": "ציוד ייצור (Semicap)",
+          "direction": "improving",
+          "note": "עלייה בעוצמת בקרת התהליכים בזיכרון ובביקוש לציוד בקרת תהליכים."
+        }
+      ],
+      "revenue_actual_b": 3.66,
+      "revenue_estimate_b": 3.61,
+      "eps_actual": 1.05,
+      "eps_estimate": 1.0,
+      "next_q_guidance": {
+        "revenue_b": 4.0,
+        "eps": 1.16,
+        "analyst_revenue_b": 3.91,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-29"
     }
   },
   "000660.KS": {
@@ -661,6 +702,62 @@
       },
       "currency": "USD",
       "analyzed_at": "2026-07-25"
+    },
+    "2026Q2": {
+      "report_date": "2026-07-29",
+      "sentiment_score": 0.16,
+      "results_vs_expectations": "miss",
+      "guidance_direction": "raised",
+      "summary": "SK Hynix דיווחה על תוצאות שיא לרבעון השני של 2026, עם הכנסות של 79.32 טריליון וון ורווח תפעולי של 60.54 טריליון וון, אך אלו החמיצו במעט את ציפיות האנליסטים. החברה הדגישה ביקוש חזק לזיכרונות AI, במיוחד HBM ו-DRAM לשרתי AI, והחלה בייצור המוני של HBM4. ההנהלה העלתה את תחזית ההוצאות ההוניות לשנה כולה, מה שמעיד על אופטימיות לגבי צמיחה עתידית והשקעה מוגברת בכושר ייצור.",
+      "domain_signals": [
+        {
+          "domain": "DRAM",
+          "direction": "improving",
+          "note": "מחירי DRAM עלו בכ-30% רבעונית, וחל גידול במשלוחים, במיוחד ב-HBM ו-DRAM לשרתי AI. החברה החלה בייצור המוני של HBM4 ושלחה דגימות HBM4E."
+        },
+        {
+          "domain": "NAND",
+          "direction": "improving",
+          "note": "מחירי NAND זינקו בכ-50% רבעונית, וחל גידול במשלוחים. מכירות כונני eSSD לשרתי AI הוכפלו/שולשו, וה-NAND נתפס כמרכיב קריטי בהסקה של AI."
+        },
+        {
+          "domain": "HBM",
+          "direction": "improving",
+          "note": "החברה החלה בייצור המוני של HBM4 ושלחה דגימות HBM4E, כאשר HBM נחשב למוצר בעל ערך גבוה המניע את הביקוש לזיכרונות AI."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "השקעות בתשתיות AI מניעות ביקוש חזק ל-DRAM לשרתי AI וכונני eSSD לאימון והסקה של AI."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "זיכרונות HBM חיוניים לאימון מודלי AI גדולים, והביקוש לזיכרונות AI ממשיך לגדול."
+        },
+        {
+          "domain": "אריזה מתקדמת",
+          "direction": "improving",
+          "note": "החברה הגדילה את ההשקעות ביכולות אריזה מתקדמות, כולל מתקן P&T7 חדש."
+        },
+        {
+          "domain": "ציוד ייצור (Semicap)",
+          "direction": "improving",
+          "note": "החברה העלתה את תחזית ההוצאות ההוניות לשנה כולה לטווח של מעל 40 טריליון וון, עם תוכניות השקעה חדשות במתקני ייצור (M15X, M17, Yongin Fab One)."
+        }
+      ],
+      "revenue_actual_b": 79318.7,
+      "revenue_estimate_b": 84000.0,
+      "eps_actual": null,
+      "eps_estimate": null,
+      "next_q_guidance": {
+        "revenue_b": null,
+        "eps": null,
+        "analyst_revenue_b": null,
+        "vs_consensus": "none"
+      },
+      "currency": "KRW",
+      "analyzed_at": "2026-07-29"
     }
   },
   "QCOM": {

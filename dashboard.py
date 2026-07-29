@@ -644,7 +644,11 @@ def _period_to_start(period):
         # measure_start = 01/01; עוגן = 31/12 של השנה הקודמת → מביאים מ-25/12
         return today.replace(year=today.year - 1, month=12, day=25)
     if period == "5d":
-        return today - timedelta(days=10)
+        # 10 ימים היה קרוב מדי לגבול: שבוע עם חג בודד (4 ימי מסחר) + הבר האחרון
+        # חסר (nan_tail, ראה get_history) יכולים לצמצם את הברים הזמינים מתחת
+        # ל-6 הדרושים ל-_anchor_index. 15 יום נותן מרווח לחג אחד-שניים + סופ"שים
+        # בלי להרחיב משמעותית את גודל הבקשה (עדיין תקופה קצרה וזולה ל-yfinance).
+        return today - timedelta(days=15)
     if period == "lastclose":
         return today - timedelta(days=45)
     _months = {"1mo": 1, "3mo": 3, "6mo": 6, "1y": 12, "5y": 60}
@@ -710,6 +714,14 @@ def _anchor_index(close, period, last_date):
         start = (pd.Timestamp(last_date) - pd.DateOffset(months=months)).date()
 
     # ≤ ולא <: אם start הוא יום מסחר — הוא עצמו העוגן. רק סופ"ש/חג → יורדים אחורה.
+    #
+    # נבדק בפועל מול Yahoo Finance (SOXX): אין הגדרת חלון אחידה שתואמת את Yahoo
+    # בכל התקופות. 1mo ו-YTD תואמים ל-d<=start (הכלל הנוכחי). 6mo ו-5Y דווקא
+    # תואמים ל-d>start (הבר הראשון *אחרי* start). 1Y לא תואם לאף אחד מהשניים.
+    # נבדק במפורש: מעבר גורף ל-d>start משפר 6mo/5Y אך שובר 1mo/YTD
+    # (1mo: ‑16.69%→‑20.00% ; YTD: +63.19%→+56.67%, מול Yahoo). לכן d<=start
+    # נשמר במכוון — לא באג, וללא כלל יחיד שמיישב את כל הטווחים. אל תשנה תנאי
+    # זה כדי "לתקן" פער מול Yahoo בתקופה בודדת בלי לבדוק את ההשפעה על כל השאר.
     before = [i for i, d in enumerate(dates) if d <= start]
     if not before:
         return 0, True  # תקופה חלקית
@@ -773,6 +785,12 @@ _ATTRS_MISSING = object()
 @st.cache_data(ttl=300)
 def get_history(symbol, period):
     """מחזיר את סדרת הסגירות (Close) לתקופה, אחרי dropna.
+
+    גולמי בכוונה (auto_adjust=False) בכל מקום, כולל לחישוב תשואות: זהו price
+    return, בהתאמה למה שמוצג ב-Yahoo Finance. הפיצולים כבר משוקללים בסדרה
+    הגולמית תמיד ע"י yfinance/Yahoo — auto_adjust שולט רק בדיבידנדים, והתאמתם
+    מרחיקה את התשואה מ-Yahoo (לא מקרבת), בפער שגדל עם אורך התקופה. אל תעביר
+    ל-auto_adjust=True בלי החלטה מודעת ומאומתת מחדש מול Yahoo.
 
     close.attrs["nan_tail_date"]: נכתב תמיד (גם כשאין פער — אז הערך None),
     כדי שהיעדרות המפתח עצמו (ולא רק ערכו) תסמן כשל מנגנון ולא מצב תקין.
@@ -932,7 +950,9 @@ def get_change(symbol, period):
         if len(close) < 2:
             return None
         last_date = close.index[-1].date()
-        # anchor_px/anchor_i נגזרים מ-last_date המקורי — אין לשנות אותו, אחרת חלון התקופה יזוז
+        # anchor_i נגזר מ-last_date/close.index המקוריים; אין לשנות את לוגיקת
+        # העוגן הזו עבור תקופות שאינן 5d — רק 5d מתוקן בהמשך, ורק כאשר תיקון
+        # הפער מטה (quote) הצליח (ראה למטה).
         anchor_i, is_partial = _anchor_index(close, period, last_date)
         anchor_px = float(close.iloc[anchor_i])
         last_px = float(close.iloc[-1])
@@ -958,6 +978,17 @@ def get_change(symbol, period):
             if _gc_q is not None and last_px and abs(_gc_q - last_px) / last_px < 0.15:
                 last_px = _gc_q
                 _log.warning(f"[DATA_WARN {symbol}] {last_date}: קיים סשן מאוחר יותר ({_gc_date}) שחסר בסדרה היומית — הוחלף במחיר quote ({last_px:.4f})")
+                # תיקון עוגן ל-5d בלבד: anchor_i נגזר מ-close.index שאינו כולל
+                # את הסשן החסר (_gc_date) — ה"עכשיו" האמיתי זז קדימה בסשן אחד
+                # ברגע שה-quote מייצג אותו. חלון 5d נשען על ספירת ברים בלבד
+                # (לא על תאריך יעד כמו שאר התקופות) ולכן מפגר סשן שלם אם לא
+                # מתקנים; מזיזים את העוגן קדימה בבר אחד כדי שהחלון ימשיך לכסות
+                # בדיוק 5 סשנים אמיתיים. שאר התקופות (1mo ומעלה) לא מתוקנות —
+                # הסטייה שם היא יום בודד מתוך חלון חודשים, זניחה בהשוואה.
+                if period == "5d":
+                    anchor_i = min(anchor_i + 1, len(close) - 1)
+                    anchor_px = float(close.iloc[anchor_i])
+                    is_partial = (len(close) + 1) < 6
             else:
                 _log.warning(f"[DATA_WARN {symbol}] {last_date}: קיים סשן מאוחר יותר ({_gc_date}) שחסר בסדרה היומית ולא ניתן לאמת מול quote — משתמש במחיר הישן")
 
@@ -1767,7 +1798,10 @@ def get_symbol_cal_status(sym, d, has_report, sentiment_data):
     if rec and rec.get("sentiment_score") is not None:
         return "analyzed"
     if not has_report:
-        return "future"
+        # has_report=False בגלל פיגור עדכון EPS ב-yfinance (שעות עד יום) לא אמור
+        # להשאיר צ'יפ כחול לתאריך שכבר חלף — הצבע נגזר מהזמן, לא מזמינות ה-EPS.
+        # d == today נשאר "future" (הדוח עדיין עשוי לצאת היום); רק d < today הופך ל"unanalyzed".
+        return "unanalyzed" if d < today else "future"
     return "unanalyzed"
 
 
@@ -3443,6 +3477,7 @@ st.sidebar.divider()
 period_label = st.sidebar.selectbox("Period:", list(PERIOD_OPTIONS.keys()), index=3)
 period = PERIOD_OPTIONS[period_label]
 st.sidebar.caption("משפיע על אזורים 1–5 בלבד")
+st.sidebar.caption("התשואה נמדדת מהסגירה האחרונה עד הסגירה שקדמה לתחילת התקופה — ייתכן הבדל קל מול מקורות אחרים בשל הגדרת חלון שונה.")
 
 # ======================================================
 # אזור 1 — SOXX
