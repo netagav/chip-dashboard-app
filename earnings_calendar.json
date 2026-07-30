@@ -59,17 +59,17 @@
     {
       "date": "2026-04-29",
       "symbol": "AMZN",
-      "eps_est": 1.65,
+      "eps_est": 1.64,
       "eps_actual": 2.78,
-      "surprise": 68.18,
+      "surprise": 69.02,
       "is_future": false
     },
     {
       "date": "2026-04-29",
       "symbol": "GOOGL",
-      "eps_est": 2.67,
+      "eps_est": 2.63,
       "eps_actual": 5.11,
-      "surprise": 91.59,
+      "surprise": 94.3,
       "is_future": false
     },
     {
@@ -83,9 +83,9 @@
     {
       "date": "2026-04-29",
       "symbol": "META",
-      "eps_est": 6.66,
-      "eps_actual": 10.44,
-      "surprise": 56.79,
+      "eps_est": 6.82,
+      "eps_actual": 7.31,
+      "surprise": 7.2,
       "is_future": false
     },
     {
@@ -426,6 +426,14 @@
     },
     {
       "date": "2026-10-27",
+      "symbol": "000660.KS",
+      "eps_est": 89389.65,
+      "eps_actual": null,
+      "surprise": null,
+      "is_future": true
+    },
+    {
+      "date": "2026-10-27",
       "symbol": "TXN",
       "eps_est": 2.42,
       "eps_actual": null,
@@ -439,12 +447,20 @@
       "eps_actual": null,
       "surprise": null,
       "is_future": true
+    },
+    {
+      "date": "2026-10-28",
+      "symbol": "KLAC",
+      "eps_est": 1.13,
+      "eps_actual": null,
+      "surprise": null,
+      "is_future": true
     }
   ],
   "ratings": {
     "000660.KS": {
       "price_targets": {
-        "current": 1401000.0,
+        "current": 1322000.0,
         "low": 1200000.0,
         "mean": 3408502.2,
         "median": 3500000.0,
@@ -462,9 +478,9 @@
     },
     "005930.KS": {
       "price_targets": {
-        "current": 208500.0,
+        "current": 207000.0,
         "low": 210000.0,
-        "mean": 493819.5,
+        "mean": 488954.66,
         "median": 500000.0,
         "high": 850000.0,
         "currency": "USD"
@@ -480,7 +496,7 @@
     },
     "ADI": {
       "price_targets": {
-        "current": 365.83,
+        "current": 353.37,
         "low": 365.0,
         "mean": 457.73334,
         "median": 455.0,
@@ -3831,7 +3847,7 @@
     },
     "AEIS": {
       "price_targets": {
-        "current": 273.42,
+        "current": 252.485,
         "low": 350.0,
         "mean": 428.72726,
         "median": 421.0,
@@ -5145,7 +5161,7 @@
     },
     "AMAT": {
       "price_targets": {
-        "current": 476.46,
+        "current": 436.45,
         "low": 358.0,
         "mean": 627.65717,
         "median": 650.0,
@@ -9665,7 +9681,7 @@
     },
     "AMD": {
       "price_targets": {
-        "current": 454.62,
+        "current": 429.56,
         "low": 320.0,
         "mean": 575.4894,
         "median": 600.0,
@@ -14920,7 +14936,7 @@
     },
     "AMKR": {
       "price_targets": {
-        "current": 45.69,
+        "current": 42.73,
         "low": 60.0,
         "mean": 76.55556,
         "median": 72.0,
@@ -15569,7 +15585,7 @@
     },
     "AMZN": {
       "price_targets": {
-        "current": 230.86,
+        "current": 226.65,
         "low": 207.0,
         "mean": 313.0687,
         "median": 315.0,
@@ -22553,7 +22569,7 @@
     },
     "ANET": {
       "price_targets": {
-        "current": 169.71,
+        "current": 157.97,
         "low": 164.0,
         "mean": 192.31033,
         "median": 195.0,
@@ -25694,9 +25710,9 @@
     },
     "ARM": {
       "price_targets": {
-        "current": 244.74,
+        "current": 224.89,
         "low": 125.0,
-        "mean": 302.6492,
+        "mean": 301.97083,
         "median": 270.0,
         "high": 500.0,
         "currency": "USD"
@@ -27148,7 +27164,7 @@
     },
     "ASMIY": {
       "price_targets": {
-        "current": 859.99,
+        "current": 815.01,
         "low": 1420.0,
         "mean": 1420.0,
         "median": 1420.0,
@@ -27166,11 +27182,11 @@
     },
     "ASML": {
       "price_targets": {
-        "current": 1582.95,
-        "low": 881.9426,
-        "mean": 2116.525,
-        "median": 2291.3474,
-        "high": 2848.8965,
+        "current": 1550.69,
+        "low": 885.4755,
+        "mean": 2125.0034,
+        "median": 2300.5264,
+        "high": 2860.3088,
         "currency": "USD"
       },
       "recommendation_dist": {
@@ -28268,7 +28284,7 @@
     },
     "AVGO": {
       "price_targets": {
-        "current": 380.91,
+        "current": 370.32,
         "low": 215.88,
         "mean": 526.9956,
         "median": 530.0,
@@ -32590,7 +32606,7 @@
     },
     "CAMT": {
       "price_targets": {
-        "current": 140.06,
+        "current": 126.97,
         "low": 160.0,
         "mean": 187.58333,
         "median": 187.5,
@@ -33414,7 +33430,7 @@
     },
     "CDNS": {
       "price_targets": {
-        "current": 344.72,
+        "current": 332.76,
         "low": 300.0,
         "mean": 403.6727,
         "median": 402.5,
@@ -35064,7 +35080,7 @@
     },
     "COHR": {
       "price_targets": {
-        "current": 243.33,
+        "current": 222.05,
         "low": 230.0,
         "mean": 391.45267,
         "median": 400.0,
@@ -36427,7 +36443,7 @@
     },
     "DELL": {
       "price_targets": {
-        "current": 392.1,
+        "current": 369.64,
         "low": 360.0,
         "mean": 502.78262,
         "median": 500.0,
@@ -38798,7 +38814,7 @@
     },
     "ENTG": {
       "price_targets": {
-        "current": 118.16,
+        "current": 107.01,
         "low": 115.0,
         "mean": 166.0,
         "median": 166.0,
@@ -39979,7 +39995,7 @@
     },
     "ETN": {
       "price_targets": {
-        "current": 386.26,
+        "current": 361.88,
         "low": 321.0,
         "mean": 455.7916,
         "median": 475.0,
@@ -42770,7 +42786,7 @@
     },
     "GFS": {
       "price_targets": {
-        "current": 49.02,
+        "current": 47.07,
         "low": 60.0,
         "mean": 80.2381,
         "median": 80.0,
@@ -43685,7 +43701,7 @@
     },
     "GOOGL": {
       "price_targets": {
-        "current": 333.71,
+        "current": 336.71,
         "low": 340.0,
         "mean": 427.586,
         "median": 428.0,
@@ -50774,7 +50790,7 @@
     },
     "HPE": {
       "price_targets": {
-        "current": 45.59,
+        "current": 44.44,
         "low": 28.0,
         "mean": 64.34,
         "median": 67.0,
@@ -52732,7 +52748,7 @@
     },
     "IFNNY": {
       "price_targets": {
-        "current": 66.19,
+        "current": 61.89,
         "low": 65.0,
         "mean": 105.75,
         "median": 116.5,
@@ -52793,7 +52809,7 @@
     },
     "INTC": {
       "price_targets": {
-        "current": 86.3,
+        "current": 81.88,
         "low": 74.0,
         "mean": 115.26829,
         "median": 110.0,
@@ -58034,7 +58050,7 @@
     },
     "KLAC": {
       "price_targets": {
-        "current": 190.8,
+        "current": 170.19,
         "low": 150.0,
         "mean": 234.0357,
         "median": 227.5,
@@ -58049,6 +58065,69 @@
         "strongSell": 1
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-29",
+          "firm": "Wells Fargo",
+          "action": "main",
+          "from_grade": "Overweight",
+          "to_grade": "Overweight"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Susquehanna",
+          "action": "main",
+          "from_grade": "Neutral",
+          "to_grade": "Neutral"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Stifel",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "RBC Capital",
+          "action": "main",
+          "from_grade": "Sector Perform",
+          "to_grade": "Sector Perform"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Needham",
+          "action": "reit",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Jefferies",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "JP Morgan",
+          "action": "main",
+          "from_grade": "Overweight",
+          "to_grade": "Overweight"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Deutsche Bank",
+          "action": "main",
+          "from_grade": "Hold",
+          "to_grade": "Hold"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Cantor Fitzgerald",
+          "action": "reit",
+          "from_grade": "Overweight",
+          "to_grade": "Overweight"
+        },
         {
           "date": "2026-07-20",
           "firm": "UBS",
@@ -61007,7 +61086,7 @@
     },
     "LITE": {
       "price_targets": {
-        "current": 651.93,
+        "current": 602.35,
         "low": 600.0,
         "mean": 1104.8906,
         "median": 1100.0,
@@ -63385,9 +63464,9 @@
     },
     "LRCX": {
       "price_targets": {
-        "current": 269.61,
+        "current": 252.35,
         "low": 220.0,
-        "mean": 372.32257,
+        "mean": 374.58066,
         "median": 385.0,
         "high": 500.0,
         "currency": "USD"
@@ -67107,7 +67186,7 @@
     },
     "MCHP": {
       "price_targets": {
-        "current": 75.71,
+        "current": 71.37,
         "low": 80.0,
         "mean": 113.08333,
         "median": 118.5,
@@ -70052,7 +70131,7 @@
     },
     "META": {
       "price_targets": {
-        "current": 593.41,
+        "current": 585.61,
         "low": 664.46,
         "mean": 824.68036,
         "median": 822.32,
@@ -72962,7 +73041,7 @@
     },
     "MRVL": {
       "price_targets": {
-        "current": 174.47,
+        "current": 163.4,
         "low": 126.0,
         "mean": 256.9142,
         "median": 242.5,
@@ -75928,9 +76007,9 @@
     },
     "MSFT": {
       "price_targets": {
-        "current": 393.35,
+        "current": 390.54,
         "low": 400.0,
-        "mean": 557.24664,
+        "mean": 555.7652,
         "median": 550.0,
         "high": 870.0,
         "currency": "USD"
@@ -82310,7 +82389,7 @@
     },
     "MU": {
       "price_targets": {
-        "current": 820.53,
+        "current": 739.0,
         "low": 361.0,
         "mean": 1507.381,
         "median": 1550.0,
@@ -88454,7 +88533,7 @@
     },
     "NVDA": {
       "price_targets": {
-        "current": 197.01,
+        "current": 190.01,
         "low": 180.0,
         "mean": 302.82758,
         "median": 300.0,
@@ -95347,7 +95426,7 @@
     },
     "NVMI": {
       "price_targets": {
-        "current": 402.32,
+        "current": 366.91,
         "low": 540.0,
         "mean": 603.375,
         "median": 600.0,
@@ -95884,7 +95963,7 @@
     },
     "NXPI": {
       "price_targets": {
-        "current": 259.12,
+        "current": 240.98,
         "low": 200.0,
         "mean": 314.10345,
         "median": 313.0,
@@ -95899,6 +95978,41 @@
         "strongSell": 0
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-29",
+          "firm": "Wells Fargo",
+          "action": "main",
+          "from_grade": "Equal-Weight",
+          "to_grade": "Equal-Weight"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "TD Cowen",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Needham",
+          "action": "reit",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Mizuho",
+          "action": "main",
+          "from_grade": "Underperform",
+          "to_grade": "Underperform"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Cantor Fitzgerald",
+          "action": "reit",
+          "from_grade": "Overweight",
+          "to_grade": "Overweight"
+        },
         {
           "date": "2026-07-24",
           "firm": "Oppenheimer",
@@ -98822,7 +98936,7 @@
     },
     "ON": {
       "price_targets": {
-        "current": 84.39,
+        "current": 78.86,
         "low": 85.0,
         "mean": 113.12,
         "median": 110.0,
@@ -101872,7 +101986,7 @@
     },
     "ONTO": {
       "price_targets": {
-        "current": 241.89,
+        "current": 218.31,
         "low": 330.0,
         "mean": 369.6,
         "median": 357.5,
@@ -102647,7 +102761,7 @@
     },
     "ORCL": {
       "price_targets": {
-        "current": 119.96,
+        "current": 117.74,
         "low": 110.0,
         "mean": 248.14584,
         "median": 240.0,
@@ -107188,7 +107302,7 @@
     },
     "QCOM": {
       "price_targets": {
-        "current": 162.88,
+        "current": 155.68,
         "low": 100.0,
         "mean": 220.56667,
         "median": 222.5,
@@ -107196,9 +107310,9 @@
         "currency": "USD"
       },
       "recommendation_dist": {
-        "strongBuy": 2,
+        "strongBuy": 3,
         "buy": 9,
-        "hold": 22,
+        "hold": 21,
         "sell": 1,
         "strongSell": 2
       },
@@ -111046,7 +111160,7 @@
     },
     "SMCI": {
       "price_targets": {
-        "current": 28.45,
+        "current": 25.7,
         "low": 15.0,
         "mean": 37.8125,
         "median": 36.5,
@@ -111730,7 +111844,7 @@
     },
     "SNDK": {
       "price_targets": {
-        "current": 1096.1,
+        "current": 1015.89,
         "low": 1000.0,
         "mean": 2217.7727,
         "median": 2250.0,
@@ -112393,7 +112507,7 @@
     },
     "SNPS": {
       "price_targets": {
-        "current": 383.82,
+        "current": 373.69,
         "low": 414.77,
         "mean": 564.4308,
         "median": 575.0,
@@ -114302,7 +114416,7 @@
     },
     "STM": {
       "price_targets": {
-        "current": 50.16,
+        "current": 48.36,
         "low": 32.8,
         "mean": 71.51538,
         "median": 72.0,
@@ -115042,7 +115156,7 @@
     },
     "STX": {
       "price_targets": {
-        "current": 747.3,
+        "current": 764.43,
         "low": 680.0,
         "mean": 1016.2174,
         "median": 1000.0,
@@ -115057,6 +115171,69 @@
         "strongSell": 1
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-29",
+          "firm": "Wells Fargo",
+          "action": "main",
+          "from_grade": "Overweight",
+          "to_grade": "Overweight"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Wedbush",
+          "action": "main",
+          "from_grade": "Outperform",
+          "to_grade": "Outperform"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "TD Cowen",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Susquehanna",
+          "action": "main",
+          "from_grade": "Neutral",
+          "to_grade": "Neutral"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Rosenblatt",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Morgan Stanley",
+          "action": "main",
+          "from_grade": "Overweight",
+          "to_grade": "Overweight"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "JP Morgan",
+          "action": "main",
+          "from_grade": "Overweight",
+          "to_grade": "Overweight"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Citigroup",
+          "action": "main",
+          "from_grade": "Buy",
+          "to_grade": "Buy"
+        },
+        {
+          "date": "2026-07-29",
+          "firm": "Cantor Fitzgerald",
+          "action": "reit",
+          "from_grade": "Overweight",
+          "to_grade": "Overweight"
+        },
         {
           "date": "2026-07-13",
           "firm": "Citigroup",
@@ -117145,7 +117322,7 @@
     },
     "TER": {
       "price_targets": {
-        "current": 320.65,
+        "current": 319.41,
         "low": 270.0,
         "mean": 432.375,
         "median": 448.0,
@@ -117160,6 +117337,13 @@
         "strongSell": 0
       },
       "upgrades_downgrades": [
+        {
+          "date": "2026-07-29",
+          "firm": "Cantor Fitzgerald",
+          "action": "reit",
+          "from_grade": "Overweight",
+          "to_grade": "Overweight"
+        },
         {
           "date": "2026-07-20",
           "firm": "UBS",
@@ -119682,7 +119866,7 @@
     },
     "TSEM": {
       "price_targets": {
-        "current": 202.99,
+        "current": 187.84,
         "low": 277.0,
         "mean": 313.83334,
         "median": 320.5,
@@ -120100,7 +120284,7 @@
     },
     "TSM": {
       "price_targets": {
-        "current": 392.31,
+        "current": 374.67,
         "low": 430.0,
         "mean": 540.20483,
         "median": 534.5,
@@ -120819,7 +121003,7 @@
     },
     "TXN": {
       "price_targets": {
-        "current": 277.07,
+        "current": 271.3,
         "low": 225.0,
         "mean": 321.1613,
         "median": 340.0,
@@ -125381,7 +125565,7 @@
     },
     "UMC": {
       "price_targets": {
-        "current": 17.36,
+        "current": 17.11,
         "low": 10.2,
         "mean": 20.04768,
         "median": 16.28518,
@@ -125617,7 +125801,7 @@
     },
     "VRT": {
       "price_targets": {
-        "current": 269.56,
+        "current": 223.04,
         "low": 236.0,
         "mean": 376.15384,
         "median": 378.0,
@@ -126826,7 +127010,7 @@
     },
     "WDC": {
       "price_targets": {
-        "current": 463.51,
+        "current": 462.04,
         "low": 415.0,
         "mean": 655.5,
         "median": 650.0,
@@ -130824,6 +131008,12 @@
     "000660.KS": {
       "eps_history": [
         {
+          "date": "2026-07-28",
+          "reported_eps": 131478.0,
+          "eps_estimate": 70975.39,
+          "surprise_pct": 85.24
+        },
+        {
           "date": "2026-04-22",
           "reported_eps": 56670.0,
           "eps_estimate": 40016.55,
@@ -131004,6 +131194,12 @@
     },
     "005930.KS": {
       "eps_history": [
+        {
+          "date": "2026-07-29",
+          "reported_eps": 10849.0,
+          "eps_estimate": 10907.75,
+          "surprise_pct": -0.54
+        },
         {
           "date": "2026-04-29",
           "reported_eps": 7123.0,
@@ -132063,8 +132259,8 @@
         {
           "date": "2026-04-29",
           "reported_eps": 2.78,
-          "eps_estimate": 1.65,
-          "surprise_pct": 68.18
+          "eps_estimate": 1.64,
+          "surprise_pct": 69.02
         },
         {
           "date": "2026-02-05",
@@ -132081,26 +132277,26 @@
         {
           "date": "2025-07-31",
           "reported_eps": 1.68,
-          "eps_estimate": 1.33,
-          "surprise_pct": 26.13
+          "eps_estimate": 1.32,
+          "surprise_pct": 27.19
         },
         {
           "date": "2025-05-01",
           "reported_eps": 1.59,
           "eps_estimate": 1.36,
-          "surprise_pct": 17.08
+          "surprise_pct": 16.77
         },
         {
           "date": "2025-02-06",
           "reported_eps": 1.86,
           "eps_estimate": 1.48,
-          "surprise_pct": 25.36
+          "surprise_pct": 25.29
         },
         {
           "date": "2024-10-31",
           "reported_eps": 1.43,
           "eps_estimate": 1.14,
-          "surprise_pct": 25.17
+          "surprise_pct": 25.22
         },
         {
           "date": "2024-08-01",
@@ -132136,19 +132332,19 @@
           "date": "2023-04-27",
           "reported_eps": 0.31,
           "eps_estimate": 0.21,
-          "surprise_pct": 46.82
+          "surprise_pct": 44.29
         },
         {
           "date": "2023-02-02",
           "reported_eps": 0.03,
-          "eps_estimate": 0.16,
-          "surprise_pct": -81.68
+          "eps_estimate": 0.17,
+          "surprise_pct": -82.2
         },
         {
           "date": "2022-10-27",
           "reported_eps": 0.28,
           "eps_estimate": 0.21,
-          "surprise_pct": 33.0
+          "surprise_pct": 35.53
         },
         {
           "date": "2022-07-28",
@@ -132159,44 +132355,44 @@
         {
           "date": "2022-04-28",
           "reported_eps": -0.38,
-          "eps_estimate": 0.41,
-          "surprise_pct": -191.55
+          "eps_estimate": 0.42,
+          "surprise_pct": -190.58
         },
         {
           "date": "2022-02-03",
           "reported_eps": 1.39,
-          "eps_estimate": 0.19,
-          "surprise_pct": 641.94
+          "eps_estimate": 0.18,
+          "surprise_pct": 657.12
         },
         {
           "date": "2021-10-28",
           "reported_eps": 0.31,
           "eps_estimate": 0.44,
-          "surprise_pct": -30.85
+          "surprise_pct": -31.21
         },
         {
           "date": "2021-07-29",
           "reported_eps": 0.76,
-          "eps_estimate": 0.62,
-          "surprise_pct": 22.57
+          "eps_estimate": 0.61,
+          "surprise_pct": 23.06
         },
         {
           "date": "2021-04-29",
           "reported_eps": 0.79,
-          "eps_estimate": 0.48,
-          "surprise_pct": 64.11
+          "eps_estimate": 0.47,
+          "surprise_pct": 67.3
         },
         {
           "date": "2021-02-02",
           "reported_eps": 0.7,
-          "eps_estimate": 0.36,
-          "surprise_pct": 97.39
+          "eps_estimate": 0.35,
+          "surprise_pct": 100.1
         },
         {
           "date": "2020-10-29",
           "reported_eps": 0.62,
-          "eps_estimate": 0.37,
-          "surprise_pct": 66.17
+          "eps_estimate": 0.38,
+          "surprise_pct": 64.25
         },
         {
           "date": "2020-07-30",
@@ -132410,6 +132606,12 @@
     },
     "ARM": {
       "eps_history": [
+        {
+          "date": "2026-07-29",
+          "reported_eps": 0.45,
+          "eps_estimate": 0.4,
+          "surprise_pct": 11.44
+        },
         {
           "date": "2026-05-05",
           "reported_eps": 0.6,
@@ -132659,6 +132861,11 @@
         }
       ],
       "quarterly_revenue": [
+        {
+          "date": "2026-06-30",
+          "revenue_b": 1.0031,
+          "row_name": "Total Revenue"
+        },
         {
           "date": "2026-03-31",
           "revenue_b": 0.8625,
@@ -133490,6 +133697,11 @@
         }
       ],
       "quarterly_revenue": [
+        {
+          "date": "2026-06-30",
+          "revenue_b": 1.584451,
+          "row_name": "Total Revenue"
+        },
         {
           "date": "2026-03-31",
           "revenue_b": 1.47422,
@@ -134373,8 +134585,8 @@
         {
           "date": "2026-04-29",
           "reported_eps": 5.11,
-          "eps_estimate": 2.67,
-          "surprise_pct": 91.59
+          "eps_estimate": 2.63,
+          "surprise_pct": 94.3
         },
         {
           "date": "2026-02-04",
@@ -134398,7 +134610,7 @@
           "date": "2025-04-24",
           "reported_eps": 2.81,
           "eps_estimate": 2.01,
-          "surprise_pct": 40.1
+          "surprise_pct": 39.84
         },
         {
           "date": "2025-02-04",
@@ -134415,8 +134627,8 @@
         {
           "date": "2024-07-23",
           "reported_eps": 1.89,
-          "eps_estimate": 1.85,
-          "surprise_pct": 2.4
+          "eps_estimate": 1.84,
+          "surprise_pct": 2.54
         },
         {
           "date": "2024-04-25",
@@ -134434,43 +134646,43 @@
           "date": "2023-10-24",
           "reported_eps": 1.55,
           "eps_estimate": 1.45,
-          "surprise_pct": 6.74
+          "surprise_pct": 7.05
         },
         {
           "date": "2023-07-25",
           "reported_eps": 1.44,
           "eps_estimate": 1.34,
-          "surprise_pct": 7.23
+          "surprise_pct": 7.29
         },
         {
           "date": "2023-04-25",
           "reported_eps": 1.17,
           "eps_estimate": 1.07,
-          "surprise_pct": 9.52
+          "surprise_pct": 9.45
         },
         {
           "date": "2023-02-02",
           "reported_eps": 1.05,
-          "eps_estimate": 1.19,
-          "surprise_pct": -11.87
+          "eps_estimate": 1.2,
+          "surprise_pct": -12.33
         },
         {
           "date": "2022-10-25",
           "reported_eps": 1.06,
-          "eps_estimate": 1.25,
-          "surprise_pct": -15.27
+          "eps_estimate": 1.26,
+          "surprise_pct": -16.01
         },
         {
           "date": "2022-07-26",
           "reported_eps": 1.21,
-          "eps_estimate": 1.27,
-          "surprise_pct": -5.05
+          "eps_estimate": 1.29,
+          "surprise_pct": -6.05
         },
         {
           "date": "2022-04-26",
           "reported_eps": 1.23,
-          "eps_estimate": 1.29,
-          "surprise_pct": -4.43
+          "eps_estimate": 1.28,
+          "surprise_pct": -3.67
         },
         {
           "date": "2022-02-01",
@@ -134481,14 +134693,14 @@
         {
           "date": "2021-10-26",
           "reported_eps": 1.4,
-          "eps_estimate": 1.17,
-          "surprise_pct": 20.02
+          "eps_estimate": 1.16,
+          "surprise_pct": 20.44
         },
         {
           "date": "2021-07-27",
           "reported_eps": 1.36,
           "eps_estimate": 0.96,
-          "surprise_pct": 41.37
+          "surprise_pct": 42.7
         },
         {
           "date": "2021-04-27",
@@ -134499,8 +134711,8 @@
         {
           "date": "2021-02-02",
           "reported_eps": 1.12,
-          "eps_estimate": 0.79,
-          "surprise_pct": 41.85
+          "eps_estimate": 0.8,
+          "surprise_pct": 39.28
         },
         {
           "date": "2020-10-29",
@@ -135087,6 +135299,12 @@
     "KLAC": {
       "eps_history": [
         {
+          "date": "2026-07-28",
+          "reported_eps": 1.05,
+          "eps_estimate": 1.0,
+          "surprise_pct": 5.14
+        },
+        {
           "date": "2026-04-29",
           "reported_eps": 0.94,
           "eps_estimate": 0.92,
@@ -135436,6 +135654,12 @@
     },
     "LRCX": {
       "eps_history": [
+        {
+          "date": "2026-07-29",
+          "reported_eps": 1.82,
+          "eps_estimate": 1.68,
+          "surprise_pct": 8.1
+        },
         {
           "date": "2026-04-22",
           "reported_eps": 1.47,
@@ -135787,10 +136011,16 @@
     "META": {
       "eps_history": [
         {
+          "date": "2026-07-29",
+          "reported_eps": 6.18,
+          "eps_estimate": 7.22,
+          "surprise_pct": -14.42
+        },
+        {
           "date": "2026-04-29",
-          "reported_eps": 10.44,
-          "eps_estimate": 6.66,
-          "surprise_pct": 56.79
+          "reported_eps": 7.31,
+          "eps_estimate": 6.82,
+          "surprise_pct": 7.2
         },
         {
           "date": "2026-01-28",
@@ -135800,33 +136030,33 @@
         },
         {
           "date": "2025-10-29",
-          "reported_eps": 1.05,
-          "eps_estimate": 6.71,
-          "surprise_pct": -84.34
+          "reported_eps": 7.25,
+          "eps_estimate": 6.67,
+          "surprise_pct": 8.66
         },
         {
           "date": "2025-07-30",
           "reported_eps": 7.14,
-          "eps_estimate": 5.9,
-          "surprise_pct": 20.96
+          "eps_estimate": 5.86,
+          "surprise_pct": 21.82
         },
         {
           "date": "2025-04-30",
           "reported_eps": 6.43,
-          "eps_estimate": 5.22,
-          "surprise_pct": 23.11
+          "eps_estimate": 5.21,
+          "surprise_pct": 23.53
         },
         {
           "date": "2025-01-29",
           "reported_eps": 8.02,
-          "eps_estimate": 6.76,
-          "surprise_pct": 18.67
+          "eps_estimate": 6.74,
+          "surprise_pct": 19.0
         },
         {
           "date": "2024-10-30",
           "reported_eps": 6.03,
-          "eps_estimate": 5.29,
-          "surprise_pct": 13.94
+          "eps_estimate": 5.3,
+          "surprise_pct": 13.86
         },
         {
           "date": "2024-07-31",
@@ -135837,8 +136067,8 @@
         {
           "date": "2024-04-24",
           "reported_eps": 4.71,
-          "eps_estimate": 4.32,
-          "surprise_pct": 8.92
+          "eps_estimate": 4.36,
+          "surprise_pct": 8.11
         },
         {
           "date": "2024-02-01",
@@ -135849,8 +136079,8 @@
         {
           "date": "2023-10-25",
           "reported_eps": 4.39,
-          "eps_estimate": 3.63,
-          "surprise_pct": 20.9
+          "eps_estimate": 3.6,
+          "surprise_pct": 21.96
         },
         {
           "date": "2023-07-26",
@@ -135873,38 +136103,38 @@
         {
           "date": "2022-10-26",
           "reported_eps": 1.64,
-          "eps_estimate": 1.86,
-          "surprise_pct": -12.06
+          "eps_estimate": 1.85,
+          "surprise_pct": -11.32
         },
         {
           "date": "2022-07-27",
           "reported_eps": 2.46,
           "eps_estimate": 2.55,
-          "surprise_pct": -3.38
+          "surprise_pct": -3.56
         },
         {
           "date": "2022-04-27",
           "reported_eps": 2.72,
-          "eps_estimate": 2.55,
-          "surprise_pct": 6.82
+          "eps_estimate": 2.53,
+          "surprise_pct": 7.57
         },
         {
           "date": "2022-02-02",
           "reported_eps": 3.67,
           "eps_estimate": 3.83,
-          "surprise_pct": -4.1
+          "surprise_pct": -4.06
         },
         {
           "date": "2021-10-25",
           "reported_eps": 3.22,
-          "eps_estimate": 3.18,
-          "surprise_pct": 1.32
+          "eps_estimate": 3.17,
+          "surprise_pct": 1.52
         },
         {
           "date": "2021-07-28",
           "reported_eps": 3.61,
-          "eps_estimate": 3.01,
-          "surprise_pct": 20.04
+          "eps_estimate": 3.06,
+          "surprise_pct": 17.94
         },
         {
           "date": "2021-04-28",
@@ -135915,20 +136145,20 @@
         {
           "date": "2021-01-27",
           "reported_eps": 3.88,
-          "eps_estimate": 3.2,
-          "surprise_pct": 21.43
+          "eps_estimate": 3.24,
+          "surprise_pct": 19.91
         },
         {
           "date": "2020-10-29",
-          "reported_eps": 2.71,
+          "reported_eps": 2.4,
           "eps_estimate": 1.91,
-          "surprise_pct": 41.95
+          "surprise_pct": 25.57
         },
         {
           "date": "2020-07-30",
           "reported_eps": 1.8,
-          "eps_estimate": 1.37,
-          "surprise_pct": 31.2
+          "eps_estimate": 1.4,
+          "surprise_pct": 28.88
         }
       ],
       "quarterly_revenue": [
@@ -136136,6 +136366,12 @@
     },
     "MSFT": {
       "eps_history": [
+        {
+          "date": "2026-07-29",
+          "reported_eps": 4.74,
+          "eps_estimate": 4.24,
+          "surprise_pct": 11.81
+        },
         {
           "date": "2026-04-29",
           "reported_eps": 4.27,
@@ -136989,6 +137225,11 @@
       ],
       "quarterly_revenue": [
         {
+          "date": "2026-06-30",
+          "revenue_b": 3.496,
+          "row_name": "Total Revenue"
+        },
+        {
           "date": "2026-03-31",
           "revenue_b": 3.181,
           "row_name": "Total Revenue"
@@ -137542,6 +137783,12 @@
     },
     "QCOM": {
       "eps_history": [
+        {
+          "date": "2026-07-29",
+          "reported_eps": 2.21,
+          "eps_estimate": 2.22,
+          "surprise_pct": -0.49
+        },
         {
           "date": "2026-04-29",
           "reported_eps": 2.65,
@@ -139056,9 +139303,9 @@
         },
         {
           "date": "2025-10-21",
-          "reported_eps": 1.48,
+          "reported_eps": 1.57,
           "eps_estimate": 1.49,
-          "surprise_pct": -0.4
+          "surprise_pct": 5.81
         },
         {
           "date": "2025-07-22",
@@ -139069,8 +139316,8 @@
         {
           "date": "2025-04-23",
           "reported_eps": 1.28,
-          "eps_estimate": 1.06,
-          "surprise_pct": 20.21
+          "eps_estimate": 1.1,
+          "surprise_pct": 16.76
         },
         {
           "date": "2025-01-23",
@@ -139080,15 +139327,15 @@
         },
         {
           "date": "2024-10-22",
-          "reported_eps": 1.47,
-          "eps_estimate": 1.37,
-          "surprise_pct": 7.08
+          "reported_eps": 1.44,
+          "eps_estimate": 1.41,
+          "surprise_pct": 2.38
         },
         {
           "date": "2024-07-23",
-          "reported_eps": 1.22,
-          "eps_estimate": 1.16,
-          "surprise_pct": 5.0
+          "reported_eps": 1.17,
+          "eps_estimate": 1.19,
+          "surprise_pct": -1.48
         },
         {
           "date": "2024-04-23",
@@ -139098,15 +139345,15 @@
         },
         {
           "date": "2024-01-23",
-          "reported_eps": 1.49,
-          "eps_estimate": 1.47,
-          "surprise_pct": 1.7
+          "reported_eps": 1.46,
+          "eps_estimate": 1.49,
+          "surprise_pct": -2.1
         },
         {
           "date": "2023-10-24",
           "reported_eps": 1.85,
-          "eps_estimate": 1.82,
-          "surprise_pct": 1.88
+          "eps_estimate": 1.84,
+          "surprise_pct": 0.33
         },
         {
           "date": "2023-07-25",
@@ -139117,26 +139364,26 @@
         {
           "date": "2023-04-25",
           "reported_eps": 1.85,
-          "eps_estimate": 1.78,
-          "surprise_pct": 3.99
+          "eps_estimate": 1.8,
+          "surprise_pct": 2.51
         },
         {
           "date": "2023-01-24",
-          "reported_eps": 2.13,
-          "eps_estimate": 1.98,
-          "surprise_pct": 7.69
+          "reported_eps": 2.19,
+          "eps_estimate": 2.03,
+          "surprise_pct": 7.92
         },
         {
           "date": "2022-10-25",
-          "reported_eps": 2.47,
-          "eps_estimate": 2.39,
-          "surprise_pct": 3.18
+          "reported_eps": 2.56,
+          "eps_estimate": 2.42,
+          "surprise_pct": 5.58
         },
         {
           "date": "2022-07-26",
-          "reported_eps": 2.45,
-          "eps_estimate": 2.12,
-          "surprise_pct": 15.49
+          "reported_eps": 2.52,
+          "eps_estimate": 2.15,
+          "surprise_pct": 17.26
         },
         {
           "date": "2022-04-26",
@@ -139146,39 +139393,39 @@
         },
         {
           "date": "2022-01-25",
-          "reported_eps": 2.27,
-          "eps_estimate": 1.94,
-          "surprise_pct": 16.79
+          "reported_eps": 2.33,
+          "eps_estimate": 1.96,
+          "surprise_pct": 18.97
         },
         {
           "date": "2021-10-26",
-          "reported_eps": 2.07,
-          "eps_estimate": 2.04,
-          "surprise_pct": 1.36
+          "reported_eps": 2.12,
+          "eps_estimate": 2.09,
+          "surprise_pct": 1.61
         },
         {
           "date": "2021-07-21",
-          "reported_eps": 2.05,
-          "eps_estimate": 1.83,
-          "surprise_pct": 11.79
+          "reported_eps": 2.1,
+          "eps_estimate": 1.85,
+          "surprise_pct": 13.62
         },
         {
           "date": "2021-04-27",
-          "reported_eps": 1.87,
-          "eps_estimate": 1.58,
-          "surprise_pct": 18.67
+          "reported_eps": 1.92,
+          "eps_estimate": 1.61,
+          "surprise_pct": 19.45
         },
         {
           "date": "2021-01-26",
-          "reported_eps": 1.8,
-          "eps_estimate": 1.33,
-          "surprise_pct": 34.92
+          "reported_eps": 1.86,
+          "eps_estimate": 1.34,
+          "surprise_pct": 38.01
         },
         {
           "date": "2020-10-20",
-          "reported_eps": 1.45,
-          "eps_estimate": 1.28,
-          "surprise_pct": 13.28
+          "reported_eps": 1.5,
+          "eps_estimate": 1.29,
+          "surprise_pct": 16.41
         },
         {
           "date": "2020-07-21",
@@ -139222,6 +139469,12 @@
     },
     "UMC": {
       "eps_history": [
+        {
+          "date": "2026-07-29",
+          "reported_eps": 0.52,
+          "eps_estimate": 0.16,
+          "surprise_pct": 228.84
+        },
         {
           "date": "2026-04-29",
           "reported_eps": 0.2,
@@ -139369,6 +139622,11 @@
       ],
       "quarterly_revenue": [
         {
+          "date": "2026-06-30",
+          "revenue_b": 68.732662,
+          "row_name": "Total Revenue"
+        },
+        {
           "date": "2026-03-31",
           "revenue_b": 61.037902,
           "row_name": "Total Revenue"
@@ -139397,6 +139655,12 @@
     },
     "VRT": {
       "eps_history": [
+        {
+          "date": "2026-07-29",
+          "reported_eps": 1.52,
+          "eps_estimate": 1.43,
+          "surprise_pct": 6.42
+        },
         {
           "date": "2026-04-22",
           "reported_eps": 1.17,
@@ -139746,5 +140010,5 @@
       ]
     }
   },
-  "generated_at": "2026-07-29"
+  "generated_at": "2026-07-30"
 }
