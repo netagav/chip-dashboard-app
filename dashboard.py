@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import yfinance as yf
 import statistics
 import math
@@ -465,7 +465,8 @@ CAPEX_GUIDANCE = {
         "updates": [
             ("תחזית אחרי Q1 FY26", None),
             ("תחזית אחרי Q2 FY26", 154),
-            ("תחזית אחרי Q3 FY26", 190),
+            ("תחזית אחרי Q3 FY26", 175),
+            ("תחזית אחרי Q4 FY26", 175),          
         ],
     },
     "GOOGL": {
@@ -481,6 +482,7 @@ CAPEX_GUIDANCE = {
         "updates": [
             ("תחזית אחרי Q4 2025", 200),
             ("תחזית אחרי Q1 2026", 200),
+            ("תחזית אחרי Q2 2026", 220),
         ],
     },
     "META": {
@@ -488,6 +490,7 @@ CAPEX_GUIDANCE = {
         "updates": [
             ("תחזית אחרי Q4 2025", 125),
             ("תחזית אחרי Q1 2026", 135),
+            ("תחזית אחרי Q2 2026", 138),
         ],
     },
 }
@@ -498,14 +501,16 @@ GAP_THRESHOLD = 15
 MOVE_ALERT = 2.0
 STOCK_VS_SOXX_ALERT = 3.0  # סף מרחק של מניה בודדת מ-SOXX (נקודות %) לחריגה
 
-# ציון אנליסטים — ממוצע משוקלל 1–5 לפי ANALYST_WEIGHTS
-# דוגמה: (5×36 + 4×0 + 3×18 + 2×0 + 1×4) / 58 = 4.10 (36 strongBuy, 18 hold, 4 strongSell)
-ANALYST_WEIGHTS = {"strongBuy": 5.0, "buy": 4.0, "hold": 3.0, "sell": 2.0, "strongSell": 1.0}
+# ציון אנליסטים — ממוצע משוקלל לפי ANALYST_WEIGHTS, בסולם 3 רמות: קנייה (strongBuy/buy)=5,
+# החזקה=3, מכירה (sell/strongSell)=1. strongBuy ו-buy נספרות שתיהן כ-5 (וכנ"ל strongSell/sell כ-1) —
+# אין הבחנה בין "חזקה" ל"רגילה" בציון הסופי, רק בין קנייה/החזקה/מכירה.
+# דוגמה: (5×41 + 3×10 + 1×0) / 51 = 4.61 (41 קנייה [strongBuy+buy], 10 החזקה, 0 מכירה)
+ANALYST_WEIGHTS = {"strongBuy": 5.0, "buy": 5.0, "hold": 3.0, "sell": 1.0, "strongSell": 1.0}
 ANALYST_MIN_N = 3      # מתחת לזה — אין ציון
 ANALYST_DELTA = 0.15   # מרחק מהחציון לצביעה ירוק/אדום
 
-BETA_WINDOW = "2y"
-BETA_MIN_POINTS = 30     # פחות נקודות חופפות — אין ציון
+BETA_WINDOW = "6mo"      # נמשך רחב מכוונת-מדידה (3 חודשים) — תשתית לבטא מתגלגלת עתידית
+BETA_MIN_POINTS = 40     # פחות נקודות חופפות — אין ציון
 BETA_HIGH = 1.0
 BETA_LOW = 0.6
 BETA_MIN_R2 = 0.10       # מתחת לזה הבטא רועשת ומסומנת בכוכבית
@@ -1258,7 +1263,14 @@ def get_capex_quarterly(symbol):
 
 @st.cache_data(ttl=86400)
 def get_capex_annual(symbol):
-    """CapEx שנתי (לפי השנה הפיסקלית של החברה) במיליארדי דולרים, מהישן לחדש."""
+    """CapEx שנתי (לפי השנה הפיסקלית של החברה) במיליארדי דולרים, מהישן לחדש.
+
+    משמיט שנים קלנדריות >= השנה הנוכחית: yfinance עשוי להחזיר שורה לשנה
+    שטרם הסתיימה קלנדרית (ולכן ה-CapEx בה חלקי, לא "בפועל" אמיתי להשוואה
+    שנתית מלאה) — למשל FY מיקרוסופט שנסגר ביוני עדיין שייך לשנה הקלנדרית
+    הנוכחית. הסינון לפי השנה הקלנדרית של תאריך הדיווח, לא לפי סטטוס הסגירה
+    הפיסקלי. משפיע על כל הצרכנים (גרף חברה בודדת, הגרף המצטבר, וטבלת
+    הסיכום) מנקודה אחת — לא נוגע ב-get_capex_quarterly."""
     try:
         cf = yf.Ticker(symbol).cashflow
         row = None
@@ -1270,6 +1282,8 @@ def get_capex_annual(symbol):
             return None
         row = row.dropna().abs() / 1e9
         row = row.sort_index()
+        _current_year = ny_now().year
+        row = row[[d.year < _current_year for d in row.index]]
         if len(row) == 0:
             return None
         return row
@@ -1538,17 +1552,24 @@ def analyst_group_score(symbols, scores_map):
 
 # ── בטא מול SOXX ────────────────────────────────────────────────────────────
 
-def _weekly_returns_raw(symbol):
-    """תשואות שבועיות (W-FRI) ללא קאש — נקראת מתוך threads בלבד."""
+def _daily_returns_raw(symbol):
+    """תשואות יומיות ללא קאש — נקראת מתוך threads בלבד.
+    נמשכות על פני BETA_WINDOW (6 חודשים) ואז נחתכות ל-3 החודשים האחרונים בלבד
+    (לפי תאריך, לא לפי מספר שורות) — המשיכה הרחבה יותר מ-3 החודשים הנמדדים
+    היא תשתית לבטא מתגלגלת עתידית."""
     try:
         data = yf.Ticker(symbol).history(period=BETA_WINDOW, auto_adjust=False)
         close = data["Close"].dropna()
         if close.index.tz is not None:
             close.index = close.index.tz_localize(None)
-        weekly = close.resample("W-FRI").last().pct_change().dropna()
-        if len(weekly) < BETA_MIN_POINTS:
+        daily = close.pct_change().dropna()
+        if len(daily) == 0:
             return None
-        return weekly
+        cutoff = daily.index[-1] - pd.DateOffset(months=3)
+        daily = daily[daily.index >= cutoff]
+        if len(daily) < BETA_MIN_POINTS:
+            return None
+        return daily
     except Exception:
         return None
 
@@ -1557,7 +1578,7 @@ def _beta_from_bench(symbol, bench_rets):
     """חישוב בטא מול bench_rets ללא קאש."""
     if symbol == BENCHMARK:
         return {"beta": 1.0, "n": len(bench_rets), "r2": 1.0}
-    sym_rets = _weekly_returns_raw(symbol)
+    sym_rets = _daily_returns_raw(symbol)
     if sym_rets is None:
         return None
     combined = pd.concat(
@@ -1578,8 +1599,8 @@ def _beta_from_bench(symbol, bench_rets):
 
 @st.cache_data(ttl=86400)
 def get_beta(symbol):
-    """בטא שבועית מול SOXX בחלון BETA_WINDOW. מחזיר dict{"beta","n","r2"} או None."""
-    bench_rets = _weekly_returns_raw(BENCHMARK)
+    """בטא יומית מול SOXX בחלון של 3 חודשים. מחזיר dict{"beta","n","r2"} או None."""
+    bench_rets = _daily_returns_raw(BENCHMARK)
     if bench_rets is None:
         return None
     return _beta_from_bench(symbol, bench_rets)
@@ -1590,7 +1611,7 @@ def scan_betas(symbols_tuple):
     """סריקה מקבילה של בטא מול SOXX. מחזיר {symbol: dict} רק למי שיש ערך."""
     import functools
     from concurrent.futures import ThreadPoolExecutor
-    bench_rets = _weekly_returns_raw(BENCHMARK)
+    bench_rets = _daily_returns_raw(BENCHMARK)
     if bench_rets is None:
         return {}
     fn = functools.partial(_beta_from_bench, bench_rets=bench_rets)
@@ -1650,6 +1671,97 @@ def beta_group_score(symbols, beta_map):
     beta = _stat.median(b for _, b, _ in scored)
     r2 = _stat.median(r for _, _, r in scored)
     return {"beta": round(beta, 4), "r2": round(r2, 4), "reported": reported, "total": total}
+
+
+BETA_ROLL_MONTHS = 3            # חלון גלגול קלנדרי — זהה בדיוק לחתך שמשתמשת בו _daily_returns_raw
+                                 # (לא ספירת שורות קבועה: למניה עם לוח מסחר שונה מ-SOXX, כמו .KS,
+                                 # 3 חודשים קלנדריים ו-63 שורות חופפות אינם בהכרח אותו דבר — ראה תיעוד
+                                 # ב-_rolling_beta_series)
+BETA_ROLL_FETCH_PAD_DAYS = 130  # ימי קלנדר להיסטוריה נוספת לפני תחילת התקופה — מבטיח
+                                 # מספיק היסטוריה לחלון BETA_ROLL_MONTHS בנקודה הראשונה
+                                 # המוצגת, גם עם סופ"שים וחגים בתווך.
+
+
+@st.cache_data(ttl=300)
+def _get_daily_close_for_rolling(symbol, fetch_start):
+    """סגירות יומיות גולמיות (auto_adjust=False) מ-fetch_start ועד היום — לחישוב
+    בטא מתגלגלת. tz מנוטרל בדיוק כמו ב-_daily_returns_raw, כדי שמיזוג SOXX מול
+    מניות מבורסות אחרות (למשל .KS) יתבצע לפי תאריך קלנדרי, לא שעון מקומי."""
+    try:
+        end_d = ny_now().date() + timedelta(days=1)
+        data = yf.Ticker(symbol).history(start=str(fetch_start), end=str(end_d), auto_adjust=False)
+        close = data["Close"].dropna()
+        if len(close) < 2:
+            return None
+        if close.index.tz is not None:
+            close.index = close.index.tz_localize(None)
+        return close
+    except Exception:
+        return None
+
+
+def _rolling_beta_series(symbol, bench_close, fetch_start):
+    """בטא מתגלגלת יומית מול SOXX: לכל יום מסחר t של SOXX, משחזרת בדיוק את השיטה של
+    _daily_returns_raw + _beta_from_bench, כאילו t היה "היום" — לא rolling(N) על סדרה
+    ממוזגת מראש.
+
+    למה זה קריטי: _daily_returns_raw חותך כל סדרה (מניה, SOXX) בנפרד לפי 3 החודשים
+    האחרונים *של אותה סדרה עצמה*, ורק אז _beta_from_bench מיישר (concat+dropna) בין
+    השתיים. אם למניה (בעיקר .KS — לוח מסחר קוריאני) יש יום מסחר אחרון שונה מ-SOXX
+    (למשל בגלל פיגור דיווח או הפרשי אזור זמן), שני החיתוכים העצמאיים האלה נותנים
+    תוצאה שונה מחיתוך יחיד על הסדרה המיושרת מראש — וגרסה קודמת של הפונקציה הזו
+    (rolling על combined אחרי dropna) לא התלכדה עם הבטא הסטטית בדיוק מהסיבה הזו.
+    לכן כאן, בכל t: מוצא את היום האחרון של המניה שאינו מאוחר מ-t, חותך את שתי
+    הסדרות בנפרד לפי BETA_ROLL_MONTHS חודשים אחורה מנקודת הייחוס של כל אחת, ורק
+    אז מיישר את השתי-חלונות (חיתוך תאריכים). ב-t=היום האחרון — זהה מתמטית ובדיוק
+    ל-get_beta(symbol).
+
+    symbol == BENCHMARK מחזיר קבוע 1.0 לאורך כל הטווח (הגדרה, לא חישוב).
+    מסנן ימים עם פחות מ-BETA_MIN_POINTS ימים חופפים בחלון (כמו הבטא הסטטית).
+    מחזיר Series (אינדקס=תאריכים) או None אם אין מספיק היסטוריה."""
+    bench_rets = bench_close.pct_change().dropna()
+    if symbol == BENCHMARK:
+        return pd.Series(1.0, index=bench_rets.index)
+    close = _get_daily_close_for_rolling(symbol, fetch_start)
+    if close is None:
+        return None
+    sym_rets = close.pct_change().dropna()
+    if sym_rets.empty or bench_rets.empty:
+        return None
+
+    sym_idx = sym_rets.index
+    bench_idx = bench_rets.index
+    betas, valid_dates = [], []
+
+    for j, t in enumerate(bench_idx):
+        # יום המסחר האחרון של הסימבול עצמו שאינו מאוחר מ-t — עשוי לפגר יום-יומיים
+        # אחרי SOXX (הפרשי לוח מסחר/דיווח), בדיוק כמו ב-daily.index[-1] הסטטי.
+        k = sym_idx.searchsorted(t, side="right") - 1
+        if k < 0:
+            continue
+        sym_last = sym_idx[k]
+
+        cutoff_sym = sym_last - pd.DateOffset(months=BETA_ROLL_MONTHS)
+        cutoff_bench = t - pd.DateOffset(months=BETA_ROLL_MONTHS)
+        lo_s = sym_idx.searchsorted(cutoff_sym, side="left")
+        lo_b = bench_idx.searchsorted(cutoff_bench, side="left")
+
+        common = sym_idx[lo_s:k + 1].intersection(bench_idx[lo_b:j + 1])
+        if len(common) < BETA_MIN_POINTS:
+            continue
+
+        w_sym = sym_rets.reindex(common).to_numpy()
+        w_bench = bench_rets.reindex(common).to_numpy()
+        var_b = w_bench.var(ddof=1)
+        if var_b == 0 or math.isnan(var_b):
+            continue
+        cov_sb = ((w_sym - w_sym.mean()) * (w_bench - w_bench.mean())).sum() / (len(w_bench) - 1)
+        betas.append(cov_sb / var_b)
+        valid_dates.append(t)
+
+    if not betas:
+        return None
+    return pd.Series(betas, index=pd.DatetimeIndex(valid_dates))
 
 
 @st.cache_data(ttl=86400)
@@ -2339,6 +2451,44 @@ def build_spread_chart(stocks, period, intraday=False, skip_current_day=True):
     return (area_pos + area_neg + line + zero).properties(
         height=260, padding={"top": 10, "bottom": 10, "left": 10, "right": 20}
     )
+
+
+CORR_MIN_POINTS = 10   # מינימום נקודות תשואה יומית לחוליה כדי להיכלל במטריצת הקורלציה
+
+
+@st.cache_data(ttl=300)
+def compute_sector_correlation(period):
+    """מטריצת קורלציה (Pearson) בין תשואות יומיות של חציון הביצועים של חוליות שרשרת הערך.
+
+    לכל חוליה: חציון הביצועים המנורמלים — אותו build_chart+median המשמש בכל מקום אחר
+    באפליקציה (כולל טיפול ה-tz/אינטרפולציה הקיים למניות מבורסות אחרות, כמו .KS), ואז
+    pct_change().dropna() לתשואות יומיות. חוליה עם פחות מ-CORR_MIN_POINTS תשואות מושמטת
+    לגמרי (לא נכנסת כעמודת NaN שתשבור את הצביעה/הקורלציה).
+
+    מחזיר (corr_df, dropped_sectors). corr_df ריק (columns=[]) אם פחות משתי חוליות
+    תקינות — זה גם הסימן לתקופה קצרה מדי (למשל 5d), בלי צורך ברשימת תקופות קשיחה
+    נפרדת: אם התקופה קצרה, כל החוליות יינשרו מהסף באופן טבעי.
+
+    לא נוגע בגרף הבטא המתגלגלת או בפונקציות הבטא — זו אגרגציה נפרדת לגמרי, לפי מחיר
+    (חציון ביצועים), לא בטא מול SOXX."""
+    returns_map = {}
+    dropped = []
+    for sector, tickers in value_chain.items():
+        chart = build_chart(tickers, period, intraday=False, skip_current_day=False)
+        if chart.empty:
+            dropped.append(sector)
+            continue
+        median_series = chart.median(axis=1)
+        rets = median_series.pct_change().dropna()
+        if len(rets) < CORR_MIN_POINTS:
+            dropped.append(sector)
+            continue
+        returns_map[sector] = rets
+    if len(returns_map) < 2:
+        return pd.DataFrame(), dropped
+    rets_df = pd.concat(returns_map, axis=1)
+    corr_df = rets_df.corr()
+    return corr_df, dropped
 
 
 def clean_name(sector):
@@ -3641,8 +3791,8 @@ if not _online_closed:
                 "בתקופות יומיות (Online ו-Last Close) טיקרים מבורסות אסייתיות אינם נכללים בשל הפרשי שעות מסחר."
             )
         if beta_scores is not None:
-            st.caption("בטא מעל 1 = מניה מגבירה את תנועת המדד · מתחת ל-1 = ממתנת · "
-                       "מחושבת על תשואות שבועיות בחלון שנתיים ואינה מגיבה לבורר התקופה")
+            st.caption("בטא מול SOXX: מעל 1 = מניה מגבירה את תנועת המדד · מתחת ל-1 = ממתנת · "
+                       "חלון: 3 חודשים, יומי · אינה מגיבה לבורר התקופה")
 
         # --- גרף מגמת הפער מ-SOXX לאורך התקופה ---
         st.markdown(section_header("📈 מגמת הפער מ-SOXX לאורך התקופה", "#22c55e"), unsafe_allow_html=True)
@@ -3881,7 +4031,7 @@ if not _online_closed:
                 + col_header("רוחב", width="90px")
                 + col_header("סנטימנט הדוח האחרון", active=_h_sent_active, width="110px")
                 + col_header("ציון אנליסטים", active=_h_analyst_active, width="105px")
-                + col_header("בטא (2ש')", active=_h_beta_active, width="95px")
+                + col_header("בטא (3ח')", active=_h_beta_active, width="95px")
                 + "</div>",
                 unsafe_allow_html=True,
             )
@@ -3991,9 +4141,77 @@ if not _online_closed:
         "· ממוצע משוקלל לפי מספר האנליסטים בכל חברה · ירוק/אדום = חריגה מחציון הסקטור ב-±0.15"
     )
     st.caption(
-        "בטא (2ש'): >1 = החוליה מגבירה את תנועת המדד, <1 = ממתנת · "
-        "חציון החברות בתחום · חלון קבוע של שנתיים שבועי, ואינו מגיב לבורר התקופה"
+        "בטא (3ח') מול SOXX: >1 = החוליה מגבירה את תנועת המדד, <1 = ממתנת · "
+        "חציון החברות בתחום · חלון: 3 חודשים, יומי, ואינו מגיב לבורר התקופה"
     )
+
+    # ---------- מטריצת קורלציה בין חוליות (בלוק ביניים בתוך Zone 3 — לא אזור נפרד) ----------
+    st.markdown(
+        "<div style='margin:28px 0 20px; border-top:1px solid rgba(255,255,255,0.08); "
+        "position:relative;'></div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(section_header("🔗 מטריצת קורלציה בין חוליות שרשרת הערך", "#14b8a6"),
+                unsafe_allow_html=True)
+    # online/lastclose: לא נתונים יומיים בכלל (סשן תוך-יומי בודד). 5d: נכלל כאן
+    # במפורש ולא נשען רק על סף CORR_MIN_POINTS — לחוליות עם מניה מבורסה אחרת
+    # (כמו .KS), האינטרפולציה של build_chart על איחוד התאריכים של כמה מניות
+    # יכולה "למתוח" את חלון 5d למספר שורות שחוצה את הסף במקרה, ומייצרת מטריצה
+    # דלילה כמעט-חסרת-משמעות (1-2 חוליות בלבד) במקום ההודעה הנקייה.
+    _corr_excluded_periods = {"online", "lastclose", "5d"}
+    if period in _corr_excluded_periods:
+        st.caption(
+            "ℹ️ מטריצת הקורלציה זמינה רק לתקופות ארוכות מספיק לתשואות יומיות "
+            "משמעותיות (לא Online / Last Close / 5D) — נסי 1M ומעלה."
+        )
+    else:
+        _corr_df, _corr_dropped = compute_sector_correlation(period)
+        if _corr_df.empty or len(_corr_df.columns) < 2:
+            st.caption(
+                "ℹ️ התקופה קצרה מדי לחישוב קורלציה משמעותית בין חוליות (נדרשות "
+                "לפחות כ-" + str(CORR_MIN_POINTS) + " נקודות תשואה יומית) — "
+                "נסי תקופה ארוכה יותר (למשל 1M ומעלה)."
+            )
+        else:
+            _corr_labels = [clean_name(s) for s in _corr_df.columns]
+            _corr_z = _corr_df.values
+            _corr_text = [[f"{v:.2f}" for v in row] for row in _corr_z]
+            _corr_fig = go.Figure(data=go.Heatmap(
+                z=_corr_z,
+                x=_corr_labels,
+                y=_corr_labels,
+                zmin=-1, zmax=1, zmid=0,
+                colorscale="RdBu", reversescale=True,
+                text=_corr_text, texttemplate="%{text}",
+                textfont=dict(size=11),
+                hovertemplate="%{y}<br>%{x}<br>קורלציה: %{z:.2f}<extra></extra>",
+                colorbar=dict(title="קורלציה", tickfont=dict(size=11)),
+            ))
+            _corr_fig.update_layout(
+                height=max(500, 40 * len(_corr_labels) + 200),
+                template="plotly_dark",
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                margin=dict(t=20, b=160, l=170, r=20),
+                xaxis=dict(tickangle=-45, automargin=True, side="bottom"),
+                yaxis=dict(automargin=True, autorange="reversed"),
+            )
+            with st.container(border=True):
+                st.plotly_chart(
+                    _corr_fig, width='stretch',
+                    key="zb_corr_" + period,
+                )
+            st.caption(
+                "כל תא = קורלציה (Pearson) בין תשואות יומיות של חציון הביצועים של שתי "
+                "החוליות, לאורך התקופה המסוננת · קרוב ל-1 = נעות ביחד · קרוב ל-0 = "
+                "עצמאיות · שלילי = נעות הפוך. חוליית \"חשמל ואנרגיה\" (אם מופיעה) אינה "
+                "חלק ממדד SOXX ואינה מתואמת עם שאר הסקטור — קורלציה נמוכה שלה מול "
+                "החוליות האחרות צפויה, לא באג."
+            )
+            if _corr_dropped:
+                st.caption(
+                    "הושמטו ממטריצת הקורלציה (אין מספיק נתונים בתקופה זו): "
+                    + ", ".join(clean_name(s) for s in _corr_dropped)
+                )
 
     # ---------- צלילה לתחום ----------
     st.markdown(
@@ -4047,8 +4265,9 @@ if not _online_closed:
                 unsafe_allow_html=True,
             )
 
-        _z3_tab_perf, _z3_tab_sent, _z3_tab_beta = st.tabs(
-            ["📈 ביצועי מניות", "🧠 סנטימנט התחום", "🎯 בטא מול תשואה"]
+        _z3_tab_perf, _z3_tab_sent, _z3_tab_beta, _z3_tab_roll, _z3_tab_cmproll = st.tabs(
+            ["📈 ביצועי מניות", "🧠 סנטימנט התחום", "🎯 בטא מול תשואה", "📉 בטא מתגלגלת",
+             "📉 השוואת בטא מתגלגלת"]
         )
 
         with _z3_tab_perf:
@@ -4137,8 +4356,8 @@ if not _online_closed:
 
             st.subheader("טבלת תשואות")
             st.markdown(returns_table_html(chosen_pairs, beta_scores=_beta_scores), unsafe_allow_html=True)
-            st.caption("בטא מעל 1 = מניה מגבירה את תנועת המדד · מתחת ל-1 = ממתנת · "
-                       "מחושבת על תשואות שבועיות בחלון שנתיים ואינה מגיבה לבורר התקופה")
+            st.caption("בטא מול SOXX: מעל 1 = מניה מגבירה את תנועת המדד · מתחת ל-1 = ממתנת · "
+                       "חלון: 3 חודשים, יומי · אינה מגיבה לבורר התקופה")
             if period in DAILY_PERIODS and len(chosen_pairs) < len(_z3_tickers):
                 st.caption(
                     "⚠ " + str(len(chosen_pairs)) + " מתוך " + str(len(_z3_tickers)) + " טיקרים בחוליה נכללו בחישוב. "
@@ -4215,16 +4434,17 @@ if not _online_closed:
                     hovertemplate=_hover,
                     showlegend=False,
                 ))
-                _sc_fig.add_hline(y=0, line_dash="dot", line_color="rgba(255,255,255,0.15)", line_width=1)
+                _sc_fig.add_hline(y=0, line_dash="solid", line_color="rgba(255,255,255,0.45)", line_width=2.5)
                 _sc_fig.add_vline(x=1, line_dash="dash", line_color="#f97316", line_width=2)
                 if _z3_soxx_chg is not None:
-                    _sc_fig.add_hline(y=_z3_soxx_chg, line_dash="dash", line_color="#f59e0b", line_width=2)
+                    _soxx_dir_color = "#22c55e" if _z3_soxx_chg >= 0 else "#ef4444"
+                    _sc_fig.add_hline(y=_z3_soxx_chg, line_dash="dash", line_color=_soxx_dir_color, line_width=2)
                     _sc_fig.add_trace(go.Scatter(
                         x=[1.0], y=[_z3_soxx_chg], mode="markers+text",
-                        marker=dict(symbol="diamond", size=16, color="#f59e0b",
+                        marker=dict(symbol="diamond", size=16, color=_soxx_dir_color,
                                     line=dict(color="#1e2533", width=2)),
                         text=["SOXX"], textposition="bottom center",
-                        textfont=dict(size=12, color="#f59e0b"),
+                        textfont=dict(size=12, color=_soxx_dir_color),
                         hovertemplate=(
                             "<b>SOXX</b><br>בטא: 1.00 (הגדרה)<br>"
                             "תשואה: %{y:.1f}%<extra></extra>"
@@ -4239,7 +4459,7 @@ if not _online_closed:
                     template="plotly_dark",
                     paper_bgcolor="rgba(0,0,0,0)",
                     plot_bgcolor="rgba(0,0,0,0)",
-                    xaxis=dict(title=rtl_text("בטא מול SOXX · חלון קבוע: שנתיים, שבועי")),
+                    xaxis=dict(title=rtl_text("בטא מול SOXX · חלון: 3 חודשים, יומי")),
                     yaxis=dict(
                         title=rtl_text("תשואה בתקופה (%)"),
                         range=[min(_y_vals) - _y_pad, max(_y_vals) + _y_pad],
@@ -4254,12 +4474,216 @@ if not _online_closed:
                 )
                 st.plotly_chart(_sc_fig, width='stretch', key="z3_beta_" + sector_key(chosen))
                 st.caption(
-                    "הקו הכתום האופקי = תשואת SOXX · האנכי = בטא 1 · הצטלבותם היא המדד עצמו · "
+                    "הקו האופקי המקווקו = תשואת SOXX (ירוק = עלה · אדום = ירד) · האנכי = בטא 1 · הצטלבותם היא המדד עצמו · "
                     "מעל הקו = ביצועי יתר מול הסקטור · מימין לקו = מגבירת תנועה · "
-                    "הקו המקווקו הדק = אפס תשואה · * = R² נמוך, הבטא רועשת"
+                    "הקו האפור הרציף = אפס תשואה · * = R² נמוך, הבטא רועשת"
                 )
             if _no_beta_syms:
                 st.caption("ללא נתוני בטא: " + ", ".join(_no_beta_syms))
+
+        with _z3_tab_roll:
+            _rb_short_periods = {"online", "lastclose", "5d", "1mo"}
+            if period in _rb_short_periods:
+                st.caption(
+                    "ℹ️ התקופה קצרה מחלון הבטא (3 חודשים) — הגרף המתגלגל זמין מ-3M ומעלה."
+                )
+            else:
+                _rb_today = ny_now().date()
+                # measure_start — אותה הגדרה בדיוק כמו ב-_anchor_index/_period_to_start
+                # (תחילת התקופה המסוננת, ללא הבאפר של שליפת הנתונים)
+                _rb_months = {"3mo": 3, "6mo": 6, "1y": 12, "5y": 60}
+                if period == "ytd":
+                    _rb_measure_start = _rb_today.replace(month=1, day=1)
+                else:
+                    _rb_measure_start = (
+                        pd.Timestamp(_rb_today) - pd.DateOffset(months=_rb_months.get(period, 3))
+                    ).date()
+                _rb_fetch_start = _rb_measure_start - timedelta(days=BETA_ROLL_FETCH_PAD_DAYS)
+                _rb_bench_close = _get_daily_close_for_rolling(BENCHMARK, _rb_fetch_start)
+
+                if _rb_bench_close is None:
+                    st.caption("לא הצלחנו למשוך נתוני SOXX לחישוב הבטא המתגלגלת כרגע.")
+                else:
+                    _rb_start_ts = pd.Timestamp(_rb_measure_start)
+                    _rb_series_map = {}
+                    _rb_no_data = []
+                    for _rb_sym in _z3_tickers:
+                        _rb_s = _rolling_beta_series(_rb_sym, _rb_bench_close, _rb_fetch_start)
+                        if _rb_s is None:
+                            _rb_no_data.append(_rb_sym)
+                            continue
+                        _rb_s_clip = _rb_s[_rb_s.index >= _rb_start_ts]
+                        if len(_rb_s_clip) >= 2:
+                            _rb_series_map[_rb_sym] = _rb_s_clip
+                        else:
+                            _rb_no_data.append(_rb_sym)
+
+                    # התקופה בפועל קצרה מדי (למשל YTD בתחילת ינואר) — נופל לאותה הודעה
+                    # כמו התקופות הקצרות המפורשות למעלה, במקום קו כמעט-שטוח ומטעה.
+                    if not _rb_series_map:
+                        st.caption(
+                            "ℹ️ התקופה קצרה מחלון הבטא (3 חודשים) — הגרף המתגלגל זמין מ-3M ומעלה."
+                        )
+                    else:
+                        _rb_df = pd.concat(_rb_series_map, axis=1)
+                        _rb_median = _rb_df.median(axis=1, skipna=True)
+
+                        _rb_fig = go.Figure()
+                        _rb_fig.add_hline(y=1, line_dash="dash", line_color="#f97316", line_width=2)
+                        for _rb_i, (_rb_sym, _rb_s_clip) in enumerate(_rb_series_map.items()):
+                            _rb_color = palette[_rb_i % len(palette)]
+                            _rb_fig.add_trace(go.Scatter(
+                                x=_rb_s_clip.index, y=_rb_s_clip.values, name=_rb_sym, mode="lines",
+                                line=dict(color=_rb_color, width=1.5), opacity=0.85,
+                                hovertemplate="<b>" + _rb_sym + "</b><br>%{x|%d/%m/%Y}<br>בטא: %{y:.2f}<extra></extra>",
+                            ))
+                        _rb_fig.add_trace(go.Scatter(
+                            x=_rb_median.index, y=_rb_median.values, name="חציון התחום", mode="lines",
+                            line=dict(color="#ffffff", width=4),
+                            hovertemplate="<b>חציון התחום</b><br>%{x|%d/%m/%Y}<br>בטא: %{y:.2f}<extra></extra>",
+                        ))
+                        _rb_fig.update_layout(
+                            height=420, template="plotly_dark",
+                            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                            margin=dict(t=20, b=40, l=50, r=40),
+                            legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.08,
+                                        title="מניה", font=dict(size=12),
+                                        bgcolor="rgba(255,255,255,0.04)",
+                                        bordercolor="rgba(255,255,255,0.20)", borderwidth=1),
+                            yaxis=dict(title="בטא (חלון 3 חודשים)", gridcolor="rgba(255,255,255,0.08)"),
+                            xaxis=dict(gridcolor="rgba(255,255,255,0.08)", tickformat="%d/%m/%Y"),
+                        )
+                        with st.container(border=True):
+                            st.plotly_chart(
+                                _rb_fig, width='stretch',
+                                key="z3_rollbeta_" + sector_key(chosen) + "_" + period,
+                            )
+                        st.caption(
+                            "כל נקודה = בטא מול SOXX בחלון: 3 חודשים, יומי (קלנדרי, ~63 ימי מסחר) שהסתיים "
+                            "באותו יום — לא הבטא המצטברת של כל התקופה. קו לבן עבה = חציון התחום · "
+                            "קו כתום מקווקו = בטא=1 (SOXX עצמו)."
+                        )
+                        if _rb_no_data:
+                            st.caption("ללא מספיק היסטוריה לבטא מתגלגלת: " + ", ".join(_rb_no_data))
+
+        with _z3_tab_cmproll:
+            # השוואת בטא מתגלגלת בין כמה חוליות: החוליה הנבחרת (chosen) למעלה תמיד
+            # מוצגת — זה כל הרעיון של "ברירת מחדל = chosen, הבורר רק מוסיף". אותה
+            # מתמטיקה בדיוק כמו _z3_tab_roll למעלה ו-_rolling_beta_series/median —
+            # לא הגדרת בטא חדשה, רק מקור בחירת החוליות שונה (chosen+multiselect
+            # במקום multiselect עצמאי).
+            _cmp_short_periods = {"online", "lastclose", "5d", "1mo"}
+            if period in _cmp_short_periods:
+                st.caption(
+                    "ℹ️ התקופה קצרה מחלון הבטא (3 חודשים) — הגרף המתגלגל זמין מ-3M ומעלה."
+                )
+            else:
+                st.caption(
+                    "מוצגת החוליה הנבחרת למעלה (" + clean_name(chosen) + ") · אפשר להוסיף עד 5 "
+                    "חוליות נוספות להשוואה בבורר שלמטה."
+                )
+                _cmp_extra = st.multiselect(
+                    "הוסיפי חוליות נוספות להשוואה (אופציונלי):",
+                    list(value_chain.keys()),
+                    default=[],
+                    format_func=clean_name,
+                    max_selections=5,
+                    key="z3_cmproll_extra",
+                )
+                # chosen תמיד ראשון ותמיד בפנים, גם אם הבורר הנוסף ריק — זו הדרישה
+                # המרכזית של המבנה הזה. dict.fromkeys משמר סדר ומסנן כפילות (אם
+                # chosen נבחר גם בבורר הנוסף, בטעות או בכוונה).
+                _cmp_sectors = list(dict.fromkeys([chosen] + _cmp_extra))
+
+                _cmp_today = ny_now().date()
+                _cmp_months = {"3mo": 3, "6mo": 6, "1y": 12, "5y": 60}
+                if period == "ytd":
+                    _cmp_measure_start = _cmp_today.replace(month=1, day=1)
+                else:
+                    _cmp_measure_start = (
+                        pd.Timestamp(_cmp_today) - pd.DateOffset(months=_cmp_months.get(period, 3))
+                    ).date()
+                _cmp_fetch_start = _cmp_measure_start - timedelta(days=BETA_ROLL_FETCH_PAD_DAYS)
+                _cmp_bench_close = _get_daily_close_for_rolling(BENCHMARK, _cmp_fetch_start)
+
+                if _cmp_bench_close is None:
+                    st.caption("לא הצלחנו למשוך נתוני SOXX לחישוב הבטא המתגלגלת כרגע.")
+                else:
+                    _cmp_start_ts = pd.Timestamp(_cmp_measure_start)
+                    _cmp_series_cache = {}
+
+                    def _cmp_get_series(sym):
+                        if sym not in _cmp_series_cache:
+                            _s = _rolling_beta_series(sym, _cmp_bench_close, _cmp_fetch_start)
+                            if _s is not None:
+                                _s = _s[_s.index >= _cmp_start_ts]
+                            _cmp_series_cache[sym] = _s if (_s is not None and len(_s) >= 2) else None
+                        return _cmp_series_cache[sym]
+
+                    _cmp_fig = go.Figure()
+                    _cmp_fig.add_hline(y=1, line_dash="dash", line_color="#f97316", line_width=2)
+                    _cmp_empty_sectors = []
+                    for _cmp_i, _cmp_sector in enumerate(_cmp_sectors):
+                        _cmp_sector_series = {}
+                        for _cmp_sym in value_chain.get(_cmp_sector, []):
+                            _cmp_s = _cmp_get_series(_cmp_sym)
+                            if _cmp_s is not None:
+                                _cmp_sector_series[_cmp_sym] = _cmp_s
+                        if not _cmp_sector_series:
+                            _cmp_empty_sectors.append(_cmp_sector)
+                            continue
+                        # חציון הבטאות המתגלגלות של המניות הזמינות בכל תאריך — בדיוק
+                        # כמו beta_group_score (statistics.median) על הבטא הסטטית.
+                        _cmp_df = pd.concat(_cmp_sector_series, axis=1)
+                        _cmp_median = _cmp_df.median(axis=1, skipna=True).dropna()
+                        if len(_cmp_median) < 2:
+                            _cmp_empty_sectors.append(_cmp_sector)
+                            continue
+                        _cmp_color = palette[_cmp_i % len(palette)]
+                        _cmp_fig.add_trace(go.Scatter(
+                            x=_cmp_median.index, y=_cmp_median.values, name=clean_name(_cmp_sector),
+                            mode="lines", line=dict(color=_cmp_color, width=3),
+                            hovertemplate="<b>" + clean_name(_cmp_sector) + "</b><br>%{x|%d/%m/%Y}<br>"
+                                          "בטא: %{y:.2f}<extra></extra>",
+                        ))
+
+                    # add_hline מוסיף shape, לא trace — ==0 ולא <=1: קו חוליה יחיד
+                    # לגיטימי (chosen לבד, בלי תוספות) הוא trace בודד ולא אמור להיחסם.
+                    if len(_cmp_fig.data) == 0:
+                        st.caption(
+                            "ℹ️ התקופה קצרה מחלון הבטא (3 חודשים) — הגרף המתגלגל זמין מ-3M ומעלה."
+                        )
+                    else:
+                        _cmp_fig.update_layout(
+                            height=440, template="plotly_dark",
+                            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                            margin=dict(t=20, b=40, l=50, r=40),
+                            legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02,
+                                        title="חוליה", font=dict(size=12),
+                                        bgcolor="rgba(255,255,255,0.04)",
+                                        bordercolor="rgba(255,255,255,0.20)", borderwidth=1),
+                            yaxis=dict(title="בטא (חלון 3 חודשים)", gridcolor="rgba(255,255,255,0.08)"),
+                            xaxis=dict(gridcolor="rgba(255,255,255,0.08)", tickformat="%d/%m/%Y"),
+                        )
+                        with st.container(border=True):
+                            st.plotly_chart(
+                                _cmp_fig, width='stretch',
+                                key="z3_cmproll_" + period + "_" + "_".join(sector_key(s) for s in _cmp_sectors),
+                            )
+                        st.caption(
+                            "כל קו = חציון הבטא המתגלגלת (מול SOXX) של המניות בחוליה, בחלון: 3 חודשים, יומי, "
+                            "לאורך התקופה המסוננת · קו כתום מקווקו = בטא=1 (SOXX עצמו)."
+                        )
+                        if "11. חשמל ואנרגיה" in _cmp_sectors and "11. חשמל ואנרגיה" not in _cmp_empty_sectors:
+                            st.caption(
+                                "⚡ חוליית \"חשמל ואנרגיה\" אינה חלק ממדד SOXX ואינה מתואמת איתו — "
+                                "בטא נמוכה קרוב לאפס אצלה היא תקינה ותואמת ל-R² נמוך, לא סימן לבעיה בחישוב."
+                            )
+                        if _cmp_empty_sectors:
+                            st.caption(
+                                "ללא מספיק נתוני היסטוריה בתקופה זו: "
+                                + ", ".join(clean_name(s) for s in _cmp_empty_sectors)
+                            )
 
         with _z3_tab_sent:
             # אגרגט התחום לאורך עונות — value_chain_sentiment (ממוצע פשוט, זהה לכרטיסיות)
@@ -4775,14 +5199,23 @@ else:
     st.markdown(section_header("📊 CapEx רבעוני — חברה מול חברה", "#22d3ee"),
                 unsafe_allow_html=True)
 
-    # אוסף את כל הרבעונים מכל החברות, ממיין כרונולוגית: הישן ביותר (Q1 2025) משמאל,
-    # מתקדם ימינה עד הרבעון האחרון.
-    all_quarters = set()
+    # סופר לכל רבעון כמה חברות מחזירות בו נתון, ומשאיר בציר רק רבעונים שלפחות
+    # 2 חברות דיווחו בהם — כך רבעון "יתום" שרק חברה אחת הגיעה אליו (כי לוח
+    # הדיווח שלה מוסט מול האחרות, לא כי יש בו נתון אמיתי להשוואה) לא נכנס
+    # לגרף כלל. לא נוגע ב-get_capex_quarterly עצמה — הסינון רק בבניית הציר
+    # כאן, ומתגלגל אוטומטית בלי קיבוע קשיח: כשחברה תדווח רבעון חדש הוא ייכנס
+    # לספירה ברגע שתגיע לסף 2, וכשרבעון ישן ייצא מחלון ה-5-רבעונים של
+    # yfinance עבור מספיק חברות הוא ייפול מעצמו.
+    quarter_counts = {}
     for s in capex_q.values():
         for d in s.index:
-            all_quarters.add((d.year, d.quarter))
-    ordered_q = sorted(all_quarters)  # כרונולוגי: ישן -> חדש
+            key = (d.year, d.quarter)
+            quarter_counts[key] = quarter_counts.get(key, 0) + 1
+    ordered_q = sorted(q for q, cnt in quarter_counts.items() if cnt >= 2)  # כרונולוגי: ישן -> חדש
     q_axis = ["Q" + str(q) + " " + str(y) for (y, q) in ordered_q]
+
+    if not q_axis:
+        st.caption("אין מספיק רבעונים חופפים בין החברות להצגת הגרף כרגע.")
 
     fig_capex = go.Figure()
     for sym, s in capex_q.items():
@@ -4808,6 +5241,31 @@ else:
     )
     with st.container(border=True):
         st.plotly_chart(fig_capex, width='stretch')
+
+    # זיהוי דינמי של פער נתונים אמיתי בין חברות: חברה שהרבעון האחרון שיש לה
+    # מוקדם מהרבעון האחרון שמופיע בציר (המסונן, ≥2 חברות) — לא שגיאת יישור/
+    # מיפוי, ולכן לא "מתקנים" את זה בחיתוך הציר; רק מבהירים אותו בכיתוב כדי
+    # שלא ייראה כתקלת תצוגה. הניסוח לא קובע שהחברה "לא פרסמה דוח" — ייתכן
+    # שכן, ופשוט נתון ה-CapEx הספציפי מדוח תזרים המזומנים המפורט טרם עודכן
+    # אצל ספק הנתונים.
+    if ordered_q:
+        _capex_q_global_last = ordered_q[-1]
+        _capex_lagging_syms = [
+            sym for sym, s in capex_q.items()
+            if len(s.index) > 0
+            and (s.index[-1].year, s.index[-1].quarter) < _capex_q_global_last
+        ]
+        if _capex_lagging_syms:
+            _lag_names = ", ".join(
+                CAPEX_COMPANIES[sym] + " (" + sym + ")" for sym in _capex_lagging_syms
+            )
+            _lag_q_label = "Q" + str(_capex_q_global_last[1]) + " " + str(_capex_q_global_last[0])
+            st.caption(
+                "ℹ️ נתון ה-CapEx הרבעוני של " + _lag_names + " עבור " + _lag_q_label +
+                " טרם זמין במקור הנתונים (yfinance) — לכן חסר בעמודה האחרונה. "
+                "ייתכן שהחברה כבר פרסמה תוצאות לרבעון זה; זה עיכוב בעדכון נתון "
+                "התזרים המפורט אצל ספק הנתונים, לא שגיאת יישור בגרף."
+            )
 
     # --- סה"כ מצרפי ---
     combined = pd.concat(capex_q.values(), axis=1).dropna()

@@ -801,6 +801,52 @@
       },
       "currency": "USD",
       "analyzed_at": "2026-07-26"
+    },
+    "2026Q2": {
+      "report_date": "2026-07-29",
+      "sentiment_score": -0.1,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "lowered",
+      "summary": "Qualcomm דיווחה על תוצאות הרבעון הפיסקלי השלישי של 2026 (אפריל-יוני) עם הכנסות של 9.95 מיליארד דולר, מעל ציפיות האנליסטים, ו-EPS מתואם של 2.21 דולר, שהיה מעט מתחת לציפיות. החברה הציגה צמיחה חזקה במגזרי הרכב וה-IoT, אך התמודדה עם חולשה מתמשכת בשוק המובייל, במיוחד בסין. התחזית לרבעון הבא הייתה נמוכה מקונצנזוס האנליסטים, מה ששיקף זהירות לגבי שוקי הקצה.",
+      "domain_signals": [
+        {
+          "domain": "רכב",
+          "direction": "improving",
+          "note": "הכנסות הרכב שברו שיא ועלו ב-61% ל-1.6 מיליארד דולר, עם ציפייה להמשך צמיחה משמעותית."
+        },
+        {
+          "domain": "תעשייה",
+          "direction": "improving",
+          "note": "הכנסות ה-IoT גדלו ב-9% ל-1.83 מיליארד דולר, מה שמעיד על התקדמות באסטרטגיית הפיזור."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "deteriorating",
+          "note": "שוק המובייל חווה חולשה, במיוחד בסין, עקב אילוצי זיכרון, אך החברה צופה התאוששות הדרגתית."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "החברה נכנסת לשוק הדאטה סנטר עם משלוחים ראשוניים של סיליקון מותאם ל-hyperscaler מוביל הצפויים בדצמבר, וצופה הכנסות משמעותיות מתחום זה עד 2029."
+        },
+        {
+          "domain": "Edge AI (בינה מלאכותית בקצה)",
+          "direction": "improving",
+          "note": "AI סוכני (Agentic AI) משנה את מפת הדרכים של המוצרים בכל הפלטפורמות, ומגדיל את המעורבות האסטרטגית עם לקוחות."
+        }
+      ],
+      "revenue_actual_b": 9.95,
+      "revenue_estimate_b": 9.66,
+      "eps_actual": 2.21,
+      "eps_estimate": 2.22,
+      "next_q_guidance": {
+        "revenue_b": 9.6,
+        "eps": 2.2,
+        "analyst_revenue_b": 10.0,
+        "vs_consensus": "below"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-31"
     }
   },
   "MSFT": {
@@ -844,6 +890,47 @@
       },
       "currency": "USD",
       "analyzed_at": "2026-07-26"
+    },
+    "2026Q2": {
+      "report_date": "2026-07-29",
+      "sentiment_score": 0.95,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "מיקרוסופט דיווחה על תוצאות חזקות לרבעון הרביעי של שנת הכספים 2026, עם הכנסות ורווח למניה (Non-GAAP) שעקפו את ציפיות האנליסטים באופן משמעותי. הצמיחה הונעה בעיקר על ידי מגזר הענן החכם, ובפרט Azure, שצמח ב-43% והגיע לראשונה להכנסה שנתית של מעל 100 מיליארד דולר. ההנהלה העלתה את התחזיות לרבעון הבא, עם צפי לצמיחה מואצת ב-Azure, מה שמשקף ביטחון חזק בביקוש לפתרונות AI וענן.",
+      "domain_signals": [
+        {
+          "domain": "Data Center",
+          "direction": "improving",
+          "note": "ביקוש הלקוחות ממשיך לעלות על ההיצע, כאשר Azure צמח ב-43% והחברה צופה צמיחה של כ-45% ברבעון הבא."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "הביקוש ל-AI נותר חזק, עם מעל 30 מיליון מנויי Copilot והשקעות משמעותיות בתשתיות AI הכוללות מעבדי GPU."
+        },
+        {
+          "domain": "צרכני מסורתי",
+          "direction": "deteriorating",
+          "note": "הכנסות מחשוב אישי ירדו ב-4% והחברה דיווחה על הפחתות ערך בעסקי ה-Xbox, עם צפי לירידה נוספת בהכנסות Windows OEM."
+        },
+        {
+          "domain": "CPU / מחשוב",
+          "direction": "stable",
+          "note": "החברה ממשיכה להשקיע במעבדי CPU כחלק מהוצאות ההון לתשתיות AI וענן."
+        }
+      ],
+      "revenue_actual_b": 90.01,
+      "revenue_estimate_b": 87.62,
+      "eps_actual": 4.74,
+      "eps_estimate": 4.24,
+      "next_q_guidance": {
+        "revenue_b": 90.4,
+        "eps": null,
+        "analyst_revenue_b": 89.66,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-31"
     }
   },
   "META": {
@@ -887,6 +974,52 @@
       },
       "currency": "USD",
       "analyzed_at": "2026-07-26"
+    },
+    "2026Q2": {
+      "report_date": "2026-07-29",
+      "sentiment_score": -0.24,
+      "results_vs_expectations": "miss",
+      "guidance_direction": "lowered",
+      "summary": "מטא דיווחה על הכנסות לרבעון השני של 2026 שעלו על ציפיות האנליסטים, אך ה-EPS המדולל החמיץ משמעותית את התחזיות עקב עלייה חדה בהוצאות, כולל חיובים משפטיים ועלויות פיצויי פיטורים. תחזית ההכנסות לרבעון השלישי הייתה נמוכה מקונצנזוס האנליסטים, והחברה העלתה את תחזיות ההוצאות וההשקעות ההוניות לשנה כולה, מה שמעיד על המשך השקעות כבדות בתשתיות AI.",
+      "domain_signals": [
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "ההנהלה ציינה השקעות כבדות בתשתיות דאטה סנטר, כולל שיתוף פעולה עם BlackRock לפיתוח דאטה סנטר חדש, לצורך תמיכה בצמיחת AI."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "ההנהלה הדגישה כי השקעות ב-AI, כולל מודלי שפה גדולים (LLMs), מאיצות את עסקי הליבה ומשפרות המלצות תוכן וטרגוט מודעות."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "improving",
+          "note": "ההנהלה דיווחה על צמיחה חזקה במעורבות משתמשים באפליקציות הליבה, כמו אינסטגרם ו-Threads, המונעת על ידי שיפורי AI."
+        },
+        {
+          "domain": "תעשייה",
+          "direction": "improving",
+          "note": "החברה מדווחת על צמיחה מהירה במוצרי AI חדשים, כולל סוכני AI עסקיים המשמשים למעלה ממיליון עסקים בשבוע, המצביעים על הזדמנויות צמיחה בתחום הארגוני."
+        },
+        {
+          "domain": "פוטוניקה ואופטיקה",
+          "direction": "improving",
+          "note": "הכנסות Reality Labs הושפעו לטובה מצמיחה חזקה בהכנסות ממשקפי AI."
+        }
+      ],
+      "revenue_actual_b": 60.8,
+      "revenue_estimate_b": 60.2,
+      "eps_actual": 6.18,
+      "eps_estimate": 7.19,
+      "next_q_guidance": {
+        "revenue_b": 62.5,
+        "eps": null,
+        "analyst_revenue_b": null,
+        "vs_consensus": "below"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-31"
     }
   },
   "LRCX": {
@@ -945,6 +1078,67 @@
       },
       "currency": "USD",
       "analyzed_at": "2026-07-26"
+    },
+    "2026Q2": {
+      "report_date": "2026-07-29",
+      "sentiment_score": 0.9,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "Lam Research דיווחה על תוצאות חזקות לרבעון יוני 2026, עם הכנסות ורווח למניה (EPS) שעלו על ציפיות האנליסטים. החברה סיפקה תחזית אופטימית לרבעון הבא, שהייתה גבוהה משמעותית מקונצנזוס האנליסטים, בהובלת ביקוש מוגבר לפתרונות הקשורים לבינה מלאכותית ואריזה מתקדמת. ההנהלה הדגישה את תפקידה המרכזי בתעשיית המוליכים למחצה המונעת על ידי AI.",
+      "domain_signals": [
+        {
+          "domain": "Data Center",
+          "direction": "improving",
+          "note": "הביקוש מונע על ידי AI ממשיך לעצב מחדש את תעשיית המוליכים למחצה."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "הביקוש מונע על ידי AI ממשיך לעצב מחדש את תעשיית המוליכים למחצה."
+        },
+        {
+          "domain": "אריזה מתקדמת",
+          "direction": "improving",
+          "note": "אימוץ מואץ של אריזה מתקדמת."
+        },
+        {
+          "domain": "ייצור (Foundry)",
+          "direction": "improving",
+          "note": "משיכה רחבה על פני לוגיקת פאונדרי."
+        },
+        {
+          "domain": "DRAM",
+          "direction": "improving",
+          "note": "חשיפה ליצרני שבבי זיכרון DRAM."
+        },
+        {
+          "domain": "HBM",
+          "direction": "improving",
+          "note": "משיכה רחבה על פני HBM."
+        },
+        {
+          "domain": "NAND",
+          "direction": "improving",
+          "note": "חשיפה ליצרני שבבי זיכרון NAND."
+        },
+        {
+          "domain": "ציוד ייצור (Semicap)",
+          "direction": "improving",
+          "note": "שחקן מפתח בשוק ציוד ייצור פרוסות מוליכים למחצה, המתמחה בתהליכי שיקוע ואיכול."
+        }
+      ],
+      "revenue_actual_b": 6.72,
+      "revenue_estimate_b": 6.69,
+      "eps_actual": 1.82,
+      "eps_estimate": 1.68,
+      "next_q_guidance": {
+        "revenue_b": 8.1,
+        "eps": 2.15,
+        "analyst_revenue_b": 7.13,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-31"
     }
   },
   "ARM": {
@@ -988,6 +1182,52 @@
       },
       "currency": "USD",
       "analyzed_at": "2026-07-26"
+    },
+    "2026Q2": {
+      "report_date": "2026-07-29",
+      "sentiment_score": 0.9,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "ARM דיווחה על תוצאות חזקות לרבעון הראשון של שנת הכספים 2027 (אפריל-יוני 2026), עם הכנסות ורווח למניה שעלו על ציפיות האנליסטים. החברה סיפקה תחזית אופטימית לרבעון הבא, גבוהה מקונצנזוס האנליסטים, המונעת בעיקר מביקוש חזק לפתרונות AI ומרכזי נתונים. למרות זאת, צוינה חולשה צפויה בהכנסות מרישיונות לסמארטפונים.",
+      "domain_signals": [
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "הביקוש לארכיטקטורת השבבים של Arm זינק ככל שחברות כמו אלפבית ואמזון בונות שבבי AI מותאמים אישית, מה שמגביר את הכנסות הרישיונות והתמלוגים."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "deteriorating",
+          "note": "החברה הזהירה כי הכנסות התמלוגים מסמארטפונים צפויות לרדת ברבעון הבא."
+        },
+        {
+          "domain": "CPU / מחשוב",
+          "direction": "improving",
+          "note": "Arm דיווחה על ביקוש גואה למפת הדרכים שלה למעבדי AI."
+        },
+        {
+          "domain": "Edge AI (בינה מלאכותית בקצה)",
+          "direction": "improving",
+          "note": "התחזית מצביעה על מומנטום מתמשך של לקוחות בתשתיות AI ומחשוב קצה."
+        },
+        {
+          "domain": "CPU / מחשוב",
+          "direction": "stable",
+          "note": "המנכ\"ל רנה האס ציין כי העסק רואה אימוץ נרחב במחשבים אישיים."
+        }
+      ],
+      "revenue_actual_b": 1.29,
+      "revenue_estimate_b": 1.26,
+      "eps_actual": 0.45,
+      "eps_estimate": 0.4,
+      "next_q_guidance": {
+        "revenue_b": 1.38,
+        "eps": 0.47,
+        "analyst_revenue_b": 1.34,
+        "vs_consensus": "above"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-31"
     }
   },
   "AMZN": {
@@ -1031,6 +1271,47 @@
       },
       "currency": "USD",
       "analyzed_at": "2026-07-26"
+    },
+    "2026Q2": {
+      "report_date": "2026-07-30",
+      "sentiment_score": 0.82,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "אמזון דיווחה על תוצאות חזקות לרבעון השני של 2026, עם הכנסות ורווח למניה (EPS) שעלו על ציפיות האנליסטים, אם כי ה-EPS הושפע משמעותית מרווח חד-פעמי שאינו תפעולי. חטיבת הענן AWS הציגה צמיחה מואצת, והחברה העלתה את תחזית ההוצאות ההוניות לשנה כולה, מה שמעיד על השקעות משמעותיות בבינה מלאכותית ודאטה סנטרים, למרות שתחזית ההכנסות לרבעון השלישי הייתה נמוכה מקונצנזוס האנליסטים.",
+      "domain_signals": [
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "חטיבת AWS רשמה צמיחה של 36.7% בהכנסות, השיעור המהיר ביותר מזה 18 רבעונים, והחברה הגדילה את ההוצאות ההוניות עבור השקעות בדאטה סנטרים ובינה מלאכותית."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "עסקי הבינה המלאכותית והשבבים של אמזון עברו קצב הכנסות שנתי של 25 מיליארד דולר כל אחד, עם צמיחה תלת-ספרתית ואימוץ חזק ממעבדות AI מובילות כמו Anthropic ו-OpenAI."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "improving",
+          "note": "הכנסות החנויות המקוונות עלו על ההערכות, והחברה דיווחה על שיאי מהירות משלוח לחברי פריים, עם צמיחה משמעותית בעסקי המכולת ומוצרי הצריכה היומיומיים."
+        },
+        {
+          "domain": "תקשורת ורשתות",
+          "direction": "improving",
+          "note": "שירותי הפרסום רשמו רבעון חזק נוסף עם צמיחה של 26% בהכנסות, והכנסות אלו עמדו על 19.8 מיליארד דולר, מעל קונצנזוס האנליסטים."
+        }
+      ],
+      "revenue_actual_b": 200.6,
+      "revenue_estimate_b": 197.03,
+      "eps_actual": 5.75,
+      "eps_estimate": 1.82,
+      "next_q_guidance": {
+        "revenue_b": 199.5,
+        "eps": null,
+        "analyst_revenue_b": 204.1,
+        "vs_consensus": "below"
+      },
+      "currency": "USD",
+      "analyzed_at": "2026-07-31"
     }
   },
   "005930.KS": {
@@ -1094,6 +1375,67 @@
       },
       "currency": "KRW",
       "analyzed_at": "2026-07-26"
+    },
+    "2026Q2": {
+      "report_date": "2026-07-29",
+      "sentiment_score": 0.8,
+      "results_vs_expectations": "beat",
+      "guidance_direction": "raised",
+      "summary": "סמסונג אלקטרוניקס דיווחה על הכנסות ורווח תפעולי שיא ברבעון השני של 2026, תוך עקיפת ציפיות האנליסטים, בעיקר בזכות ביקוש חזק לזכרונות הקשורים ל-AI ושירותי Foundry מתקדמים. למרות פספוס קל ברווח למניה, ההנהלה צופה המשך מומנטום חיובי במחצית השנייה של השנה, עם צמיחה משמעותית בתחומי הזיכרון וה-Foundry המונעים על ידי AI, בעוד ששוק המובייל המסורתי צפוי להמשיך להתמודד עם אתגרים.",
+      "domain_signals": [
+        {
+          "domain": "DRAM",
+          "direction": "improving",
+          "note": "מחירי ה-DRAM עלו בחדות ומשלוחי הביטים הגיעו לשיאים חדשים, מונעים על ידי ביקוש לשרתי AI."
+        },
+        {
+          "domain": "NAND",
+          "direction": "improving",
+          "note": "ה-NAND נהנה מביקוש חזק יותר ל-SSDs לשרתים ומשלוחי הביטים הגיעו לשיאים חדשים."
+        },
+        {
+          "domain": "HBM",
+          "direction": "improving",
+          "note": "מכירות HBM4 צפויות לעלות ביותר מפי שלושה ברבעון השלישי ולהוות למעלה מ-60% מסך הכנסות HBM במחצית השנייה."
+        },
+        {
+          "domain": "Data Center (דאטה סנטר)",
+          "direction": "improving",
+          "note": "ביקוש חזק לתשתיות AI ו-SSDs לשרתים ממשיך להניע את הצמיחה, עם חתימת הסכמי אספקה ארוכי טווח."
+        },
+        {
+          "domain": "ייצור (Foundry)",
+          "direction": "improving",
+          "note": "עסקי ה-Foundry השתפרו עם עלייה בניצולת ופרויקטים חדשים ב-2 ננומטר, וצפויים לצמיחה דו-ספרתית במחצית השנייה בזכות AI ו-HPC."
+        },
+        {
+          "domain": "צרכני מסורתי (PC ומובייל)",
+          "direction": "deteriorating",
+          "note": "חטיבת המובייל (MX) התמודדה עם רווח תפעולי שלילי עקב עלויות רכיבים גבוהות וביקוש צרכני חלש."
+        },
+        {
+          "domain": "תקשורת ורשתות",
+          "direction": "improving",
+          "note": "עסקי הרשתות הציגו שיפור ברווחים רבעוני ושנתי, הנתמך על ידי התרחבות מכירות בחו\"ל."
+        },
+        {
+          "domain": "GPU / מאיצי AI",
+          "direction": "improving",
+          "note": "הביקוש המונע על ידי AI לרכיבי זיכרון ומאיצי AI ממשיך להיות גורם צמיחה מרכזי."
+        }
+      ],
+      "revenue_actual_b": 171500.0,
+      "revenue_estimate_b": 169400.0,
+      "eps_actual": 10849.0,
+      "eps_estimate": 11123.19,
+      "next_q_guidance": {
+        "revenue_b": null,
+        "eps": null,
+        "analyst_revenue_b": null,
+        "vs_consensus": "none"
+      },
+      "currency": "KRW",
+      "analyzed_at": "2026-07-31"
     }
   },
   "AMD": {
