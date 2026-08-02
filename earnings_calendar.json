@@ -419,7 +419,7 @@
     {
       "date": "2026-10-21",
       "symbol": "LRCX",
-      "eps_est": 2.07,
+      "eps_est": 2.18,
       "eps_actual": null,
       "surprise": null,
       "is_future": true
@@ -435,7 +435,7 @@
     {
       "date": "2026-10-27",
       "symbol": "000660.KS",
-      "eps_est": 88725.56,
+      "eps_est": 88423.97,
       "eps_actual": null,
       "surprise": null,
       "is_future": true
@@ -451,7 +451,7 @@
     {
       "date": "2026-10-28",
       "symbol": "005930.KS",
-      "eps_est": 15057.5,
+      "eps_est": 14242.07,
       "eps_actual": null,
       "surprise": null,
       "is_future": true
@@ -475,7 +475,7 @@
     {
       "date": "2026-10-28",
       "symbol": "META",
-      "eps_est": 6.77,
+      "eps_est": 6.81,
       "eps_actual": null,
       "surprise": null,
       "is_future": true
@@ -483,7 +483,7 @@
     {
       "date": "2026-10-28",
       "symbol": "MSFT",
-      "eps_est": 4.67,
+      "eps_est": 4.7,
       "eps_actual": null,
       "surprise": null,
       "is_future": true
@@ -491,7 +491,7 @@
     {
       "date": "2026-10-29",
       "symbol": "AMZN",
-      "eps_est": 1.91,
+      "eps_est": 1.96,
       "eps_actual": null,
       "surprise": null,
       "is_future": true
@@ -499,7 +499,7 @@
     {
       "date": "2026-10-29",
       "symbol": "QCOM",
-      "eps_est": 2.25,
+      "eps_est": 2.19,
       "eps_actual": null,
       "surprise": null,
       "is_future": true
@@ -507,7 +507,7 @@
     {
       "date": "2026-11-04",
       "symbol": "ARM",
-      "eps_est": 0.46,
+      "eps_est": 0.47,
       "eps_actual": null,
       "surprise": null,
       "is_future": true
@@ -518,7 +518,7 @@
       "price_targets": {
         "current": 1718000.0,
         "low": 1200000.0,
-        "mean": 3179718.5,
+        "mean": 3189340.2,
         "median": 3300000.0,
         "high": 5300000.0,
         "currency": "USD"
@@ -536,8 +536,8 @@
       "price_targets": {
         "current": 262500.0,
         "low": 210000.0,
-        "mean": 482453.38,
-        "median": 485000.0,
+        "mean": 470630.3,
+        "median": 450000.0,
         "high": 725000.0,
         "currency": "USD"
       },
@@ -9739,7 +9739,7 @@
       "price_targets": {
         "current": 476.15,
         "low": 320.0,
-        "mean": 576.55316,
+        "mean": 579.1064,
         "median": 600.0,
         "high": 1250.0,
         "currency": "USD"
@@ -15650,14 +15650,14 @@
       "price_targets": {
         "current": 271.58,
         "low": 207.0,
-        "mean": 313.0687,
-        "median": 315.0,
-        "high": 370.0,
+        "mean": 321.94983,
+        "median": 320.0,
+        "high": 400.0,
         "currency": "USD"
       },
       "recommendation_dist": {
         "strongBuy": 16,
-        "buy": 45,
+        "buy": 43,
         "hold": 3,
         "sell": 0,
         "strongSell": 0
@@ -25915,7 +25915,7 @@
       "price_targets": {
         "current": 239.69,
         "low": 125.0,
-        "mean": 286.02756,
+        "mean": 286.78918,
         "median": 260.0,
         "high": 500.0,
         "currency": "USD"
@@ -27443,9 +27443,9 @@
       "price_targets": {
         "current": 1629.0,
         "low": 891.804,
-        "mean": 2140.2676,
+        "mean": 2139.0593,
         "median": 2316.9683,
-        "high": 2880.7515,
+        "high": 2865.9897,
         "currency": "USD"
       },
       "recommendation_dist": {
@@ -36710,9 +36710,9 @@
         "currency": "USD"
       },
       "recommendation_dist": {
-        "strongBuy": 6,
+        "strongBuy": 5,
         "buy": 14,
-        "hold": 7,
+        "hold": 8,
         "sell": 0,
         "strongSell": 0
       },
@@ -40255,9 +40255,9 @@
     "ETN": {
       "price_targets": {
         "current": 415.2,
-        "low": 321.0,
-        "mean": 455.7916,
-        "median": 475.0,
+        "low": 333.0,
+        "mean": 457.7516,
+        "median": 480.0,
         "high": 534.0,
         "currency": "USD"
       },
@@ -51051,15 +51051,15 @@
       "price_targets": {
         "current": 47.9,
         "low": 28.0,
-        "mean": 64.34,
+        "mean": 65.55737,
         "median": 67.0,
         "high": 80.0,
         "currency": "USD"
       },
       "recommendation_dist": {
         "strongBuy": 4,
-        "buy": 8,
-        "hold": 10,
+        "buy": 9,
+        "hold": 9,
         "sell": 0,
         "strongSell": 0
       },
@@ -58311,7 +58311,7 @@
       "price_targets": {
         "current": 182.82,
         "low": 165.0,
-        "mean": 228.5893,
+        "mean": 230.85185,
         "median": 225.0,
         "high": 325.0,
         "currency": "USD"
@@ -63725,15 +63725,15 @@
       "price_targets": {
         "current": 293.02,
         "low": 290.0,
-        "mean": 368.3871,
+        "mean": 368.12903,
         "median": 360.0,
         "high": 500.0,
         "currency": "USD"
       },
       "recommendation_dist": {
-        "strongBuy": 5,
+        "strongBuy": 4,
         "buy": 25,
-        "hold": 5,
+        "hold": 6,
         "sell": 0,
         "strongSell": 0
       },
@@ -70427,8 +70427,8 @@
       "price_targets": {
         "current": 556.71,
         "low": 580.0,
-        "mean": 778.68036,
-        "median": 780.0,
+        "mean": 768.58105,
+        "median": 775.0,
         "high": 1000.0,
         "currency": "USD"
       },
@@ -76303,13 +76303,13 @@
       "price_targets": {
         "current": 464.72,
         "low": 400.0,
-        "mean": 561.5792,
+        "mean": 563.0463,
         "median": 550.0,
         "high": 870.0,
         "currency": "USD"
       },
       "recommendation_dist": {
-        "strongBuy": 13,
+        "strongBuy": 14,
         "buy": 40,
         "hold": 3,
         "sell": 0,
@@ -82769,7 +82769,7 @@
       "price_targets": {
         "current": 823.03,
         "low": 361.0,
-        "mean": 1507.381,
+        "mean": 1522.2618,
         "median": 1550.0,
         "high": 2200.0,
         "currency": "USD"
@@ -107682,7 +107682,7 @@
       "price_targets": {
         "current": 147.61,
         "low": 100.0,
-        "mean": 199.43333,
+        "mean": 196.26666,
         "median": 175.0,
         "high": 400.0,
         "currency": "USD"
@@ -115621,9 +115621,9 @@
       "recommendation_dist": {
         "strongBuy": 4,
         "buy": 18,
-        "hold": 3,
+        "hold": 2,
         "sell": 0,
-        "strongSell": 0
+        "strongSell": 1
       },
       "upgrades_downgrades": [
         {
@@ -126286,9 +126286,9 @@
       "price_targets": {
         "current": 241.57,
         "low": 236.0,
-        "mean": 344.19232,
+        "mean": 339.34616,
         "median": 345.0,
-        "high": 500.0,
+        "high": 416.0,
         "currency": "USD"
       },
       "recommendation_dist": {
@@ -132769,7 +132769,7 @@
           "date": "2026-07-30",
           "reported_eps": 5.75,
           "eps_estimate": 1.83,
-          "surprise_pct": 214.23
+          "surprise_pct": 215.02
         },
         {
           "date": "2026-04-29",
@@ -138933,8 +138933,8 @@
         {
           "date": "2026-01-29",
           "reported_eps": 0.11,
-          "eps_estimate": 0.28,
-          "surprise_pct": -61.4
+          "eps_estimate": 0.27,
+          "surprise_pct": -59.86
         },
         {
           "date": "2025-10-23",
@@ -140014,7 +140014,7 @@
           "date": "2026-07-29",
           "reported_eps": 0.52,
           "eps_estimate": 0.16,
-          "surprise_pct": 228.84
+          "surprise_pct": 228.55
         },
         {
           "date": "2026-04-29",
@@ -140556,5 +140556,5 @@
       ]
     }
   },
-  "generated_at": "2026-08-01"
+  "generated_at": "2026-08-02"
 }
