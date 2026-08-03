@@ -2469,6 +2469,14 @@ def compute_sector_correlation(period):
     תקינות — זה גם הסימן לתקופה קצרה מדי (למשל 5d), בלי צורך ברשימת תקופות קשיחה
     נפרדת: אם התקופה קצרה, כל החוליות יינשרו מהסף באופן טבעי.
 
+    כוללת גם את SOXX עצמו כעמודה/שורה נוספת (מפתח BENCHMARK) — נקודת ייחוס,
+    לא עוד חוליה: תשואות יומיות ישירות מ-get_history(BENCHMARK, period), אותה
+    שיטה (pct_change().dropna()) ואותו סף CORR_MIN_POINTS, כדי שלא "יחייה"
+    מטריצה בתקופה שבפועל קצרה מדי לשאר החוליות. נוסף תמיד אחרון ל-returns_map
+    (סדר ה-dict נשמר ב-pd.concat) כדי לשבת בקצה המטריצה (שורה/עמודה אחרונה),
+    לא משולב בין החוליות. tz של get_history (America/New_York, ישיר מ-yfinance
+    למניה אמריקאית בודדת) תואם את ה-tz הסופי של build_chart — נבדק ישירות.
+
     לא נוגע בגרף הבטא המתגלגלת או בפונקציות הבטא — זו אגרגציה נפרדת לגמרי, לפי מחיר
     (חציון ביצועים), לא בטא מול SOXX."""
     returns_map = {}
@@ -2484,6 +2492,17 @@ def compute_sector_correlation(period):
             dropped.append(sector)
             continue
         returns_map[sector] = rets
+
+    soxx_close = get_history(BENCHMARK, period)
+    if soxx_close is not None:
+        soxx_rets = soxx_close.pct_change().dropna()
+        if len(soxx_rets) >= CORR_MIN_POINTS:
+            returns_map[BENCHMARK] = soxx_rets
+        else:
+            dropped.append(BENCHMARK)
+    else:
+        dropped.append(BENCHMARK)
+
     if len(returns_map) < 2:
         return pd.DataFrame(), dropped
     rets_df = pd.concat(returns_map, axis=1)
@@ -4173,7 +4192,10 @@ if not _online_closed:
                 "נסי תקופה ארוכה יותר (למשל 1M ומעלה)."
             )
         else:
-            _corr_labels = [clean_name(s) for s in _corr_df.columns]
+            _corr_labels = [
+                (f"<b>{clean_name(s)}</b>" if s == BENCHMARK else clean_name(s))
+                for s in _corr_df.columns
+            ]
             _corr_z = _corr_df.values
             _corr_text = [[f"{v:.2f}" for v in row] for row in _corr_z]
             _corr_fig = go.Figure(data=go.Heatmap(
@@ -4181,11 +4203,11 @@ if not _online_closed:
                 x=_corr_labels,
                 y=_corr_labels,
                 zmin=-1, zmax=1, zmid=0,
-                colorscale="RdBu", reversescale=True,
+                colorscale="RdYlGn",
                 text=_corr_text, texttemplate="%{text}",
                 textfont=dict(size=11),
                 hovertemplate="%{y}<br>%{x}<br>קורלציה: %{z:.2f}<extra></extra>",
-                colorbar=dict(title="קורלציה", tickfont=dict(size=11)),
+                colorbar=dict(title="קורלציה<br>(ירוק=גבוה, אדום=נמוך)", tickfont=dict(size=11)),
             ))
             _corr_fig.update_layout(
                 height=max(500, 40 * len(_corr_labels) + 200),
@@ -4202,10 +4224,11 @@ if not _online_closed:
                 )
             st.caption(
                 "כל תא = קורלציה (Pearson) בין תשואות יומיות של חציון הביצועים של שתי "
-                "החוליות, לאורך התקופה המסוננת · קרוב ל-1 = נעות ביחד · קרוב ל-0 = "
-                "עצמאיות · שלילי = נעות הפוך. חוליית \"חשמל ואנרגיה\" (אם מופיעה) אינה "
-                "חלק ממדד SOXX ואינה מתואמת עם שאר הסקטור — קורלציה נמוכה שלה מול "
-                "החוליות האחרות צפויה, לא באג."
+                "החוליות (או מול SOXX עצמו, בשורה/עמודה המודגשות), לאורך התקופה המסוננת · "
+                "ירוק/קרוב ל-1 = נעות ביחד · לבן/קרוב ל-0 = עצמאיות · אדום/שלילי = נעות "
+                "הפוך. חוליית \"חשמל ואנרגיה\" (אם מופיעה) אינה חלק ממדד SOXX ואינה "
+                "מתואמת עם שאר הסקטור — ניתן לראות זאת ישירות בעמודת/שורת SOXX: קורלציה "
+                "נמוכה מול שאר החוליות ומול SOXX עצמו צפויה, לא באג."
             )
             if _corr_dropped:
                 st.caption(
@@ -7054,10 +7077,11 @@ _z8_bot5   = list(reversed(_z8_sorted[-5:])) if len(_z8_sorted) >= 5 else list(r
 
 # (תווית, יישור th+td, מפתח) — מקור אמת יחיד לכותרות ולשורות
 _AN_COLS = [
-    ("מניה",     "right",  "sym"),
-    ("ציון",     "center", "score"),
-    ("פירוט",    "right",  "detail"),
-    ("אנליסטים", "center", "n"),
+    ("מניה",       "right",  "sym"),
+    ("ציון",       "center", "score"),
+    ("פירוט",      "right",  "detail"),
+    ("אנליסטים",   "center", "n"),
+    ("פוטנציאל",   "center", "upside"),
 ]
 
 def _z8_analyst_row(sym, sc, med):
@@ -7068,6 +7092,30 @@ def _z8_analyst_row(sym, sc, med):
     detail = (str(sc["buy"]) + " קנייה · "
               + str(sc["hold"]) + " החזקה · "
               + str(sc["sell"]) + " מכירה")
+
+    # פוטנציאל תשואה — אותו חישוב בדיוק כמו _z8_upside בחלק ד' (מחירי היעד),
+    # לא הגדרה חדשה. חסר אצל מניות רבות שאינן אמריקאיות (כמו 000660.KS,
+    # 005930.KS) שאין להן מחיר יעד ב-yfinance — מוצג "—" אפור ולא זורק שגיאה.
+    _pt = get_price_targets(sym)
+    _upside = None
+    if _pt:
+        _pt_cur = _pt.get("current")
+        _pt_mean = _pt.get("mean")
+        if _pt_cur and _pt_mean:
+            try:
+                _upside = (_pt_mean - _pt_cur) / _pt_cur * 100
+            except Exception:
+                _upside = None
+    if _upside is None:
+        upside_html = "<span style='color:#6b7280;'>—</span>"
+    else:
+        _up_color = "#22c55e" if _upside >= 0 else "#ef4444"
+        _up_sign = "+" if _upside >= 0 else ""
+        upside_html = _iso(
+            "<span style='color:" + _up_color + "; font-weight:700;'>"
+            + _up_sign + str(round(_upside, 1)) + "%</span>"
+        )
+
     cells = {
         "sym":    ("<td style='padding:5px 10px; text-align:right; font-weight:600;'>"
                    + _iso(sym) + "</td>"),
@@ -7077,6 +7125,7 @@ def _z8_analyst_row(sym, sc, med):
                    + detail + "</td>"),
         "n":      ("<td style='padding:5px 10px; text-align:center; color:#6b7280; font-size:11px;'>"
                    + _iso("n=" + str(sc["n"])) + "</td>"),
+        "upside": ("<td style='padding:5px 10px; text-align:center;'>" + upside_html + "</td>"),
     }
     return (
         "<tr style='border-top:1px solid rgba(255,255,255,0.06);'>"
