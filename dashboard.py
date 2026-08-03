@@ -495,6 +495,28 @@ CAPEX_GUIDANCE = {
     },
 }
 
+# RPO — Remaining Performance Obligations (צבר התחייבויות חוזיות שטרם הוכרו כהכנסה)
+# במיליארדי דולרים. מוזן ידנית מדוחות 10-Q/10-K (כמו CAPEX_GUIDANCE — אין מקור API).
+# מעדכנים רבעון חדש כשמתפרסם. השתמש בכפתור העזר בגרסת מפתח למציאת המספרים.
+# מפתחות הרבעונים הם קלנדריים (YYYYQN) — מקור אמת יחיד, אין לפזר את המספרים במקומות אחרים.
+RPO_QUARTERLY = {
+    "AMZN": {  # mainly AWS
+        "2024Q2": 157, "2024Q3": 164, "2024Q4": 177,
+        "2025Q1": 189, "2025Q2": 195, "2025Q3": 200, "2025Q4": 244,
+        "2026Q1": 364, "2026Q2": 496,
+    },
+    "MSFT": {  # Commercial RPO
+        "2024Q2": 269, "2024Q3": 259, "2024Q4": 298,
+        "2025Q1": 315, "2025Q2": 368, "2025Q3": 392, "2025Q4": 625,
+        "2026Q1": 627, "2026Q2": 678,
+    },
+    "GOOGL": {  # mostly cloud
+        "2024Q2": 79, "2024Q3": 87, "2024Q4": 93,
+        "2025Q1": 92, "2025Q2": 108, "2025Q3": 158, "2025Q4": 243,
+        "2026Q1": 468, "2026Q2": 520,
+    },
+}
+
 HOT_THRESHOLD = 10
 BROAD_THRESHOLD = 0.6
 GAP_THRESHOLD = 15
@@ -1946,6 +1968,22 @@ def gemini_capex_guidance():
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     cache_key = "capex_guidance|" + day
     return _gemini_cached_safe(cache_key, prompt, 259200)
+
+
+def gemini_rpo_guidance():
+    """חיפוש נתוני ה-RPO הרבעוניים העדכניים — עוזר למלא את RPO_QUARTERLY ידנית."""
+    prompt = (
+        "חפש ברשת את נתון ה-RPO (Remaining Performance Obligations — צבר ההתחייבויות "
+        "החוזיות שטרם הוכרו כהכנסה) הרבעוני העדכני ביותר שכל אחת מהחברות הבאות דיווחה "
+        "בדוח הרבעוני (10-Q) או השנתי (10-K) האחרון שלה: Amazon (בעיקר AWS), "
+        "Microsoft (Commercial RPO), Alphabet/Google (בעיקר Google Cloud). "
+        "כתוב בעברית, לכל חברה שורה אחת: שם החברה, מה הסכום במיליארדי דולרים, "
+        "ומאיזה דוח (איזה רבעון קלנדרי) הנתון נלקח."
+    )
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    cache_key = "rpo_guidance|" + day
+    return _gemini_cached_safe(cache_key, prompt, 259200)
+
 
 def gemini_capex_combined(quarterly_lines, guidance_lines):
     """סיכום משולב של מגמת CapEx רבעונית ועדכוני תחזית שנתית."""
@@ -5305,6 +5343,120 @@ else:
                 + ("+" if growth >= 0 else "") + str(round(growth, 1)) + "%</span></div>",
                 unsafe_allow_html=True,
             )
+
+# ==================================================
+# Backlog (RPO) — צבר התחייבויות חוזיות שטרם הוכרו כהכנסה
+# ==================================================
+st.markdown(section_header("📈 Backlog — צבר הזמנות עתידי (RPO)", "#818cf8"),
+            unsafe_allow_html=True)
+st.caption(
+    "Backlog = צבר ההתחייבויות החוזיות שטרם הוכרו כהכנסה (RPO — Remaining Performance "
+    "Obligations) — צנרת ההכנסות העתידית מחוזי ענן. נתונים רבעוניים מדוחות 10-Q/10-K, "
+    "במיליארדי דולרים. האזור אינו תלוי בתקופה שנבחרה בסרגל הצד. מטא אינה נכללת — RPO הוא "
+    "מדד ספציפי לעסקי ענן, ולא רלוונטי לעסקי הפרסום שלה."
+)
+
+_rpo_all_q = sorted({q for series in RPO_QUARTERLY.values() for q in series},
+                     key=lambda q: (int(q[:4]), int(q[5])))
+_rpo_x = ["Q" + q[5] + " " + q[:4] for q in _rpo_all_q]
+
+fig_rpo = go.Figure()
+for sym, series in RPO_QUARTERLY.items():
+    y_vals = [series.get(q) for q in _rpo_all_q]
+    fig_rpo.add_trace(go.Scatter(
+        x=_rpo_x, y=y_vals, mode="lines+markers",
+        name=CAPEX_COMPANIES.get(sym, sym) + " (" + sym + ")",
+        line=dict(color=CAPEX_COLORS.get(sym, "#9ca3af"), width=2.5),
+        marker=dict(size=7),
+        hovertemplate="<b>" + sym + "</b><br>%{x}<br>Backlog: $%{y:.0f}B<extra></extra>",
+    ))
+fig_rpo.update_layout(
+    height=380, template="plotly_dark",
+    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+    margin=dict(t=20, b=40, l=50, r=20),
+    yaxis=dict(title="Backlog / RPO (מיליארדי $)", gridcolor="rgba(255,255,255,0.08)"),
+    xaxis=dict(gridcolor="rgba(255,255,255,0.08)",
+               categoryorder="array", categoryarray=_rpo_x),
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+)
+with st.container(border=True):
+    st.plotly_chart(fig_rpo, width='stretch', key="rpo_backlog_chart")
+
+
+def _rpo_prev_q_key(qkey):
+    # הרבעון הקלנדרי הקודם ברצף, לפי תיוג YYYYQN — לא לפי מיקום ברשימה
+    y, q = int(qkey[:4]), int(qkey[5])
+    return (str(y - 1) + "Q4") if q == 1 else (qkey[:4] + "Q" + str(q - 1))
+
+
+def _rpo_yoy_q_key(qkey):
+    # אותו רבעון, שנה קלנדרית קודמת
+    return str(int(qkey[:4]) - 1) + "Q" + qkey[5]
+
+
+def _rpo_pct_html(pct):
+    if pct is None:
+        return "<span style='color:#6b7280;'>—</span>"
+    color = "#22c55e" if pct >= 0 else "#ef4444"
+    sign = "+" if pct >= 0 else ""
+    return ("<span dir='ltr' style='unicode-bidi:isolate; display:inline-block; color:" + color +
+            "; font-weight:700;'>" + sign + str(round(pct, 1)) + "%</span>")
+
+
+_rpo_table_rows = ""
+for sym, series in RPO_QUARTERLY.items():
+    _rpo_qs = sorted(series.keys(), key=lambda q: (int(q[:4]), int(q[5])))
+    if not _rpo_qs:
+        continue
+    _rpo_last_q = _rpo_qs[-1]
+    _rpo_last_v = series[_rpo_last_q]
+    _rpo_prev_v = series.get(_rpo_prev_q_key(_rpo_last_q))
+    _rpo_yoy_v = series.get(_rpo_yoy_q_key(_rpo_last_q))
+    _rpo_qoq_pct = (_rpo_last_v / _rpo_prev_v * 100 - 100) if _rpo_prev_v else None
+    _rpo_yoy_pct = (_rpo_last_v / _rpo_yoy_v * 100 - 100) if _rpo_yoy_v else None
+    _rpo_last_q_label = "Q" + _rpo_last_q[5] + " " + _rpo_last_q[:4]
+    _rpo_table_rows += (
+        "<tr style='border-top:1px solid rgba(255,255,255,0.07);'>"
+        "<td style='text-align:right; padding:6px 10px; font-weight:700; color:"
+        + CAPEX_COLORS.get(sym, "#9ca3af") + ";'>" + sym + "</td>"
+        "<td style='text-align:center; padding:6px 10px; color:#9ca3af;'>" + _rpo_last_q_label + "</td>"
+        "<td style='text-align:center; padding:6px 10px;'>"
+        "<span dir='ltr' style='unicode-bidi:isolate; display:inline-block;'>$"
+        + str(round(_rpo_last_v)) + "B</span></td>"
+        "<td style='text-align:center; padding:6px 10px;'>" + _rpo_pct_html(_rpo_qoq_pct) + "</td>"
+        "<td style='text-align:center; padding:6px 10px;'>" + _rpo_pct_html(_rpo_yoy_pct) + "</td>"
+        "</tr>"
+    )
+st.markdown(
+    "<div dir='rtl' style='overflow-x:auto; margin-top:8px;'>"
+    "<table style='width:100%; border-collapse:collapse; font-size:13px;'>"
+    "<tr style='border-bottom:1px solid #666;'>"
+    "<th style='text-align:right; padding:6px 10px;'>חברה</th>"
+    "<th style='text-align:center; padding:6px 10px;'>רבעון אחרון</th>"
+    "<th style='text-align:center; padding:6px 10px;'>RPO נוכחי</th>"
+    "<th style='text-align:center; padding:6px 10px;'>מול רבעון קודם (QoQ)</th>"
+    "<th style='text-align:center; padding:6px 10px;'>מול רבעון מקביל (YoY)</th>"
+    "</tr>" + _rpo_table_rows + "</table></div>",
+    unsafe_allow_html=True,
+)
+
+if DEV_MODE:
+    rpo_guid_key = "rpo_guid_" + datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    if st.button("🔎 חפש את נתוני ה-Backlog (RPO) העדכניים (לעדכון ידני של המילון)",
+                 key="rpo_guid_btn"):
+        with st.spinner("מחפש נתוני RPO עדכניים ברשת..."):
+            _rpo_text, _rpo_sources = gemini_rpo_guidance()
+        st.session_state[rpo_guid_key] = {"text": _rpo_text, "sources": _rpo_sources}
+
+    saved_rpo_guid = st.session_state.get(rpo_guid_key)
+    if saved_rpo_guid and saved_rpo_guid.get("text"):
+        st.markdown("<div dir='rtl' style='text-align:right;'>" + html.escape(saved_rpo_guid["text"]) + "</div>",
+                    unsafe_allow_html=True)
+        if saved_rpo_guid.get("sources"):
+            with st.expander("מקורות"):
+                for title, uri in saved_rpo_guid["sources"]:
+                    st.markdown("• [" + (title or uri) + "](" + uri + ")")
+        st.caption("💡 קח את המספרים מכאן, אמת מול המקורות, והזן אותם ב-RPO_QUARTERLY שבראש הקובץ.")
 
 # ==================================================
 # תחזית שנתית מול שנים קודמות — טאב לכל חברה + טאב מצטבר
