@@ -5699,6 +5699,27 @@ st.caption(
     "מדד ספציפי לעסקי ענן, ולא רלוונטי לעסקי הפרסום שלה."
 )
 
+
+def _rpo_prev_q_key(qkey):
+    # הרבעון הקלנדרי הקודם ברצף, לפי תיוג YYYYQN — לא לפי מיקום ברשימה
+    y, q = int(qkey[:4]), int(qkey[5])
+    return (str(y - 1) + "Q4") if q == 1 else (qkey[:4] + "Q" + str(q - 1))
+
+
+def _rpo_yoy_q_key(qkey):
+    # אותו רבעון, שנה קלנדרית קודמת
+    return str(int(qkey[:4]) - 1) + "Q" + qkey[5]
+
+
+def _rpo_pct_html(pct):
+    if pct is None:
+        return "<span style='color:#6b7280;'>—</span>"
+    color = "#22c55e" if pct >= 0 else "#ef4444"
+    sign = "+" if pct >= 0 else ""
+    return ("<span dir='ltr' style='unicode-bidi:isolate; display:inline-block; color:" + color +
+            "; font-weight:700;'>" + sign + str(round(pct, 1)) + "%</span>")
+
+
 _rpo_tab_labels = [CAPEX_COMPANIES.get(sym, sym) + " (" + sym + ")" for sym in RPO_QUARTERLY]
 _rpo_tab_labels.append("📊 מצטבר — כולן יחד")
 _rpo_all_tabs = st.tabs(_rpo_tab_labels)
@@ -5754,12 +5775,17 @@ with _rpo_stacked_tab:
         ))
 
     _rpo_totals = [sum(series.get(q, 0.0) for series in RPO_QUARTERLY.values()) for q in _rpo_all_q]
+    _rpo_totals_by_q = dict(zip(_rpo_all_q, _rpo_totals))
     _rpo_growth_texts = []
-    for i, t in enumerate(_rpo_totals):
-        if i == 0 or _rpo_totals[i - 1] == 0:
+    for q, t in zip(_rpo_all_q, _rpo_totals):
+        # YoY לפי תיוג הרבעון (אותה שיטה בדיוק כמו עמודת ה-YoY בטבלה למטה) —
+        # לא QoQ ולא לפי מיקום ברשימה. ארבעת הרבעונים הראשונים אין להם רבעון
+        # מקביל לפני שנה ב-RPO_QUARTERLY — מוצג רק הסכום, בלי סוגריים.
+        _rpo_yoy_total = _rpo_totals_by_q.get(_rpo_yoy_q_key(q))
+        if not _rpo_yoy_total:
             _rpo_growth_texts.append("$" + str(round(t)) + "B")
         else:
-            _rpo_g = t / _rpo_totals[i - 1] * 100 - 100
+            _rpo_g = t / _rpo_yoy_total * 100 - 100
             _rpo_sign = "+" if _rpo_g >= 0 else ""
             _rpo_growth_texts.append("$" + str(round(t)) + "B<br>(" + _rpo_sign + str(round(_rpo_g, 1)) + "%)")
 
@@ -5784,26 +5810,6 @@ with _rpo_stacked_tab:
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
     st.plotly_chart(fig_rpo_stack, width='stretch', key="rpo_stacked_chart")
-
-
-def _rpo_prev_q_key(qkey):
-    # הרבעון הקלנדרי הקודם ברצף, לפי תיוג YYYYQN — לא לפי מיקום ברשימה
-    y, q = int(qkey[:4]), int(qkey[5])
-    return (str(y - 1) + "Q4") if q == 1 else (qkey[:4] + "Q" + str(q - 1))
-
-
-def _rpo_yoy_q_key(qkey):
-    # אותו רבעון, שנה קלנדרית קודמת
-    return str(int(qkey[:4]) - 1) + "Q" + qkey[5]
-
-
-def _rpo_pct_html(pct):
-    if pct is None:
-        return "<span style='color:#6b7280;'>—</span>"
-    color = "#22c55e" if pct >= 0 else "#ef4444"
-    sign = "+" if pct >= 0 else ""
-    return ("<span dir='ltr' style='unicode-bidi:isolate; display:inline-block; color:" + color +
-            "; font-weight:700;'>" + sign + str(round(pct, 1)) + "%</span>")
 
 
 _rpo_table_rows = ""
