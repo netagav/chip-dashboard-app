@@ -3553,7 +3553,7 @@ st.sidebar.markdown(
 )
 st.sidebar.divider()
 
-period_label = st.sidebar.selectbox("Period:", list(PERIOD_OPTIONS.keys()), index=3)
+period_label = st.sidebar.selectbox("Period:", list(PERIOD_OPTIONS.keys()), index=1)
 period = PERIOD_OPTIONS[period_label]
 st.sidebar.caption("משפיע על אזורים 1–5 בלבד")
 st.sidebar.caption("התשואה נמדדת מהסגירה האחרונה עד הסגירה שקדמה לתחילת התקופה — ייתכן הבדל קל מול מקורות אחרים בשל הגדרת חלון שונה.")
